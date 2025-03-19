@@ -16,6 +16,14 @@ class Game {
         this.fpsInterval = 1000 / this.fps;
         this.lastFrameTime = 0;
         
+        // 游戏资源
+        this.images = {};
+        this.loadImages();
+        
+        // 恶魔城背景元素
+        this.backgroundObjects = [];
+        this.generateBackgroundObjects();
+        
         // 输入控制
         this.keys = {};
         this.mouseX = 0;
@@ -280,11 +288,36 @@ class Game {
     }
     
     drawBackground(offsetX, offsetY) {
-        // 绘制网格背景
-        this.ctx.strokeStyle = '#222';
+        // 绘制草地纹理背景
+        if (this.images.grassTexture && this.images.grassTexture.complete) {
+            const patternSize = 128;
+            const startX = Math.floor(-offsetX / patternSize) * patternSize;
+            const startY = Math.floor(-offsetY / patternSize) * patternSize;
+            
+            // 创建草地纹理模式
+            const grassPattern = this.ctx.createPattern(this.images.grassTexture, 'repeat');
+            this.ctx.fillStyle = grassPattern;
+            
+            // 绘制足够覆盖整个画布的草地纹理
+            this.ctx.save();
+            this.ctx.translate(-offsetX % patternSize, -offsetY % patternSize);
+            this.ctx.fillRect(-patternSize, -patternSize, this.canvas.width + 2 * patternSize, this.canvas.height + 2 * patternSize);
+            this.ctx.restore();
+            
+            // 添加暗色叠加，创造恶魔城般的阴暗氛围
+            this.ctx.fillStyle = 'rgba(20, 20, 40, 0.3)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // 后备方案：绘制简单的颜色背景
+            this.ctx.fillStyle = '#1a5c1a';  // 深绿色草地
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+        
+        // 绘制背景网格（淡化）
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
         this.ctx.lineWidth = 1;
         
-        const gridSize = 50;
+        const gridSize = 64;
         
         // 计算网格起始位置（考虑偏移）
         const startX = -offsetX % gridSize;
@@ -304,6 +337,84 @@ class Game {
             this.ctx.moveTo(0, y);
             this.ctx.lineTo(this.canvas.width, y);
             this.ctx.stroke();
+        }
+        
+        // 绘制背景装饰物
+        this.drawBackgroundObjects(offsetX, offsetY);
+    }
+    
+    drawBackgroundObjects(offsetX, offsetY) {
+        // 根据层级排序背景对象
+        const sortedObjects = [...this.backgroundObjects].sort((a, b) => a.layer - b.layer);
+        
+        for (const obj of sortedObjects) {
+            // 计算屏幕坐标
+            const screenX = obj.x - offsetX;
+            const screenY = obj.y - offsetY;
+            
+            // 只绘制屏幕附近的对象（性能优化）
+            if (screenX < -200 || screenX > this.canvas.width + 200 || 
+                screenY < -200 || screenY > this.canvas.height + 200) {
+                continue;
+            }
+            
+            const image = this.images[obj.type];
+            if (image && image.complete) {
+                // 根据对象类型进行特殊处理
+                switch (obj.type) {
+                    case 'torch':
+                        // 更新火把动画
+                        if (this.frameCount % 10 === 0) {
+                            obj.animationFrame = (obj.animationFrame + 1) % 4;
+                        }
+                        
+                        // 绘制火把本身
+                        this.ctx.drawImage(
+                            image,
+                            0, 0, image.width, image.height,
+                            screenX - (image.width * obj.scale) / 2,
+                            screenY - (image.height * obj.scale),
+                            image.width * obj.scale,
+                            image.height * obj.scale
+                        );
+                        
+                        // 绘制火焰光晕效果
+                        const glowRadius = 40 + Math.sin(this.frameCount * 0.1) * 10;
+                        const gradient = this.ctx.createRadialGradient(
+                            screenX, screenY - (image.height * obj.scale) / 2,
+                            5,
+                            screenX, screenY - (image.height * obj.scale) / 2,
+                            glowRadius
+                        );
+                        gradient.addColorStop(0, 'rgba(255, 150, 50, 0.6)');
+                        gradient.addColorStop(1, 'rgba(255, 100, 50, 0)');
+                        
+                        this.ctx.globalAlpha = 0.7;
+                        this.ctx.fillStyle = gradient;
+                        this.ctx.beginPath();
+                        this.ctx.arc(
+                            screenX,
+                            screenY - (image.height * obj.scale) / 2,
+                            glowRadius,
+                            0,
+                            Math.PI * 2
+                        );
+                        this.ctx.fill();
+                        this.ctx.globalAlpha = 1;
+                        break;
+                        
+                    default:
+                        // 普通背景对象绘制
+                        this.ctx.drawImage(
+                            image,
+                            screenX - (image.width * obj.scale) / 2,
+                            screenY - (image.height * obj.scale),
+                            image.width * obj.scale,
+                            image.height * obj.scale
+                        );
+                        break;
+                }
+            }
         }
     }
     
@@ -544,6 +655,88 @@ class Game {
         
         // 重新开始游戏
         this.start();
+    }
+    
+    // 加载游戏图像资源
+    loadImages() {
+        // 背景图像
+        this.images.grassTexture = new Image();
+        this.images.grassTexture.src = 'images/grass_texture.png';
+        
+        // 恶魔城元素
+        this.images.castleTower = new Image();
+        this.images.castleTower.src = 'images/castle_tower.png';
+        
+        this.images.brokenPillar = new Image();
+        this.images.brokenPillar.src = 'images/broken_pillar.png';
+        
+        this.images.gravestone = new Image();
+        this.images.gravestone.src = 'images/gravestone.png';
+        
+        this.images.deadTree = new Image();
+        this.images.deadTree.src = 'images/dead_tree.png';
+        
+        this.images.torch = new Image();
+        this.images.torch.src = 'images/torch.png';
+    }
+    
+    // 生成恶魔城风格的背景元素
+    generateBackgroundObjects() {
+        // 添加一些远处的城堡塔楼
+        for (let i = 0; i < 3; i++) {
+            this.backgroundObjects.push({
+                type: 'castleTower',
+                x: Math.random() * 2000 - 1000,
+                y: Math.random() * 2000 - 1000,
+                scale: 0.7 + Math.random() * 0.6,
+                layer: 0  // 最远的层
+            });
+        }
+        
+        // 添加一些破碎的石柱
+        for (let i = 0; i < 20; i++) {
+            this.backgroundObjects.push({
+                type: 'brokenPillar',
+                x: Math.random() * 4000 - 2000,
+                y: Math.random() * 4000 - 2000,
+                scale: 0.3 + Math.random() * 0.4,
+                layer: 1
+            });
+        }
+        
+        // 添加一些墓碑
+        for (let i = 0; i < 30; i++) {
+            this.backgroundObjects.push({
+                type: 'gravestone',
+                x: Math.random() * 4000 - 2000,
+                y: Math.random() * 4000 - 2000,
+                scale: 0.2 + Math.random() * 0.3,
+                layer: 1
+            });
+        }
+        
+        // 添加一些枯树
+        for (let i = 0; i < 15; i++) {
+            this.backgroundObjects.push({
+                type: 'deadTree',
+                x: Math.random() * 4000 - 2000,
+                y: Math.random() * 4000 - 2000,
+                scale: 0.4 + Math.random() * 0.6,
+                layer: 1
+            });
+        }
+        
+        // 添加一些火把
+        for (let i = 0; i < 25; i++) {
+            this.backgroundObjects.push({
+                type: 'torch',
+                x: Math.random() * 4000 - 2000,
+                y: Math.random() * 4000 - 2000,
+                scale: 0.3 + Math.random() * 0.2,
+                layer: 2,
+                animationFrame: Math.floor(Math.random() * 4)  // 火把动画帧
+            });
+        }
     }
 }
 
