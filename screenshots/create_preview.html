@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DVHero 游戏预览截图生成器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
+        canvas {
+            border: 2px solid #444;
+            margin: 20px auto;
+            display: block;
+        }
+        a {
+            display: inline-block;
+            background-color: #2196F3;
+            color: white;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>DVHero 游戏预览截图生成器</h1>
+    <p>点击下方按钮生成预览截图</p>
+    
+    <canvas id="preview" width="800" height="600"></canvas>
+    <br>
+    <a id="download-link" download="game-preview.jpg" href="#">下载游戏预览截图</a>
+    
+    <script>
+        // 在页面加载完成后生成截图
+        window.addEventListener('load', generatePreview);
+        
+        function generatePreview() {
+            const canvas = document.getElementById('preview');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // 绘制背景
+            drawBackground(ctx, width, height);
+            
+            // 绘制背景元素
+            drawBackgroundElements(ctx, width, height);
+            
+            // 绘制玩家
+            drawPlayer(ctx, width / 2, height / 2);
+            
+            // 绘制敌人
+            drawEnemies(ctx, width, height);
+            
+            // 绘制投射物
+            drawProjectiles(ctx, width, height);
+            
+            // 绘制粒子效果
+            drawParticles(ctx, width, height);
+            
+            // 绘制UI
+            drawUI(ctx, width, height);
+            
+            // 更新下载链接
+            updateDownloadLink();
+        }
+        
+        function drawBackground(ctx, width, height) {
+            // 绘制草地背景
+            ctx.fillStyle = '#1a5c1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // 添加网格
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 1;
+            
+            const gridSize = 64;
+            
+            // 绘制垂直线
+            for (let x = 0; x <= width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            
+            // 绘制水平线
+            for (let y = 0; y <= height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // 添加暗色叠加，创造恶魔城般的阴暗氛围
+            ctx.fillStyle = 'rgba(20, 20, 40, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        function drawBackgroundElements(ctx, width, height) {
+            // 绘制远处的城堡
+            drawCastle(ctx, width * 0.8, height * 0.3, 0.6);
+            
+            // 绘制几个墓碑
+            drawGravestone(ctx, width * 0.2, height * 0.6, 0.8);
+            drawGravestone(ctx, width * 0.7, height * 0.7, 0.6);
+            drawGravestone(ctx, width * 0.4, height * 0.8, 0.7);
+            
+            // 绘制几棵枯树
+            drawDeadTree(ctx, width * 0.1, height * 0.4, 0.8);
+            drawDeadTree(ctx, width * 0.85, height * 0.5, 0.9);
+            
+            // 绘制几根石柱
+            drawPillar(ctx, width * 0.25, height * 0.35, 0.7);
+            drawPillar(ctx, width * 0.7, height * 0.25, 0.8);
+            
+            // 绘制几个火把
+            drawTorch(ctx, width * 0.2, height * 0.2, 0.9);
+            drawTorch(ctx, width * 0.8, height * 0.15, 0.9);
+        }
+        
+        function drawCastle(ctx, x, y, scale) {
+            const width = 150 * scale;
+            const height = 300 * scale;
+            
+            // 主塔身
+            ctx.fillStyle = '#444';
+            ctx.beginPath();
+            ctx.moveTo(x - width / 2, y + height / 2);
+            ctx.lineTo(x - width / 2, y - height / 3);
+            ctx.lineTo(x - width / 4, y - height / 2.5);
+            ctx.lineTo(x + width / 4, y - height / 2.5);
+            ctx.lineTo(x + width / 2, y - height / 3);
+            ctx.lineTo(x + width / 2, y + height / 2);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 塔顶
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.moveTo(x - width / 3, y - height / 3);
+            ctx.lineTo(x - width / 3, y - height / 2);
+            ctx.lineTo(x, y - height / 1.7);
+            ctx.lineTo(x + width / 3, y - height / 2);
+            ctx.lineTo(x + width / 3, y - height / 3);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 窗户
+            ctx.fillStyle = '#111';
+            ctx.fillRect(x - width / 8, y - height / 4, width / 4, height / 10);
+        }
+        
+        function drawGravestone(ctx, x, y, scale) {
+            const width = 40 * scale;
+            const height = 60 * scale;
+            
+            // 墓碑
+            ctx.fillStyle = '#777';
+            ctx.beginPath();
+            ctx.moveTo(x - width / 2, y);
+            ctx.lineTo(x - width / 2, y - height * 0.7);
+            ctx.quadraticCurveTo(x, y - height, x + width / 2, y - height * 0.7);
+            ctx.lineTo(x + width / 2, y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 墓志铭线条
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x - width / 3, y - height * 0.4 + i * 8);
+                ctx.lineTo(x + width / 3, y - height * 0.4 + i * 8);
+                ctx.stroke();
+            }
+        }
+        
+        function drawDeadTree(ctx, x, y, scale) {
+            const trunkWidth = 15 * scale;
+            const trunkHeight = 100 * scale;
+            
+            // 树干
+            ctx.strokeStyle = '#543';
+            ctx.lineWidth = trunkWidth;
+            ctx.lineCap = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y - trunkHeight);
+            ctx.stroke();
+            
+            // 主要分支
+            const branchCount = 3;
+            for (let i = 0; i < branchCount; i++) {
+                const branchY = y - trunkHeight * (0.4 + i * 0.2);
+                const angle = (i % 2 === 0 ? -1 : 1) * Math.PI / 6;
+                const length = trunkHeight * 0.3;
+                
+                ctx.strokeStyle = '#432';
+                ctx.lineWidth = trunkWidth * 0.5;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, branchY);
+                ctx.lineTo(
+                    x + Math.cos(angle) * length,
+                    branchY + Math.sin(angle) * length
+                );
+                ctx.stroke();
+            }
+        }
+        
+        function drawPillar(ctx, x, y, scale) {
+            const width = 30 * scale;
+            const height = 100 * scale;
+            
+            // 石柱主体
+            ctx.fillStyle = '#666';
+            ctx.fillRect(x - width / 2, y - height, width, height);
+            
+            // 石块纹理
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 1;
+            
+            // 水平线（石块间隙）
+            for (let h = 0; h < height; h += 15) {
+                ctx.beginPath();
+                ctx.moveTo(x - width / 2, y - h);
+                ctx.lineTo(x + width / 2, y - h);
+                ctx.stroke();
+            }
+        }
+        
+        function drawTorch(ctx, x, y, scale) {
+            const width = 10 * scale;
+            const height = 30 * scale;
+            
+            // 火把柄
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(x - width / 2, y - height, width, height);
+            
+            // 火焰
+            const flameRadius = 15 * scale;
+            const gradient = ctx.createRadialGradient(
+                x, y - height,
+                flameRadius * 0.2,
+                x, y - height,
+                flameRadius
+            );
+            
+            gradient.addColorStop(0, 'rgba(255, 255, 150, 0.9)');
+            gradient.addColorStop(0.2, 'rgba(255, 200, 50, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.6)');
+            gradient.addColorStop(1, 'rgba(100, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y - height, flameRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawPlayer(ctx, x, y) {
+            // 玩家圆形
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 玩家内圆
+            ctx.fillStyle = '#2980b9';
+            ctx.beginPath();
+            ctx.arc(x, y, 12, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 玩家方向指示
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 15, y);
+            ctx.stroke();
+        }
+        
+        function drawEnemies(ctx, width, height) {
+            // 僵尸
+            drawZombie(ctx, width * 0.3, height * 0.3);
+            drawZombie(ctx, width * 0.7, height * 0.4);
+            
+            // 骷髅
+            drawSkeleton(ctx, width * 0.2, height * 0.7);
+            drawSkeleton(ctx, width * 0.6, height * 0.2);
+            
+            // 美杜莎头
+            drawMedusaHead(ctx, width * 0.8, height * 0.6);
+        }
+        
+        function drawZombie(ctx, x, y) {
+            ctx.fillStyle = '#5cb85c';
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#449d44';
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawSkeleton(ctx, x, y) {
+            ctx.fillStyle = '#f0f0f0';
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#ccc';
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawMedusaHead(ctx, x, y) {
+            ctx.fillStyle = '#d9534f';
+            ctx.beginPath();
+            ctx.arc(x, y, 18, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 蛇发
+            ctx.strokeStyle = '#c9302c';
+            ctx.lineWidth = 3;
+            
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const length = 12;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(
+                    x + Math.cos(angle) * length,
+                    y + Math.sin(angle) * length
+                );
+                ctx.stroke();
+            }
+        }
+        
+        function drawProjectiles(ctx, width, height) {
+            // 绘制几个投射物
+            drawProjectile(ctx, width * 0.45, height * 0.4, 0, 'circle', '#5bc0de');
+            drawProjectile(ctx, width * 0.55, height * 0.45, Math.PI / 4, 'rect', '#f0ad4e');
+            drawProjectile(ctx, width * 0.6, height * 0.55, Math.PI / 2, 'star', '#d9534f');
+        }
+        
+        function drawProjectile(ctx, x, y, angle, shape, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            
+            ctx.fillStyle = color;
+            
+            switch(shape) {
+                case 'circle':
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                    
+                case 'rect':
+                    ctx.fillRect(-10, -5, 20, 10);
+                    break;
+                    
+                case 'star':
+                    const spikes = 5;
+                    const outerRadius = 10;
+                    const innerRadius = 5;
+                    
+                    ctx.beginPath();
+                    
+                    for (let i = 0; i < spikes * 2; i++) {
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const angle = (Math.PI / spikes) * i;
+                        const x = Math.cos(angle) * radius;
+                        const y = Math.sin(angle) * radius;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawParticles(ctx, width, height) {
+            // 绘制一些粒子效果
+            for (let i = 0; i < 20; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const size = 1 + Math.random() * 3;
+                const alpha = 0.3 + Math.random() * 0.7;
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function drawUI(ctx, width, height) {
+            // 生命条
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(20, 20, 200, 20);
+            
+            ctx.fillStyle = '#d9534f';
+            ctx.fillRect(20, 20, 180, 20);
+            
+            // 经验条
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(20, 50, 200, 10);
+            
+            ctx.fillStyle = '#5bc0de';
+            ctx.fillRect(20, 50, 140, 10);
+            
+            // 游戏时间和等级
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.fillText('时间: 03:45', width - 100, 30);
+            ctx.fillText('难度: 8', width - 100, 50);
+            ctx.fillText('敌人: 24', width - 100, 70);
+            
+            // 右下角武器图标
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(width - 220, height - 60, 200, 40);
+            
+            // 武器图标
+            ctx.fillStyle = '#f0ad4e';
+            ctx.beginPath();
+            ctx.arc(width - 200, height - 40, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#5cb85c';
+            ctx.beginPath();
+            ctx.arc(width - 160, height - 40, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#5bc0de';
+            ctx.beginPath();
+            ctx.arc(width - 120, height - 40, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#d9534f';
+            ctx.beginPath();
+            ctx.arc(width - 80, height - 40, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 添加游戏标题水印
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('DVHero', width / 2, height / 2 - 80);
+            ctx.globalAlpha = 1.0;
+        }
+        
+        // 更新下载链接
+        function updateDownloadLink() {
+            const canvas = document.getElementById('preview');
+            const link = document.getElementById('download-link');
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+        }
+    </script>
+</body>
+</html> 
