@@ -1,8 +1,6 @@
 # DVHero - 恶魔城风格动作生存游戏
 
-<p align="center">
-  <img src="screenshots/game-preview.jpg" alt="游戏截图" width="600">
-</p>
+<!-- 游戏截图将在未来添加 -->
 
 ## 📖 游戏简介
 
