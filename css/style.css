@@ -76,7 +76,7 @@ body {
 }
 
 #github-link {
-    position: absolute;
+    position: fixed;
     top: 10px;
     left: 10px;
     display: flex;
@@ -87,7 +87,7 @@ body {
     padding: 5px 10px;
     border-radius: 4px;
     font-size: 14px;
-    z-index: 100;
+    z-index: 1000;
     border: 1px solid #444;
     transition: all 0.3s ease;
 }
