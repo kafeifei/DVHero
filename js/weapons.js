@@ -35,6 +35,15 @@ class Weapon {
     resetCooldown() {
         this.cooldown = this.maxCooldown;
     }
+    
+    // 获取水平攻击方向，将所有方向限制为左或右
+    getHorizontalDirection(player) {
+        if (player.facingDirection === 'left') {
+            return Math.PI; // 左
+        } else {
+            return 0; // 右（默认）
+        }
+    }
 }
 
 // 真空刃
@@ -42,44 +51,44 @@ class Crissaegrim extends Weapon {
     constructor(level = 1) {
         super(
             "真空刃",
-            "超快挥动、多段连续攻击，攻击范围广且无敌",
+            "快速左右攻击，可升级为同时攻击两侧",
             5,
             level
         );
-        this.maxCooldown = 10;
+        this.maxCooldown = 60; // 降低为每秒一次攻击
         this.attacks = 4; // 连续攻击次数
     }
 
     attack(game, player) {
         if (!this.canAttack()) return;
         
-        // 创建多段攻击效果
-        const direction = player.facingDirection;
+        // 获取攻击方向（只允许左右攻击）
+        const direction = this.getHorizontalDirection(player);
         const range = 150;
         
-        for (let i = 0; i < this.attacks; i++) {
-            setTimeout(() => {
-                const angle = direction === 'right' ? 0 :
-                            direction === 'left' ? Math.PI :
-                            direction === 'up' ? -Math.PI/2 :
-                            Math.PI/2;
-                
-                // 扇形攻击范围
-                const spreadAngle = Math.PI / 4; // 45度扇形
-                
-                game.createProjectile({
-                    x: player.x,
-                    y: player.y,
-                    angle: angle + (Math.random() * spreadAngle - spreadAngle/2),
-                    speed: 12,
-                    damage: this.getDamage(),
-                    range: range,
-                    color: '#a0f0ff',
-                    width: 30,
-                    height: 2,
-                    piercing: true
-                });
-            }, i * 50); // 每次攻击间隔50毫秒
+        // 等级2以上同时攻击两侧
+        const attackDirections = this.level >= 2 ? [0, Math.PI] : [direction];
+        
+        for (const angle of attackDirections) {
+            for (let i = 0; i < this.attacks; i++) {
+                setTimeout(() => {
+                    // 扇形攻击范围
+                    const spreadAngle = Math.PI / 4; // 45度扇形
+                    
+                    game.createProjectile({
+                        x: player.x,
+                        y: player.y,
+                        angle: angle + (Math.random() * spreadAngle - spreadAngle/2),
+                        speed: 12,
+                        damage: this.getDamage(),
+                        range: range,
+                        color: '#a0f0ff',
+                        width: 30,
+                        height: 2,
+                        piercing: true
+                    });
+                }, i * 50); // 每次攻击间隔50毫秒
+            }
         }
         
         this.resetCooldown();
@@ -103,11 +112,8 @@ class Muramasa extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
         
-        const direction = player.facingDirection;
-        const angle = direction === 'right' ? 0 :
-                    direction === 'left' ? Math.PI :
-                    direction === 'up' ? -Math.PI/2 :
-                    Math.PI/2;
+        // 限制为左右攻击
+        const angle = this.getHorizontalDirection(player);
         
         game.createProjectile({
             x: player.x,
@@ -149,130 +155,144 @@ class ShieldRod extends Weapon {
             4,
             level
         );
-        this.maxCooldown = 40;
-        this.shieldActive = false;
-        this.shieldDuration = 180; // 3秒（60帧/秒）
-        this.shieldTimer = 0;
+        this.maxCooldown = 45;
+        this.shields = [];
+        this.currentShieldIndex = 0;
     }
 
     attack(game, player) {
         if (!this.canAttack()) return;
         
-        if (!this.shieldActive) {
-            this.shieldActive = true;
-            this.shieldTimer = this.shieldDuration;
-            player.defense += 2;
-        }
+        // 根据当前盾牌类型发射不同投射物
+        const angle = this.getHorizontalDirection(player);
         
-        // 创建围绕玩家的盾牌
-        const projectilesCount = 8;
-        const radius = 80;
-        
-        for (let i = 0; i < projectilesCount; i++) {
-            const angle = (i / projectilesCount) * Math.PI * 2;
-            game.createProjectile({
-                x: player.x + Math.cos(angle) * radius,
-                y: player.y + Math.sin(angle) * radius,
-                angle: angle,
-                speed: 0,
-                damage: this.getDamage(),
-                range: 300,
-                color: '#80ff80',
-                width: 15,
-                height: 15,
-                piercing: true,
-                duration: 120, // 2秒存在时间
-                fixed: true,
-                fixedTarget: player,
-                fixedOffset: {
-                    x: Math.cos(angle) * radius,
-                    y: Math.sin(angle) * radius
-                },
-                rotateSpeed: 0.05
-            });
-        }
-        
-        this.resetCooldown();
-    }
-
-    update(game) {
-        super.update(game);
-        
-        if (this.shieldActive) {
-            this.shieldTimer--;
-            if (this.shieldTimer <= 0) {
-                this.shieldActive = false;
-                game.player.defense -= 2;
-            }
-        }
-    }
-}
-
-// 阿鲁卡多剑
-class AluCardSword extends Weapon {
-    constructor(level = 1) {
-        super(
-            "阿鲁卡多剑",
-            "快速攻击，特殊指令可释放传送斩击",
-            7,
-            level
-        );
-        this.maxCooldown = 20;
-        this.dashAttackReady = true;
-        this.dashCooldown = 300; // 5秒冷却
-        this.dashTimer = 0;
-    }
-
-    attack(game, player) {
-        if (!this.canAttack()) return;
-        
-        const direction = player.facingDirection;
-        const angle = direction === 'right' ? 0 :
-                    direction === 'left' ? Math.PI :
-                    direction === 'up' ? -Math.PI/2 :
-                    Math.PI/2;
-        
-        // 普通斩击
+        // 基础盾牌投射物
         game.createProjectile({
             x: player.x,
             y: player.y,
             angle: angle,
-            speed: 10,
+            speed: 9,
             damage: this.getDamage(),
-            range: 130,
-            color: '#e0e0ff',
-            width: 50,
-            height: 6,
-            piercing: true
+            range: 120,
+            color: '#40a0ff',
+            width: 20,
+            height: 20,
+            shape: 'circle',
+            piercing: false
         });
         
-        // 检查是否可以使用传送斩击
-        if (this.dashAttackReady && game.keys.shift) {
-            this.dashAttackReady = false;
-            this.dashTimer = this.dashCooldown;
+        // 盾光环效果（视觉效果）
+        game.createEffect({
+            x: player.x,
+            y: player.y,
+            color: 'rgba(100, 180, 255, 0.5)',
+            radius: 30,
+            duration: 15
+        });
+        
+        this.resetCooldown();
+    }
+
+    update(game) {
+        super.update(game);
+        
+        // 等级提升添加环绕盾牌
+        const maxShields = Math.min(4, this.level);
+        
+        while (this.shields.length < maxShields) {
+            this.addShield(game.player);
+        }
+        
+        // 移除多余盾牌
+        while (this.shields.length > maxShields) {
+            this.shields.pop();
+        }
+    }
+    
+    addShield(player) {
+        const shieldIndex = this.shields.length;
+        const angle = (Math.PI * 2 / 4) * shieldIndex;
+        const distance = 50;
+        
+        this.shields.push({
+            angle: angle,
+            distance: distance
+        });
+    }
+}
+
+// 阿鲁卡多之剑
+class AluCardSword extends Weapon {
+    constructor(level = 1) {
+        super(
+            "阿鲁卡多之剑",
+            "经典利刃，可聚集光芒发动强力剑气",
+            7,
+            level
+        );
+        this.maxCooldown = 30;
+        this.chargeLevel = 0;
+        this.maxChargeLevel = 3;
+        this.isCharging = false;
+        this.chargeTimer = 0;
+    }
+
+    attack(game, player) {
+        if (!this.canAttack()) return;
+        
+        // 限制为左右攻击
+        const angle = this.getHorizontalDirection(player);
+        
+        // 根据蓄力等级决定攻击方式
+        if (this.chargeLevel >= this.maxChargeLevel) {
+            // 满蓄力攻击
+            game.createProjectile({
+                x: player.x,
+                y: player.y,
+                angle: angle,
+                speed: 12,
+                damage: this.getDamage() * 2.5,
+                range: 300,
+                color: '#ffffff',
+                width: 80,
+                height: 8,
+                shape: 'rect',
+                piercing: true
+            });
             
-            // 传送
-            const dashDistance = 150;
-            const targetX = player.x + Math.cos(angle) * dashDistance;
-            const targetY = player.y + Math.sin(angle) * dashDistance;
+            // 蓄力特效
+            for (let i = 0; i < 20; i++) {
+                const particleAngle = angle + (Math.random() * Math.PI / 2 - Math.PI / 4);
+                const particleSpeed = 2 + Math.random() * 3;
+                
+                game.createParticle(
+                    player.x,
+                    player.y,
+                    '#ffffff',
+                    1 + Math.random() * 3,
+                    30
+                );
+            }
             
-            player.dash(targetX, targetY);
+            this.chargeLevel = 0;
+        } else {
+            // 普通攻击
+            game.createProjectile({
+                x: player.x,
+                y: player.y,
+                angle: angle,
+                speed: 10,
+                damage: this.getDamage(),
+                range: 150,
+                color: '#f0f0f0',
+                width: 40,
+                height: 4,
+                shape: 'rect',
+                piercing: false
+            });
             
-            // 传送后的斩击
-            setTimeout(() => {
-                game.createProjectile({
-                    x: targetX,
-                    y: targetY,
-                    angle: angle,
-                    speed: 12,
-                    damage: this.getDamage() * 2,
-                    range: 150,
-                    color: '#8080ff',
-                    width: 70,
-                    height: 8,
-                    piercing: true
-                });
-            }, 200);
+            // 累积蓄力
+            this.chargeLevel++;
         }
         
         this.resetCooldown();
@@ -281,10 +301,21 @@ class AluCardSword extends Weapon {
     update(game) {
         super.update(game);
         
-        if (!this.dashAttackReady) {
-            this.dashTimer--;
-            if (this.dashTimer <= 0) {
-                this.dashAttackReady = true;
+        // 蓄力时特效
+        if (this.chargeLevel > 0) {
+            this.chargeTimer++;
+            
+            if (this.chargeTimer % 10 === 0) {
+                const player = game.player;
+                const particleColor = `hsl(${60 + this.chargeLevel * 60}, 100%, 70%)`;
+                
+                game.createParticle(
+                    player.x + (Math.random() * 30 - 15),
+                    player.y + (Math.random() * 30 - 15),
+                    particleColor,
+                    1 + Math.random() * 2,
+                    20
+                );
             }
         }
     }

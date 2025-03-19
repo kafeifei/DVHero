@@ -11,7 +11,7 @@ class Player {
         this.defense = 0;
         this.level = 1;
         this.experience = 0;
-        this.experienceToNextLevel = 100;
+        this.experienceToNextLevel = 10;
         this.weapons = [];
         this.facingDirection = 'right'; // 'right', 'left', 'up', 'down'
         this.isDashing = false;
@@ -222,7 +222,7 @@ class Player {
     levelUp() {
         this.level++;
         this.experience -= this.experienceToNextLevel;
-        this.experienceToNextLevel = Math.floor(this.experienceToNextLevel * 1.4);
+        this.experienceToNextLevel = Math.floor(this.experienceToNextLevel * 1.2);
         
         // 升级时回满血
         this.health = this.maxHealth;

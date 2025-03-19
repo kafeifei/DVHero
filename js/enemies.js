@@ -9,7 +9,8 @@ class Enemy {
         this.speed = options.speed || 1;
         this.radius = options.radius || 15;
         this.color = options.color || '#ff0000';
-        this.expValue = options.expValue || 1;
+        this.level = options.level || 1;
+        this.expValue = options.expValue || Math.max(1, Math.floor(this.level / 2));
         this.type = options.type || 'normal'; // normal, dark, etc.
         this.target = options.target;
         this.knockbackResistance = options.knockbackResistance || 1;
@@ -59,7 +60,7 @@ class Enemy {
         
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x - offsetX, this.y - offsetY, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x + offsetX, this.y + offsetY, this.radius, 0, Math.PI * 2);
         ctx.fill();
         
         // 绘制血条
@@ -69,16 +70,16 @@ class Enemy {
         
         ctx.fillStyle = '#333';
         ctx.fillRect(
-            this.x - offsetX - healthBarWidth / 2,
-            this.y - offsetY - this.radius - 10,
+            this.x + offsetX - healthBarWidth / 2,
+            this.y + offsetY - this.radius - 10,
             healthBarWidth,
             healthBarHeight
         );
         
         ctx.fillStyle = healthPercentage > 0.5 ? '#0f0' : healthPercentage > 0.25 ? '#ff0' : '#f00';
         ctx.fillRect(
-            this.x - offsetX - healthBarWidth / 2,
-            this.y - offsetY - this.radius - 10,
+            this.x + offsetX - healthBarWidth / 2,
+            this.y + offsetY - this.radius - 10,
             healthBarWidth * healthPercentage,
             healthBarHeight
         );
@@ -99,7 +100,16 @@ class Enemy {
 
     dropExperience() {
         if (this.target && this.target.game) {
-            this.target.game.createExp(this.x, this.y, this.expValue);
+            // 计算掉落概率，从50%开始，随等级增加
+            const baseDropChance = 0.5;
+            const enemyLevel = this.level || 1; // 如果level未定义，默认为1级
+            const levelBonus = Math.min(0.5, (enemyLevel - 1) * 0.1); // 每级增加10%，最多增加到100%
+            const dropChance = baseDropChance + levelBonus;
+            
+            // 根据概率决定是否掉落
+            if (Math.random() < dropChance) {
+                this.target.game.createExp(this.x, this.y, this.expValue);
+            }
         }
     }
 
