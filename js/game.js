@@ -11,6 +11,11 @@ class Game {
         this.isGameOver = false;
         this.isPaused = false;
         
+        // 帧率控制
+        this.fps = 60;
+        this.fpsInterval = 1000 / this.fps;
+        this.lastFrameTime = 0;
+        
         // 输入控制
         this.keys = {};
         this.mouseX = 0;
@@ -67,31 +72,42 @@ class Game {
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
-            this.gameLoop();
+            this.lastFrameTime = performance.now();
+            this.gameLoop(this.lastFrameTime);
         }
     }
     
-    gameLoop() {
+    gameLoop(timestamp) {
         if (!this.isRunning) return;
         
-        if (!this.isPaused) {
-            this.update();
-        }
+        // 计算帧率间隔
+        if (!timestamp) timestamp = 0;
+        const elapsed = timestamp - this.lastFrameTime;
         
-        this.draw();
-        this.frameCount++;
-        
-        // 每60帧(1秒)增加游戏时间
-        if (this.frameCount % 60 === 0) {
-            this.gameTime++;
+        // 只有当到达指定的帧率间隔时才更新和绘制
+        if (elapsed > this.fpsInterval) {
+            // 更新上一帧的时间，并调整误差
+            this.lastFrameTime = timestamp - (elapsed % this.fpsInterval);
             
-            // 每分钟增加游戏难度
-            if (this.gameTime % 60 === 0) {
-                this.increaseDifficulty();
+            if (!this.isPaused) {
+                this.update();
+            }
+            
+            this.draw();
+            this.frameCount++;
+            
+            // 每60帧(1秒)增加游戏时间
+            if (this.frameCount % 60 === 0) {
+                this.gameTime++;
+                
+                // 每分钟增加游戏难度
+                if (this.gameTime % 60 === 0) {
+                    this.increaseDifficulty();
+                }
             }
         }
         
-        requestAnimationFrame(() => this.gameLoop());
+        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
     }
     
     update() {
