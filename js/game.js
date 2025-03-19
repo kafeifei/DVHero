@@ -43,8 +43,9 @@ class Game {
         // 等级和难度设置
         this.gameLevel = 1;
         this.difficultyMultiplier = 1;
-        this.enemySpawnRate = 120; // 每120帧生成一个敌人
-        this.maxEnemies = 50;
+        this.attackMultiplier = 1;
+        this.enemySpawnRate = 60; // 降低初始生成间隔（原来90帧/个，现在60帧/个）
+        this.maxEnemies = 100; // 提高初始最大敌人数量（原来60个，现在100个）
         this.enemyTypes = [
             {type: EnemyLibrary.Zombie, weight: 100, minGameLevel: 1},
             {type: EnemyLibrary.SkeletonSoldier, weight: 80, minGameLevel: 1},
@@ -63,6 +64,9 @@ class Game {
         this.weaponChoicesElement = document.getElementById('weapon-choices');
         this.warningText = '';
         this.warningTimer = 0;
+        
+        // 添加测试按钮
+        this.addTestButton();
         
         // 初始化
         this.init();
@@ -230,29 +234,29 @@ class Game {
     }
     
     draw() {
-        // 清空画布
+        if (this.isPaused && !this.levelUpElement.classList.contains('hidden')) return;
+        
+        // 清除屏幕
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // 计算相机偏移（使玩家居中）
-        const cameraOffsetX = this.player.x - this.canvas.width / 2;
-        const cameraOffsetY = this.player.y - this.canvas.height / 2;
+        const cameraOffsetX = this.canvas.width / 2 - this.player.x;
+        const cameraOffsetY = this.canvas.height / 2 - this.player.y;
         
         // 绘制背景
         this.drawBackground(cameraOffsetX, cameraOffsetY);
         
+        // 绘制边界指示
+        this.drawBoundary();
+        
         // 绘制经验球
-        for (const exp of this.expOrbs) {
-            exp.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
+        this.expOrbs.forEach(orb => {
+            orb.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+        });
         
         // 绘制效果
         for (const effect of this.effects) {
             effect.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
-        
-        // 绘制敌人投射物
-        for (const projectile of this.enemyProjectiles) {
-            projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
         }
         
         // 绘制敌人
@@ -268,39 +272,49 @@ class Game {
         // 绘制玩家
         this.player.draw(this.ctx);
         
-        // 绘制玩家投射物
+        // 绘制投射物
         for (const projectile of this.projectiles) {
             projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
         }
         
-        // 绘制粒子
+        // 绘制敌人投射物
+        for (const projectile of this.enemyProjectiles) {
+            projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+        }
+        
+        // 绘制粒子效果
         for (const particle of this.particles) {
             particle.draw(this.ctx, cameraOffsetX, cameraOffsetY);
         }
         
-        // 绘制UI
+        // 绘制UI元素
         this.drawUI();
         
-        // 游戏结束画面
+        // 如果游戏结束显示游戏结束UI
         if (this.isGameOver) {
             this.drawGameOver();
         }
+        
+        // 如果暂停显示暂停UI
+        if (this.isPaused) {
+            this.drawPaused();
+        }
     }
     
-    drawBackground(offsetX, offsetY) {
+    drawBackground(cameraOffsetX, cameraOffsetY) {
         // 绘制草地纹理背景
         if (this.images.grassTexture && this.images.grassTexture.complete) {
             const patternSize = 128;
-            const startX = Math.floor(-offsetX / patternSize) * patternSize;
-            const startY = Math.floor(-offsetY / patternSize) * patternSize;
+            const startX = Math.floor(this.player.x / patternSize) * patternSize;
+            const startY = Math.floor(this.player.y / patternSize) * patternSize;
             
             // 创建草地纹理模式
-            const grassPattern = this.ctx.createPattern(this.images.grassTexture, 'repeat');
-            this.ctx.fillStyle = grassPattern;
+            const pattern = this.ctx.createPattern(this.images.grassTexture, 'repeat');
+            this.ctx.fillStyle = pattern;
             
             // 绘制足够覆盖整个画布的草地纹理
             this.ctx.save();
-            this.ctx.translate(-offsetX % patternSize, -offsetY % patternSize);
+            this.ctx.translate(cameraOffsetX % patternSize, cameraOffsetY % patternSize);
             this.ctx.fillRect(-patternSize, -patternSize, this.canvas.width + 2 * patternSize, this.canvas.height + 2 * patternSize);
             this.ctx.restore();
             
@@ -320,8 +334,8 @@ class Game {
         const gridSize = 64;
         
         // 计算网格起始位置（考虑偏移）
-        const startX = -offsetX % gridSize;
-        const startY = -offsetY % gridSize;
+        const startX = cameraOffsetX % gridSize;
+        const startY = cameraOffsetY % gridSize;
         
         // 绘制垂直线
         for (let x = startX; x <= this.canvas.width; x += gridSize) {
@@ -340,50 +354,54 @@ class Game {
         }
         
         // 绘制背景装饰物
-        this.drawBackgroundObjects(offsetX, offsetY);
+        this.drawBackgroundObjects(cameraOffsetX, cameraOffsetY);
     }
     
-    drawBackgroundObjects(offsetX, offsetY) {
+    drawBackgroundObjects(cameraOffsetX, cameraOffsetY) {
         // 根据层级排序背景对象
         const sortedObjects = [...this.backgroundObjects].sort((a, b) => a.layer - b.layer);
         
         for (const obj of sortedObjects) {
             // 计算屏幕坐标
-            const screenX = obj.x - offsetX;
-            const screenY = obj.y - offsetY;
+            const screenX = obj.x + cameraOffsetX;
+            const screenY = obj.y + cameraOffsetY;
             
             // 只绘制屏幕附近的对象（性能优化）
-            if (screenX < -200 || screenX > this.canvas.width + 200 || 
-                screenY < -200 || screenY > this.canvas.height + 200) {
-                continue;
-            }
-            
-            const image = this.images[obj.type];
-            if (image && image.complete) {
-                // 根据对象类型进行特殊处理
-                switch (obj.type) {
-                    case 'torch':
-                        // 更新火把动画
-                        if (this.frameCount % 10 === 0) {
-                            obj.animationFrame = (obj.animationFrame + 1) % 4;
-                        }
+            if (
+                screenX > -200 && screenX < this.canvas.width + 200 &&
+                screenY > -200 && screenY < this.canvas.height + 200
+            ) {
+                // 特殊处理火炬
+                if (obj.type === 'torch') {
+                    // 更新火把动画
+                    if (this.frameCount % 10 === 0) {
+                        obj.animationFrame = (obj.animationFrame + 1) % 4;
+                    }
+                    
+                    // 获取图像
+                    const image = this.images.torch;
+                    if (image && image.complete) {
+                        // 计算缩放后的尺寸
+                        const scale = obj.scale || 0.3;
+                        const width = image.width * scale;
+                        const height = image.height * scale;
                         
                         // 绘制火把本身
+                        this.ctx.save();
+                        this.ctx.translate(screenX, screenY);
                         this.ctx.drawImage(
                             image,
                             0, 0, image.width, image.height,
-                            screenX - (image.width * obj.scale) / 2,
-                            screenY - (image.height * obj.scale),
-                            image.width * obj.scale,
-                            image.height * obj.scale
+                            -width / 2, -height,
+                            width, height
                         );
                         
                         // 绘制火焰光晕效果
-                        const glowRadius = 40 + Math.sin(this.frameCount * 0.1) * 10;
+                        const glowRadius = (30 * scale) + Math.sin(this.frameCount * 0.1) * (10 * scale);
                         const gradient = this.ctx.createRadialGradient(
-                            screenX, screenY - (image.height * obj.scale) / 2,
-                            5,
-                            screenX, screenY - (image.height * obj.scale) / 2,
+                            0, -height / 2,
+                            5 * scale,
+                            0, -height / 2,
                             glowRadius
                         );
                         gradient.addColorStop(0, 'rgba(255, 150, 50, 0.6)');
@@ -393,29 +411,82 @@ class Game {
                         this.ctx.fillStyle = gradient;
                         this.ctx.beginPath();
                         this.ctx.arc(
-                            screenX,
-                            screenY - (image.height * obj.scale) / 2,
+                            0,
+                            -height / 2,
                             glowRadius,
                             0,
                             Math.PI * 2
                         );
                         this.ctx.fill();
-                        this.ctx.globalAlpha = 1;
-                        break;
-                        
-                    default:
-                        // 普通背景对象绘制
-                        this.ctx.drawImage(
-                            image,
-                            screenX - (image.width * obj.scale) / 2,
-                            screenY - (image.height * obj.scale),
-                            image.width * obj.scale,
-                            image.height * obj.scale
-                        );
-                        break;
+                        this.ctx.restore();
+                    }
+                }
+                // 其他背景对象的渲染
+                else if (obj.image && this.images[obj.image] && this.images[obj.image].complete) {
+                    const img = this.images[obj.image];
+                    const width = obj.width || img.width;
+                    const height = obj.height || img.height;
+                    
+                    this.ctx.save();
+                    this.ctx.translate(screenX, screenY);
+                    this.ctx.rotate(obj.rotation || 0);
+                    this.ctx.globalAlpha = obj.opacity || 1;
+                    
+                    this.ctx.drawImage(
+                        img, 
+                        -width / 2, 
+                        -height / 2, 
+                        width, 
+                        height
+                    );
+                    
+                    this.ctx.restore();
+                }
+                else if (obj.type && this.images[obj.type] && this.images[obj.type].complete) {
+                    const img = this.images[obj.type];
+                    const scale = obj.scale || 1;
+                    const width = (obj.width || img.width) * scale;
+                    const height = (obj.height || img.height) * scale;
+                    
+                    this.ctx.save();
+                    this.ctx.translate(screenX, screenY);
+                    this.ctx.rotate(obj.rotation || 0);
+                    this.ctx.globalAlpha = obj.opacity || 1;
+                    
+                    this.ctx.drawImage(
+                        img, 
+                        -width / 2, 
+                        -height / 2, 
+                        width, 
+                        height
+                    );
+                    
+                    this.ctx.restore();
                 }
             }
         }
+    }
+    
+    drawBoundary() {
+        const boundary = 1000; // 与玩家边界限制相同
+        const cameraOffsetX = this.canvas.width / 2 - this.player.x;
+        const cameraOffsetY = this.canvas.height / 2 - this.player.y;
+        
+        // 设置边界线样式
+        this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]); // 虚线效果
+        
+        // 绘制边界矩形
+        this.ctx.beginPath();
+        this.ctx.rect(
+            -boundary + cameraOffsetX,
+            -boundary + cameraOffsetY,
+            boundary * 2,
+            boundary * 2
+        );
+        this.ctx.stroke();
+        this.ctx.setLineDash([]); // 重置虚线设置
     }
     
     drawUI() {
@@ -483,6 +554,27 @@ class Game {
         this.ctx.textAlign = 'left';
     }
     
+    drawPaused() {
+        // 仅在非武器选择屏幕时显示暂停信息
+        if (this.levelUpElement.classList.contains('hidden')) {
+            // 半透明黑色覆盖
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // 暂停文本
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '48px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('游戏暂停', this.canvas.width / 2, this.canvas.height / 2);
+            
+            // 继续提示
+            this.ctx.font = '20px Arial';
+            this.ctx.fillText('按 P 键继续游戏', this.canvas.width / 2, this.canvas.height / 2 + 50);
+            
+            this.ctx.textAlign = 'left';
+        }
+    }
+    
     spawnEnemy() {
         // 在玩家周围一定范围外生成敌人
         const minDistance = 250; // 敌人生成的最小距离
@@ -514,12 +606,13 @@ class Game {
         const enemy = new enemyType({
             x: x,
             y: y,
-            target: this.player
+            target: this.player,
+            level: this.gameLevel
         });
         
         // 应用难度调整
         enemy.health *= this.difficultyMultiplier;
-        enemy.damage *= this.difficultyMultiplier;
+        enemy.damage *= this.attackMultiplier;
         
         this.enemies.push(enemy);
     }
@@ -555,11 +648,14 @@ class Game {
     
     increaseDifficulty() {
         this.gameLevel++;
-        this.difficultyMultiplier = 1 + (this.gameLevel - 1) * 0.1; // 每提升一级难度，敌人属性提升10%
+        // 增加属性提升幅度，特别是攻击力
+        this.difficultyMultiplier = 1 + (this.gameLevel - 1) * 0.1; // 基础属性乘数（生命值等）
+        this.attackMultiplier = 1 + (this.gameLevel - 1) * 0.2; // 攻击力乘数更高
         
-        // 随着难度增加，敌人生成速度变快
-        this.enemySpawnRate = Math.max(30, 120 - (this.gameLevel - 1) * 5);
-        this.maxEnemies = Math.min(200, 50 + (this.gameLevel - 1) * 5);
+        // 降低怪物数量的增长速度，从每级-40帧改为每级-20帧
+        this.enemySpawnRate = Math.max(10, 120 - (this.gameLevel - 1) * 20);
+        // 降低最大敌人数量的增长速度，从每级+40个改为每级+20个
+        this.maxEnemies = Math.min(400, 50 + (this.gameLevel - 1) * 20);
     }
     
     showWeaponSelection() {
@@ -644,8 +740,9 @@ class Game {
         // 重置难度设置
         this.gameLevel = 1;
         this.difficultyMultiplier = 1;
-        this.enemySpawnRate = 120;
-        this.maxEnemies = 50;
+        this.attackMultiplier = 1;
+        this.enemySpawnRate = 60; // 与构造函数保持一致
+        this.maxEnemies = 100; // 与构造函数保持一致
         
         // 创建新玩家
         this.player = new Player(this);
@@ -689,7 +786,8 @@ class Game {
                 x: Math.random() * 2000 - 1000,
                 y: Math.random() * 2000 - 1000,
                 scale: 0.7 + Math.random() * 0.6,
-                layer: 0  // 最远的层
+                layer: 0,  // 最远的层
+                height: 120
             });
         }
         
@@ -737,6 +835,42 @@ class Game {
                 animationFrame: Math.floor(Math.random() * 4)  // 火把动画帧
             });
         }
+    }
+    
+    // 添加测试按钮生成敌人
+    addTestButton() {
+        const button = document.createElement('button');
+        button.textContent = "生成测试敌人";
+        button.style.position = "absolute";
+        button.style.top = "10px";
+        button.style.right = "10px";
+        button.style.zIndex = "1000";
+        
+        button.addEventListener('click', () => {
+            // 在玩家前方生成一个敌人
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 150;
+            const x = this.player.x + Math.cos(angle) * distance;
+            const y = this.player.y + Math.sin(angle) * distance;
+            
+            const enemyType = EnemyLibrary.Zombie;
+            // 创建一个自定义僵尸，确保100%掉落经验
+            const enemy = new enemyType({
+                x: x,
+                y: y,
+                target: this.player,
+                level: Math.max(1, this.gameLevel), // 使用游戏当前等级
+                expValue: 5 // 增加经验值奖励
+            });
+            
+            this.enemies.push(enemy);
+            
+            // 同时生成一些经验球（测试用）
+            this.createExp(x - 50, y, 1);
+            this.createExp(x + 50, y, 1);
+        });
+        
+        document.body.appendChild(button);
     }
 }
 
@@ -878,7 +1012,7 @@ class Projectile {
         ctx.save();
         
         // 移动到投射物位置
-        ctx.translate(this.x - offsetX, this.y - offsetY);
+        ctx.translate(this.x + offsetX, this.y + offsetY);
         
         // 应用旋转
         if (this.rotateSpeed || this.shape !== 'rect') {
@@ -1042,20 +1176,20 @@ class ExperienceOrb {
         // 绘制经验球
         ctx.beginPath();
         ctx.fillStyle = this.color;
-        ctx.arc(this.x - offsetX, this.y - offsetY, displayRadius, 0, Math.PI * 2);
+        ctx.arc(this.x + offsetX, this.y + offsetY, displayRadius, 0, Math.PI * 2);
         ctx.fill();
         
         // 绘制发光效果
         const gradient = ctx.createRadialGradient(
-            this.x - offsetX, this.y - offsetY, displayRadius * 0.5,
-            this.x - offsetX, this.y - offsetY, displayRadius * 1.5
+            this.x + offsetX, this.y + offsetY, displayRadius * 0.5,
+            this.x + offsetX, this.y + offsetY, displayRadius * 1.5
         );
         gradient.addColorStop(0, 'rgba(94, 186, 255, 0.5)');
         gradient.addColorStop(1, 'rgba(94, 186, 255, 0)');
         
         ctx.beginPath();
         ctx.fillStyle = gradient;
-        ctx.arc(this.x - offsetX, this.y - offsetY, displayRadius * 1.5, 0, Math.PI * 2);
+        ctx.arc(this.x + offsetX, this.y + offsetY, displayRadius * 1.5, 0, Math.PI * 2);
         ctx.fill();
     }
 }
@@ -1084,7 +1218,7 @@ class Particle {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x - offsetX, this.y - offsetY, this.size * alpha, 0, Math.PI * 2);
+        ctx.arc(this.x + offsetX, this.y + offsetY, this.size * alpha, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
     }
@@ -1111,7 +1245,7 @@ class Effect {
         
         ctx.globalAlpha = ratio;
         ctx.beginPath();
-        ctx.arc(this.x - offsetX, this.y - offsetY, currentRadius, 0, Math.PI * 2);
+        ctx.arc(this.x + offsetX, this.y + offsetY, currentRadius, 0, Math.PI * 2);
         ctx.fillStyle = this.color;
         ctx.fill();
         ctx.globalAlpha = 1;
@@ -1215,14 +1349,14 @@ class Ally {
         // 绘制盟友
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x - offsetX, this.y - offsetY, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x + offsetX, this.y + offsetY, this.radius, 0, Math.PI * 2);
         ctx.fill();
         
         // 如果时间快到了，闪烁提醒
         if (this.duration < 120 && Math.floor(this.duration / 10) % 2 === 0) {
             ctx.globalAlpha = 0.5;
             ctx.beginPath();
-            ctx.arc(this.x - offsetX, this.y - offsetY, this.radius * 1.3, 0, Math.PI * 2);
+            ctx.arc(this.x + offsetX, this.y + offsetY, this.radius * 1.3, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 1;
         }
@@ -1230,20 +1364,20 @@ class Ally {
         // 绘制血条
         const healthPercentage = this.health / this.maxHealth;
         const healthBarWidth = this.radius * 2;
-        const healthBarHeight = 3;
+        const healthBarHeight = 4;
         
         ctx.fillStyle = '#333';
         ctx.fillRect(
-            this.x - offsetX - healthBarWidth / 2,
-            this.y - offsetY - this.radius - 8,
+            this.x + offsetX - healthBarWidth / 2,
+            this.y + offsetY - this.radius - 10,
             healthBarWidth,
             healthBarHeight
         );
         
         ctx.fillStyle = healthPercentage > 0.5 ? '#0f0' : healthPercentage > 0.25 ? '#ff0' : '#f00';
         ctx.fillRect(
-            this.x - offsetX - healthBarWidth / 2,
-            this.y - offsetY - this.radius - 8,
+            this.x + offsetX - healthBarWidth / 2,
+            this.y + offsetY - this.radius - 10,
             healthBarWidth * healthPercentage,
             healthBarHeight
         );
