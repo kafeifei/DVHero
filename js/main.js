@@ -18,6 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === ' ' && game.isGameOver) {
             game.restart();
         }
+        
+        // 按P键暂停/继续游戏
+        if (e.key.toLowerCase() === 'p' && !game.isGameOver) {
+            game.isPaused = !game.isPaused;
+        }
     });
     
     document.addEventListener('keyup', (e) => {
