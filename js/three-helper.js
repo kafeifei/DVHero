@@ -67,11 +67,13 @@ class ThreeHelper {
         const groundMaterial = new THREE.MeshStandardMaterial({
             color: 0x336633, // 更明显的绿色
             roughness: 0.8,
-            metalness: 0.2
+            metalness: 0.2,
+            side: THREE.DoubleSide // 确保平面的两面都可见
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
         ground.position.y = -10; // 略微下沉
+        ground.receiveShadow = true; // 接收阴影
         this.scene.add(ground);
         this.objects.set('ground', ground);
         
@@ -133,16 +135,29 @@ class ThreeHelper {
         }
         
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        // 确保纹理已加载
+        if (!this.textures.grassTexture) {
+            console.warn('草地纹理未加载，重新创建');
+            this.textures.grassTexture = this.createGridTexture('#336633', '#224422', 16);
+            this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
+            this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
+            this.textures.grassTexture.repeat.set(50, 50); // 增加重复次数，扩大纹理覆盖
+        }
+        
         const groundMaterial = new THREE.MeshStandardMaterial({
             map: this.textures.grassTexture,
             roughness: 0.8,
-            metalness: 0.2
+            metalness: 0.2,
+            side: THREE.DoubleSide // 确保平面的两面都可见
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
         ground.position.y = -10; // 略微下沉
+        ground.receiveShadow = true; // 接收阴影
         this.scene.add(ground);
         this.objects.set('ground', ground);
+        
+        console.log('创建了带纹理的地面');
     }
     
     // 加载纹理
@@ -153,11 +168,11 @@ class ThreeHelper {
         // 创建简单的彩色纹理
         const createColorTexture = (color) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
+            canvas.width = 128; // 增加纹理尺寸
+            canvas.height = 128; // 增加纹理尺寸
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 64, 64);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
@@ -167,18 +182,18 @@ class ThreeHelper {
         // 创建网格纹理
         const createGridTexture = (color1, color2, gridSize = 8) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
+            canvas.width = 128; // 增加纹理尺寸
+            canvas.height = 128; // 增加纹理尺寸
             const ctx = canvas.getContext('2d');
             
             // 填充背景
             ctx.fillStyle = color1;
-            ctx.fillRect(0, 0, 64, 64);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // 绘制网格
             ctx.fillStyle = color2;
-            for (let y = 0; y < 64; y += gridSize) {
-                for (let x = 0; x < 64; x += gridSize) {
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                for (let x = 0; x < canvas.width; x += gridSize) {
                     if ((x / gridSize + y / gridSize) % 2 === 0) {
                         ctx.fillRect(x, y, gridSize, gridSize);
                     }
@@ -193,24 +208,29 @@ class ThreeHelper {
         // 创建图案纹理
         const createPatternTexture = (bgColor, patternColor) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
+            canvas.width = 128; // 增加纹理尺寸
+            canvas.height = 128; // 增加纹理尺寸
             const ctx = canvas.getContext('2d');
             
             // 填充背景
             ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, 64, 64);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // 绘制图案
             ctx.fillStyle = patternColor;
             ctx.beginPath();
-            ctx.arc(32, 32, 16, 0, Math.PI * 2);
+            ctx.arc(canvas.width/2, canvas.height/2, canvas.width/4, 0, Math.PI * 2);
             ctx.fill();
             
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
             return texture;
         };
+        
+        // 存储创建函数以便其他地方使用
+        this.createColorTexture = createColorTexture;
+        this.createGridTexture = createGridTexture;
+        this.createPatternTexture = createPatternTexture;
         
         // 创建各种纹理
         this.textures.grassTexture = createGridTexture('#336633', '#224422', 16);
@@ -223,7 +243,7 @@ class ThreeHelper {
         // 设置纹理重复属性
         this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
         this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-        this.textures.grassTexture.repeat.set(20, 20);
+        this.textures.grassTexture.repeat.set(50, 50); // 增加重复次数
         
         console.log('所有纹理创建完成，创建场景对象');
         
@@ -234,11 +254,7 @@ class ThreeHelper {
     // 刷新使用纹理的对象
     refreshTexturedObjects() {
         // 重新创建地面（使用草地纹理）
-        const ground = this.objects.get('ground');
-        if (ground && this.textures.grassTexture) {
-            ground.material.map = this.textures.grassTexture;
-            ground.material.needsUpdate = true;
-        }
+        this.createGround(); // 直接调用createGround而不是修改现有ground对象
         
         // 重新创建背景对象
         this.createBackgroundObjects();
@@ -268,6 +284,10 @@ class ThreeHelper {
             this.renderer.setPixelRatio(1); // 使用1:1的像素比，提高性能
             this.renderer.setClearColor(0x222222, 1);
             
+            // 启用阴影
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 更柔和的阴影
+            
             console.log('WebGL渲染器创建成功');
             return true;
         } catch (error) {
@@ -287,6 +307,14 @@ class ThreeHelper {
                 this.renderer.setSize(this.canvas3d.width, this.canvas3d.height);
                 this.renderer.setPixelRatio(1);
                 this.renderer.setClearColor(0x222222, 1);
+                
+                // 尝试启用阴影，但使用更基础的阴影类型
+                try {
+                    this.renderer.shadowMap.enabled = true;
+                    this.renderer.shadowMap.type = THREE.BasicShadowMap; // 基础阴影，性能更好
+                } catch (err) {
+                    console.warn('无法启用阴影', err);
+                }
                 
                 console.log('备用渲染器创建成功');
                 return true;
@@ -452,31 +480,85 @@ class ThreeHelper {
                     return;
                 }
                 
-                // 创建一个精灵（始终面向相机的平面）
-                const material = new THREE.SpriteMaterial({ 
-                    map: texture,
-                    color: 0xffffff, // 确保颜色是白色，不会改变纹理颜色
-                    transparent: true
-                });
+                // 为背景对象使用3D网格而不是精灵，以便更好地显示纹理
+                let mesh;
                 
-                const sprite = new THREE.Sprite(material);
+                // 判断对象类型，使用不同的几何体
+                if (obj.type === 'castleTower') {
+                    // 使用圆柱体作为塔
+                    const geometry = new THREE.CylinderGeometry(20, 25, height, 8);
+                    const material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
+                    mesh = new THREE.Mesh(geometry, material);
+                } else if (obj.type === 'deadTree') {
+                    // 使用高细长的圆柱体和球体组合作为树
+                    const trunkGeo = new THREE.CylinderGeometry(5, 8, height * 0.8, 6);
+                    const trunkMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x663300,
+                        roughness: 0.9
+                    });
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMaterial);
+                    
+                    const foliageGeo = new THREE.SphereGeometry(20, 8, 6);
+                    const foliageMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x225522,
+                        roughness: 0.9
+                    });
+                    const foliage = new THREE.Mesh(foliageGeo, foliageMaterial);
+                    foliage.position.y = height * 0.5;
+                    
+                    mesh = new THREE.Group();
+                    mesh.add(trunk);
+                    mesh.add(foliage);
+                } else if (obj.type === 'torch') {
+                    // 使用简单的几何形状组合
+                    const stickGeo = new THREE.CylinderGeometry(2, 2, height, 6);
+                    const stickMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x663300,
+                        roughness: 0.9
+                    });
+                    const stick = new THREE.Mesh(stickGeo, stickMaterial);
+                    
+                    const flameGeo = new THREE.SphereGeometry(5, 8, 6);
+                    const flameMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xff9900,
+                        emissive: 0xff9900,
+                        emissiveIntensity: 0.8
+                    });
+                    const flame = new THREE.Mesh(flameGeo, flameMaterial);
+                    flame.position.y = height * 0.6;
+                    
+                    mesh = new THREE.Group();
+                    mesh.add(stick);
+                    mesh.add(flame);
+                } else {
+                    // 其他对象使用简单的Box
+                    const geometry = new THREE.BoxGeometry(30, height, 30);
+                    const material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
+                    mesh = new THREE.Mesh(geometry, material);
+                }
                 
                 // 设置位置和大小
                 const scale = obj.scale || 1;
-                sprite.position.set(
-                    obj.x, 
-                    height * scale / 2, // 高度位置
-                    obj.y
-                );
-                sprite.scale.set(
-                    100 * scale, 
-                    100 * scale, 
-                    1
-                );
+                
+                // 如果是组合对象，直接设置位置
+                if (mesh instanceof THREE.Group) {
+                    mesh.position.set(obj.x, 0, obj.y);
+                    mesh.scale.set(scale, scale, scale);
+                } else {
+                    mesh.position.set(obj.x, height * scale / 2, obj.y);
+                }
                 
                 // 添加到场景
-                this.scene.add(sprite);
-                this.objects.set(`background_${index}`, sprite);
+                this.scene.add(mesh);
+                this.objects.set(`background_${index}`, mesh);
                 createdCount++;
                 
                 // 为火把添加点光源
@@ -762,8 +844,8 @@ class ThreeHelper {
         directionalLight.castShadow = true;
         
         // 设置阴影属性
-        directionalLight.shadow.mapSize.width = 1024;
-        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.mapSize.width = 2048; // 增加阴影贴图分辨率
+        directionalLight.shadow.mapSize.height = 2048; // 增加阴影贴图分辨率
         directionalLight.shadow.camera.near = 1;
         directionalLight.shadow.camera.far = 2000;
         directionalLight.shadow.camera.left = -500;
@@ -780,5 +862,14 @@ class ThreeHelper {
         // 添加灯光辅助对象 - 已禁用以提高性能
         // const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 100);
         // this.scene.add(directionalLightHelper);
+        
+        // 添加额外的辅助照明 - 背面光源，确保物体背面也有照明
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        backLight.position.set(0, 100, 300); // 从玩家后方照射
+        backLight.lookAt(0, 0, 0);
+        this.scene.add(backLight);
+        
+        // 记录主光源
+        this.mainLight = directionalLight;
     }
 } 

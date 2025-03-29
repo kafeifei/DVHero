@@ -300,6 +300,10 @@ class Game {
                             this.is3D = false;
                             this.updateCanvasVisibility();
                             this.showWarning("无法创建3D渲染器，已切换回2D模式", 180);
+                        } else {
+                            // 显式调用刷新纹理对象函数，确保地面和其他对象正确显示
+                            console.log('3D渲染器创建成功，刷新纹理对象...');
+                            this.threeHelper.refreshTexturedObjects();
                         }
                     }
                 } catch (e) {
