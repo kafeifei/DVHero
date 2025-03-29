@@ -15,7 +15,7 @@ class Game {
             // 设置UI Canvas尺寸
             this.canvasUI.width = 800;
             this.canvasUI.height = 600;
-            this.ctxUI = this.canvasUI.getContext('2d');
+            this.ctxUI = this.canvasUI.getContext('2d', { willReadFrequently: true });
         }
         
         // 3D支持
@@ -34,7 +34,7 @@ class Game {
         this.canvas3d.height = 600;
         
         // 初始化2D上下文
-        this.ctx = this.canvas2d.getContext('2d');
+        this.ctx = this.canvas2d.getContext('2d', { willReadFrequently: true });
         
         // 显示正确的Canvas
         this.updateCanvasVisibility();
@@ -125,12 +125,12 @@ class Game {
                 // 保存引用
                 this.canvas2d = canvas2d;
                 // 重新获取2D上下文
-                this.ctx = canvas2d.getContext('2d');
+                this.ctx = canvas2d.getContext('2d', { willReadFrequently: true });
             } else {
                 // 如果找不到container，则添加到body
                 document.body.appendChild(canvas2d);
                 this.canvas2d = canvas2d;
-                this.ctx = canvas2d.getContext('2d');
+                this.ctx = canvas2d.getContext('2d', { willReadFrequently: true });
             }
         }
         
@@ -316,7 +316,7 @@ class Game {
         } else {
             // 确保2D上下文存在
             if (!this.ctx && this.canvas2d) {
-                this.ctx = this.canvas2d.getContext('2d');
+                this.ctx = this.canvas2d.getContext('2d', { willReadFrequently: true });
             }
         }
         
@@ -619,7 +619,7 @@ class Game {
         try {
             // 确保2D上下文存在
             if (!this.ctx) {
-                this.ctx = this.canvas2d.getContext('2d');
+                this.ctx = this.canvas2d.getContext('2d', { willReadFrequently: true });
                 if (!this.ctx) {
                     console.error('无法获取2D上下文');
                     return;
@@ -1291,14 +1291,20 @@ class Game {
     
     // 添加测试按钮生成敌人
     addTestButton() {
-        const button = document.createElement('button');
-        button.textContent = "生成测试敌人";
-        button.style.position = "absolute";
-        button.style.top = "10px";
-        button.style.right = "10px";
-        button.style.zIndex = "1000";
+        // 创建按钮容器
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.position = "absolute";
+        buttonContainer.style.top = "10px";
+        buttonContainer.style.right = "10px";
+        buttonContainer.style.zIndex = "1000";
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.gap = "10px";
         
-        button.addEventListener('click', () => {
+        // 创建生成敌人测试按钮
+        const enemyButton = document.createElement('button');
+        enemyButton.textContent = "生成测试敌人";
+        
+        enemyButton.addEventListener('click', () => {
             // 在玩家前方生成一个敌人
             const angle = Math.random() * Math.PI * 2;
             const distance = 150;
@@ -1322,7 +1328,25 @@ class Game {
             this.createExp(x + 50, y, 1);
         });
         
-        document.body.appendChild(button);
+        // 创建纹理测试按钮
+        const textureButton = document.createElement('button');
+        textureButton.textContent = "测试纹理加载";
+        
+        textureButton.addEventListener('click', () => {
+            // 调用全局的testImageVisibility函数
+            if (window.testImageVisibility) {
+                window.testImageVisibility();
+            } else {
+                console.error('testImageVisibility函数不存在');
+            }
+        });
+        
+        // 添加按钮到容器
+        buttonContainer.appendChild(enemyButton);
+        buttonContainer.appendChild(textureButton);
+        
+        // 添加容器到文档
+        document.body.appendChild(buttonContainer);
     }
     
     // 为canvas3d设置事件监听器

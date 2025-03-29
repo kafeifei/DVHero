@@ -296,8 +296,8 @@ function preloadTextures() {
     
     console.log('预加载3D纹理...');
     
-    // 添加调试元素，用于测试图像是否可以正确加载
-    function testImageVisibility() {
+    // 不再自动执行测试，将testImageVisibility作为全局函数导出
+    window.testImageVisibility = function() {
         console.log('创建测试图像元素...');
         const debugContainer = document.createElement('div');
         debugContainer.id = 'texture-debug';
@@ -370,10 +370,10 @@ function preloadTextures() {
         debugContainer.appendChild(closeBtn);
         
         document.body.appendChild(debugContainer);
-    }
+    };
     
-    // 延迟执行测试
-    setTimeout(testImageVisibility, 1000);
+    // 不再自动执行纹理测试
+    // setTimeout(testImageVisibility, 1000);
     
     // 创建一个隐藏的纹理加载器
     const textureLoader = new THREE.TextureLoader();

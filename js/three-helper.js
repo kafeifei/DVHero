@@ -55,6 +55,12 @@ class ThreeHelper {
         console.log('ThreeHelper初始化完成');
     }
     
+    // 创建默认3D对象
+    createDefaultObjects() {
+        // 此方法在新版本中不再需要，但保留空方法以兼容现有代码
+        console.log('createDefaultObjects被调用 - 此方法现在是空的');
+    }
+    
     // 创建简化版地面，直接使用2D模式同样的平铺方式
     createSimpleGround() {
         console.log('创建简化版地面');
@@ -62,271 +68,522 @@ class ThreeHelper {
         // 创建几何体 - 大尺寸以确保覆盖视野
         const groundGeometry = new THREE.PlaneGeometry(3000, 3000);
         
-        // 直接加载grass_texture.png
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('./images/grass_texture.png', (grassTexture) => {
-            console.log('草地纹理加载成功:', grassTexture.image.width, 'x', grassTexture.image.height);
-            
-            // 设置纹理平铺参数
-            grassTexture.wrapS = THREE.RepeatWrapping;
-            grassTexture.wrapT = THREE.RepeatWrapping;
-            
-            // 设置重复次数 - 基于图片尺寸和地面尺寸
-            // grass_texture.png是128x128像素，设置适当的重复次数
-            const repeatX = 3000 / 128; // 每128单位重复一次
-            const repeatY = 3000 / 128;
-            grassTexture.repeat.set(repeatX, repeatY);
-            
-            // 纹理过滤 - 使用NearestFilter避免边缘模糊
-            grassTexture.magFilter = THREE.NearestFilter;
-            grassTexture.minFilter = THREE.NearestFilter;
-            grassTexture.generateMipmaps = false; // 关闭mipmap避免边缘混合
-            grassTexture.needsUpdate = true;
-            
-            // 创建材质
-            const groundMaterial = new THREE.MeshBasicMaterial({
-                map: grassTexture,
-                side: THREE.DoubleSide
-            });
-            
-            // 创建地面网格
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
-            ground.position.y = -10; // 略微下沉
-            this.scene.add(ground);
-            this.objects.set('ground', ground);
-            
-            // 添加暗色叠加，匹配2D模式中的 rgba(20, 20, 40, 0.3)
-            const overlayGeometry = new THREE.PlaneGeometry(3000, 3000);
-            const overlayMaterial = new THREE.MeshBasicMaterial({
-                color: 0x14142A, // RGB(20, 20, 40)
-                transparent: true,
-                opacity: 0.3,
-                side: THREE.DoubleSide,
-                depthWrite: false
-            });
-            
-            const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
-            overlay.rotation.x = -Math.PI / 2;
-            overlay.position.y = -9; // 略高于地面
-            this.scene.add(overlay);
-            this.objects.set('ground_overlay', overlay);
-            
-            // 不使用网格线
-            
-            console.log('地面创建完成，使用原始的grass_texture.png纹理');
-        }, undefined, (error) => {
-            console.error('草地纹理加载失败:', error);
-            
-            // 创建纯色备用地面
-            const fallbackMaterial = new THREE.MeshBasicMaterial({
-                color: 0x1a5c1a, // 2D模式中的后备颜色 #1a5c1a
-                side: THREE.DoubleSide
-            });
-            
-            const ground = new THREE.Mesh(groundGeometry, fallbackMaterial);
-            ground.rotation.x = -Math.PI / 2;
-            ground.position.y = -10;
-            this.scene.add(ground);
-            this.objects.set('ground', ground);
-            
-            console.log('使用纯色地面作为后备');
+        // 使用程序化生成的草地纹理代替加载图片
+        const grassTexture = this.generateGrassTexture();
+        
+        // 设置纹理平铺参数
+        grassTexture.wrapS = THREE.RepeatWrapping;
+        grassTexture.wrapT = THREE.RepeatWrapping;
+        
+        // 设置重复次数
+        const repeatX = 3000 / 128;
+        const repeatY = 3000 / 128;
+        grassTexture.repeat.set(repeatX, repeatY);
+        
+        // 纹理过滤 - 使用NearestFilter避免边缘模糊
+        grassTexture.magFilter = THREE.NearestFilter;
+        grassTexture.minFilter = THREE.NearestFilter;
+        grassTexture.generateMipmaps = false; // 关闭mipmap避免边缘混合
+        grassTexture.needsUpdate = true;
+        
+        // 创建材质
+        const groundMaterial = new THREE.MeshBasicMaterial({
+            map: grassTexture,
+            side: THREE.DoubleSide
         });
+        
+        // 创建地面网格
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
+        ground.position.y = -10; // 略微下沉
+        this.scene.add(ground);
+        this.objects.set('ground', ground);
+        
+        // 添加暗色叠加，匹配2D模式中的 rgba(20, 20, 40, 0.3)
+        const overlayGeometry = new THREE.PlaneGeometry(3000, 3000);
+        const overlayMaterial = new THREE.MeshBasicMaterial({
+            color: 0x14142A, // RGB(20, 20, 40)
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
+        overlay.rotation.x = -Math.PI / 2;
+        overlay.position.y = -9; // 略高于地面
+        this.scene.add(overlay);
+        this.objects.set('ground_overlay', overlay);
+        
+        console.log('地面创建完成，使用程序生成的草地纹理');
     }
     
-    // 创建无缝草地纹理
-    createProceduralGrassTexture() {
-        // 创建一个512x512的纹理，更大尺寸可提供更多细节
+    // 生成草地纹理
+    generateGrassTexture() {
         const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         // 背景颜色 - 深绿色
-        ctx.fillStyle = '#1a3a1a';
+        ctx.fillStyle = '#1a5c1a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // 绘制噪点背景提供纹理变化
-        for (let i = 0; i < 50000; i++) {
+        // 添加草的纹理
+        const grassCount = 100 + Math.floor(Math.random() * 50); // 随机数量的草
+        const grassColors = ['#267326', '#1a5c1a', '#0f4c0f', '#3b8f3b', '#2d7d2d'];
+        
+        for (let i = 0; i < grassCount; i++) {
+            // 随机位置
             const x = Math.random() * canvas.width;
             const y = Math.random() * canvas.height;
-            const size = Math.random() * 2;
+            
+            // 随机大小
+            const size = 2 + Math.random() * 5;
+            
+            // 随机颜色
+            const colorIndex = Math.floor(Math.random() * grassColors.length);
+            ctx.fillStyle = grassColors[colorIndex];
+            
+            // 绘制草
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            
+            // 基础形状 - 简单椭圆或圆形
+            const method = Math.random() > 0.5 ? 'rect' : 'arc';
+            if (method === 'rect') {
+                // 随机旋转矩形
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(Math.random() * Math.PI);
+                ctx.fillRect(-size/2, -size/3, size, size/1.5);
+                ctx.restore();
+            } else {
+                // 椭圆或圆形
+                const radiusX = size;
+                const radiusY = size * (0.7 + Math.random() * 0.6);
+                ctx.ellipse(x, y, radiusX, radiusY, Math.random() * Math.PI, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // 添加一些噪点增加纹理感
+        for (let i = 0; i < 1000; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 1.5;
+            const alpha = Math.random() * 0.3;
+            
+            // 随机颜色的噪点
+            const r = 10 + Math.floor(Math.random() * 60);
+            const g = 60 + Math.floor(Math.random() * 120);
+            const b = 10 + Math.floor(Math.random() * 60);
+            
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            ctx.fillRect(x, y, size, size);
+        }
+        
+        // 确保四个边缘相同，实现无缝拼接
+        // 复制上边缘到下边缘
+        const topEdge = ctx.getImageData(0, 0, canvas.width, 2);
+        ctx.putImageData(topEdge, 0, canvas.height - 2);
+        
+        // 复制左边缘到右边缘
+        const leftEdge = ctx.getImageData(0, 0, 2, canvas.height);
+        ctx.putImageData(leftEdge, canvas.width - 2, 0);
+        
+        // 创建THREE.js纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+    
+    // 生成城堡塔纹理
+    generateCastleTowerTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // 背景色 - 灰色
+        ctx.fillStyle = '#666666';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加砖块纹理
+        const brickRows = 8;
+        const bricksPerRow = 6;
+        const brickWidth = canvas.width / bricksPerRow;
+        const brickHeight = canvas.height / brickRows;
+        
+        for (let row = 0; row < brickRows; row++) {
+            // 交错排列砖块
+            const offset = row % 2 === 0 ? 0 : brickWidth / 2;
+            
+            for (let col = 0; col < bricksPerRow + (row % 2); col++) {
+                // 随机砖块颜色变化
+                const shade = 0.9 + Math.random() * 0.2; // 10%至30%的阴影变化
+                const baseColor = 102; // #666666 灰色的RGB值
+                const brickColor = Math.floor(baseColor * shade);
+                ctx.fillStyle = `rgb(${brickColor}, ${brickColor}, ${brickColor})`;
+                
+                // 绘制砖块，留一点点空隙作为砂浆
+                ctx.fillRect(
+                    offset + col * brickWidth + 1, 
+                    row * brickHeight + 1,
+                    brickWidth - 2,
+                    brickHeight - 2
+                );
+            }
+        }
+        
+        // 添加一些随机划痕和损坏
+        const scratchCount = 20 + Math.floor(Math.random() * 30);
+        for (let i = 0; i < scratchCount; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const length = 2 + Math.random() * 10;
+            const angle = Math.random() * Math.PI * 2;
+            
+            ctx.strokeStyle = `rgba(40, 40, 40, ${0.3 + Math.random() * 0.4})`;
+            ctx.lineWidth = 1 + Math.random();
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(
+                x + Math.cos(angle) * length,
+                y + Math.sin(angle) * length
+            );
+            ctx.stroke();
+        }
+        
+        // 创建THREE.js纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+    
+    // 生成破碎柱子纹理
+    generateBrokenPillarTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // 背景色 - 浅灰色
+        ctx.fillStyle = '#999999';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加柱子的凹槽纹理
+        const grooveCount = 6; // 柱子上的凹槽数量
+        const grooveWidth = canvas.width / grooveCount;
+        
+        for (let i = 0; i < grooveCount; i++) {
+            // 随机灰度变化
+            const shade = 0.8 + Math.random() * 0.4; // 20%至60%的阴影变化
+            const baseColor = 153; // #999999 浅灰色的RGB值
+            const grooveColor = Math.floor(baseColor * shade);
+            
+            // 确定凹槽区域
+            const x = i * grooveWidth;
+            
+            // 绘制凹槽（凸起和阴影）
+            ctx.fillStyle = `rgb(${grooveColor}, ${grooveColor}, ${grooveColor})`;
+            ctx.fillRect(x, 0, grooveWidth, canvas.height);
+            
+            // 添加高光和阴影以创建3D效果
+            const highlightWidth = grooveWidth * 0.2;
+            
+            // 高光（左侧）
+            const gradient1 = ctx.createLinearGradient(x, 0, x + highlightWidth, 0);
+            gradient1.addColorStop(0, `rgba(255, 255, 255, 0.4)`);
+            gradient1.addColorStop(1, `rgba(255, 255, 255, 0)`);
+            ctx.fillStyle = gradient1;
+            ctx.fillRect(x, 0, highlightWidth, canvas.height);
+            
+            // 阴影（右侧）
+            const gradient2 = ctx.createLinearGradient(x + grooveWidth - highlightWidth, 0, x + grooveWidth, 0);
+            gradient2.addColorStop(0, `rgba(0, 0, 0, 0)`);
+            gradient2.addColorStop(1, `rgba(0, 0, 0, 0.3)`);
+            ctx.fillStyle = gradient2;
+            ctx.fillRect(x + grooveWidth - highlightWidth, 0, highlightWidth, canvas.height);
+        }
+        
+        // 添加破损效果
+        const crackCount = 5 + Math.floor(Math.random() * 10);
+        for (let i = 0; i < crackCount; i++) {
+            const startX = Math.random() * canvas.width;
+            const startY = Math.random() * canvas.height;
+            const length = 10 + Math.random() * 40;
+            const angle = Math.random() * Math.PI * 2;
+            
+            // 绘制裂缝
+            ctx.strokeStyle = 'rgba(40, 40, 40, 0.6)';
+            ctx.lineWidth = 1 + Math.random() * 2;
+            
+            // 创建不规则裂缝
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            
+            const segments = 3 + Math.floor(Math.random() * 3);
+            let currentX = startX;
+            let currentY = startY;
+            let currentAngle = angle;
+            
+            for (let j = 0; j < segments; j++) {
+                const segmentLength = length / segments * (0.7 + Math.random() * 0.6);
+                currentAngle += (Math.random() - 0.5) * Math.PI / 4; // 每段偏转一点
+                
+                currentX += Math.cos(currentAngle) * segmentLength;
+                currentY += Math.sin(currentAngle) * segmentLength;
+                
+                ctx.lineTo(currentX, currentY);
+            }
+            
+            ctx.stroke();
+        }
+        
+        // 创建THREE.js纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+    
+    // 生成墓碑纹理
+    generateGravestoneTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // 背景色 - 深灰色
+        ctx.fillStyle = '#555555';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加纹理和细节
+        // 首先是一些随机噪点
+        for (let i = 0; i < 5000; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 1.5;
             const alpha = Math.random() * 0.2;
             
             ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
             ctx.fillRect(x, y, size, size);
         }
         
-        // 添加草丛 - 在普通位置
-        this.drawGrassTufts(ctx, 200);
-        
-        // 特别处理边缘区域，确保无缝拼接
-        // 左边和右边
-        for (let y = 0; y < canvas.height; y += 20) {
-            const tuftSize = 3 + Math.random() * 6;
-            // 在左边绘制，并在右边对应位置绘制相同的草丛
-            this.drawGrassTuft(ctx, 0, y, tuftSize);
-            this.drawGrassTuft(ctx, canvas.width, y, tuftSize);
-            
-            // 上边和下边
+        // 添加一些白色噪点代表磨损
+        for (let i = 0; i < 2000; i++) {
             const x = Math.random() * canvas.width;
-            const tuftSize2 = 3 + Math.random() * 6;
-            this.drawGrassTuft(ctx, x, 0, tuftSize2);
-            this.drawGrassTuft(ctx, x, canvas.height, tuftSize2);
+            const y = Math.random() * canvas.height;
+            const size = Math.random();
+            const alpha = Math.random() * 0.1;
+            
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.fillRect(x, y, size, size);
         }
         
-        // 特别处理四个角，确保无缝
-        this.drawGrassTuft(ctx, 0, 0, 5);
-        this.drawGrassTuft(ctx, canvas.width, 0, 5);
-        this.drawGrassTuft(ctx, 0, canvas.height, 5);
-        this.drawGrassTuft(ctx, canvas.width, canvas.height, 5);
+        // 添加一些随机划痕
+        const scratchCount = 15 + Math.floor(Math.random() * 15);
+        for (let i = 0; i < scratchCount; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const length = 5 + Math.random() * 15;
+            const angle = Math.random() * Math.PI * 2;
+            
+            ctx.strokeStyle = `rgba(30, 30, 30, ${0.3 + Math.random() * 0.2})`;
+            ctx.lineWidth = 0.5 + Math.random() * 1.5;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(
+                x + Math.cos(angle) * length,
+                y + Math.sin(angle) * length
+            );
+            ctx.stroke();
+        }
         
-        // 创建纹理
+        // 添加一些假文字（就像刻在墓碑上的）
+        const addTextLines = Math.random() > 0.3; // 70%的概率添加文字线条
+        if (addTextLines) {
+            const lineCount = 3 + Math.floor(Math.random() * 3);
+            const startY = canvas.height / 3;
+            const lineHeight = canvas.height / 10;
+            
+            ctx.strokeStyle = 'rgba(50, 50, 50, 0.7)';
+            
+            for (let i = 0; i < lineCount; i++) {
+                const y = startY + i * lineHeight;
+                const lineWidth = 30 + Math.random() * 40;
+                const x = (canvas.width - lineWidth) / 2;
+                
+                ctx.lineWidth = 1 + Math.random() * 2;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + lineWidth, y);
+                ctx.stroke();
+            }
+        }
+        
+        // 创建THREE.js纹理
         const texture = new THREE.CanvasTexture(canvas);
-        
         return texture;
     }
     
-    // 绘制一簇草
-    drawGrassTuft(ctx, x, y, size) {
-        const colors = ['#2d5d2d', '#1e4e1e', '#3c6e3c', '#265026'];
+    // 生成枯树纹理
+    generateDeadTreeTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
-        for (let i = 0; i < size * 2; i++) {
-            // 绘制一根草
-            const grassX = x + (Math.random() - 0.5) * size * 2;
-            const grassY = y + (Math.random() - 0.5) * size * 2;
-            const grassHeight = size * (0.5 + Math.random() * 0.5);
-            const grassWidth = size * 0.2 * (0.5 + Math.random() * 0.5);
-            const color = colors[Math.floor(Math.random() * colors.length)];
+        // 背景色 - 深棕色
+        ctx.fillStyle = '#663300';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加树皮纹理
+        // 首先是垂直纹理
+        const stripCount = 8 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < stripCount; i++) {
+            const x = Math.random() * canvas.width;
+            const width = 3 + Math.random() * 10;
+            const height = canvas.height;
             
-            ctx.fillStyle = color;
+            // 随机棕色调
+            const r = 102 + Math.floor(Math.random() * 30);
+            const g = 51 + Math.floor(Math.random() * 20);
+            const b = 0 + Math.floor(Math.random() * 10);
+            
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillRect(x, 0, width, height);
+        }
+        
+        // 添加横向纹理（节疤）
+        const knotCount = 3 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < knotCount; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const radiusX = 5 + Math.random() * 15;
+            const radiusY = 4 + Math.random() * 10;
+            
+            // 较深色的棕色
+            const r = 82 + Math.floor(Math.random() * 20);
+            const g = 41 + Math.floor(Math.random() * 10);
+            const b = 0;
+            
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            
+            // 绘制椭圆节疤
             ctx.beginPath();
+            ctx.ellipse(x, y, radiusX, radiusY, Math.random() * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
             
-            // 草的底部
-            ctx.moveTo(grassX - grassWidth/2, grassY);
-            
-            // 控制点决定草的弯曲程度
-            const controlX = grassX + (Math.random() - 0.5) * grassWidth * 2;
-            
-            // 草的顶部（稍微随机位置）
-            ctx.quadraticCurveTo(
-                controlX, 
-                grassY - grassHeight, 
-                grassX + (Math.random() - 0.5) * grassWidth, 
-                grassY - grassHeight
-            );
-            
-            // 补全路径
-            ctx.quadraticCurveTo(
-                controlX,
-                grassY - grassHeight / 2,
-                grassX + grassWidth/2,
-                grassY
-            );
-            
-            ctx.closePath();
+            // 添加节疤中心的特征
+            ctx.fillStyle = `rgb(${r-20}, ${g-10}, ${b})`;
+            ctx.beginPath();
+            ctx.ellipse(x, y, radiusX/2, radiusY/2, Math.random() * Math.PI, 0, Math.PI * 2);
             ctx.fill();
         }
+        
+        // 添加细微纹理细节
+        for (let i = 0; i < 5000; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 2;
+            const alpha = Math.random() * 0.3;
+            
+            // 随机深浅色
+            const isDark = Math.random() > 0.5;
+            if (isDark) {
+                ctx.fillStyle = `rgba(60, 30, 0, ${alpha})`;
+            } else {
+                ctx.fillStyle = `rgba(120, 70, 20, ${alpha})`;
+            }
+            
+            ctx.fillRect(x, y, size, size);
+        }
+        
+        // 创建THREE.js纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
     }
     
-    // 绘制多簇草
-    drawGrassTufts(ctx, count) {
-        for (let i = 0; i < count; i++) {
-            const x = Math.random() * ctx.canvas.width;
-            const y = Math.random() * ctx.canvas.height;
-            const size = 3 + Math.random() * 6; // 草丛大小变化
+    // 生成火把纹理
+    generateTorchTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // 背景色 - 透明
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 绘制火把柄 - 棕色木棍
+        const handleWidth = canvas.width / 5;
+        const handleHeight = canvas.height * 0.8;
+        const handleX = (canvas.width - handleWidth) / 2;
+        
+        ctx.fillStyle = '#663300';
+        ctx.fillRect(handleX, canvas.height / 5, handleWidth, handleHeight);
+        
+        // 添加木纹
+        for (let i = 0; i < 10; i++) {
+            const y = (canvas.height / 5) + Math.random() * handleHeight;
+            const width = handleWidth * (0.6 + Math.random() * 0.4);
+            const x = handleX + (handleWidth - width) / 2;
             
-            this.drawGrassTuft(ctx, x, y, size);
-        }
-    }
-    
-    // 创建地面网格线
-    createGroundGrid() {
-        const gridSize = 64; // 与2D中的网格大小相同
-        const extent = 1500; // 网格覆盖范围
-        
-        // 创建网格材质
-        const gridMaterial = new THREE.LineBasicMaterial({
-            color: 0x000000,
-            transparent: true,
-            opacity: 0.1 // 相当于 rgba(0, 0, 0, 0.1)
-        });
-        
-        // 创建网格组
-        const gridGroup = new THREE.Group();
-        
-        // 创建X方向的线
-        for (let x = -extent; x <= extent; x += gridSize) {
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute([
-                x, 0, -extent,
-                x, 0, extent
-            ], 3));
+            // 深棕色线条
+            ctx.strokeStyle = 'rgba(60, 30, 0, 0.5)';
+            ctx.lineWidth = 1 + Math.random();
             
-            const line = new THREE.Line(geometry, gridMaterial);
-            gridGroup.add(line);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + width, y);
+            ctx.stroke();
         }
         
-        // 创建Z方向的线
-        for (let z = -extent; z <= extent; z += gridSize) {
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute([
-                -extent, 0, z,
-                extent, 0, z
-            ], 3));
+        // 绘制火把顶部 - 火焰部分
+        const flameWidth = handleWidth * 2.5;
+        const flameHeight = canvas.height / 3;
+        const flameX = (canvas.width - flameWidth) / 2;
+        const flameY = canvas.height / 10;
+        
+        // 创建火焰的径向渐变
+        const gradient = ctx.createRadialGradient(
+            canvas.width / 2, flameY + flameHeight / 2, flameHeight / 8,
+            canvas.width / 2, flameY + flameHeight / 2, flameHeight
+        );
+        
+        gradient.addColorStop(0, 'rgba(255, 255, 0, 1)');
+        gradient.addColorStop(0.3, 'rgba(255, 150, 0, 0.8)');
+        gradient.addColorStop(0.7, 'rgba(255, 50, 0, 0.6)');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        
+        // 绘制椭圆形火焰
+        ctx.beginPath();
+        ctx.ellipse(
+            canvas.width / 2, 
+            flameY + flameHeight / 2,
+            flameWidth / 2,
+            flameHeight / 2,
+            0, 0, Math.PI * 2
+        );
+        ctx.fill();
+        
+        // 在火焰中添加一些亮点
+        for (let i = 0; i < 30; i++) {
+            const x = canvas.width / 2 + (Math.random() - 0.5) * flameWidth * 0.7;
+            const y = flameY + flameHeight / 2 + (Math.random() - 0.5) * flameHeight * 0.7;
+            const radius = 1 + Math.random() * 3;
             
-            const line = new THREE.Line(geometry, gridMaterial);
-            gridGroup.add(line);
+            ctx.fillStyle = 'rgba(255, 255, 200, 0.7)';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
         }
         
-        // 将网格添加到场景
-        gridGroup.position.y = -8; // 略高于地面和叠加层
-        this.scene.add(gridGroup);
-        this.objects.set('ground_grid', gridGroup);
-        
-        console.log('地面网格线创建完成');
-    }
-    
-    // 创建默认的3D对象
-    createDefaultObjects() {
-        // 创建几个彩色立方体作为地标
-        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
-        
-        for (let i = 0; i < 5; i++) {
-            const size = 30;
-            const geometry = new THREE.BoxGeometry(size, size, size);
-            const material = new THREE.MeshStandardMaterial({
-                color: colors[i],
-                emissive: colors[i],
-                emissiveIntensity: 0.2
-            });
-            
-            const cube = new THREE.Mesh(geometry, material);
-            
-            // 放置在不同位置
-            const distance = 200;
-            const angle = i * Math.PI * 2 / 5;
-            cube.position.set(
-                Math.cos(angle) * distance,
-                size / 2, // 确保在地面之上
-                Math.sin(angle) * distance
-            );
-            
-            this.scene.add(cube);
-            this.objects.set(`landmark_${i}`, cube);
-        }
-        
-        // 添加一个中心点标记
-        const centerGeometry = new THREE.SphereGeometry(20, 16, 16);
-        const centerMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            emissive: 0xffffff,
-            emissiveIntensity: 0.5
-        });
-        const centerSphere = new THREE.Mesh(centerGeometry, centerMaterial);
-        centerSphere.position.set(0, 30, 0);
-        this.scene.add(centerSphere);
-        this.objects.set('center_marker', centerSphere);
+        // 创建THREE.js纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
     }
     
     // 创建WebGL渲染器
@@ -537,19 +794,19 @@ class ThreeHelper {
                     try {
                         switch(obj.type) {
                             case 'castleTower':
-                                texture = this.createPatternTexture('#666666', '#444444');
+                                texture = this.generateCastleTowerTexture();
                                 break;
                             case 'brokenPillar':
-                                texture = this.createPatternTexture('#999999', '#777777');
+                                texture = this.generateBrokenPillarTexture();
                                 break;
                             case 'gravestone':
-                                texture = this.createColorTexture('#555555');
+                                texture = this.generateGravestoneTexture();
                                 break;
                             case 'deadTree':
-                                texture = this.createPatternTexture('#663300', '#442200');
+                                texture = this.generateDeadTreeTexture();
                                 break;
                             case 'torch':
-                                texture = this.createPatternTexture('#663300', '#ffcc00');
+                                texture = this.generateTorchTexture();
                                 break;
                         }
                     } catch (e) {
