@@ -77,6 +77,13 @@ class ThreeHelper {
             const repeatY = 3000 / 128;
             grassTexture.repeat.set(repeatX, repeatY);
             
+            // 设置更好的纹理过滤，消除边缘格子感
+            grassTexture.magFilter = THREE.LinearFilter;
+            grassTexture.minFilter = THREE.LinearMipmapLinearFilter; // 三线性过滤
+            grassTexture.generateMipmaps = true;
+            grassTexture.anisotropy = 16; // 各向异性过滤，减少斜视角度下的模糊
+            grassTexture.needsUpdate = true;
+            
             // 创建材质
             const groundMaterial = new THREE.MeshBasicMaterial({
                 map: grassTexture,
@@ -1010,5 +1017,69 @@ class ThreeHelper {
         this.objects.set('success_ground', ground);
         
         console.log('成功创建带纹理的地面!');
+    }
+    
+    // 添加回refreshTexturedObjects方法，以便兼容game.js中的调用
+    refreshTexturedObjects() {
+        console.log('调用了旧的refreshTexturedObjects方法，该方法已被重构');
+        // 这个方法在旧版本中用于刷新地面和背景对象的纹理
+        // 在新版本中不需要调用，因为地面已在构造函数中创建
+        
+        // 如果场景中还没有地面，可以创建一个
+        if (!this.objects.has('ground')) {
+            this.createSimpleGround();
+        }
+        
+        // 如果有背景对象数据，可以尝试创建背景对象
+        if (this.game.backgroundObjects && this.game.backgroundObjects.length > 0) {
+            // 简单加载背景图像
+            this.loadBackgroundImages();
+        }
+    }
+    
+    // 加载背景对象图像
+    loadBackgroundImages() {
+        // 使用简单的方法加载背景对象图像
+        const textureLoader = new THREE.TextureLoader();
+        
+        // 创建纹理对象存储结构
+        this.textures = this.textures || {};
+        
+        // 加载背景对象所需的图像
+        const imagesToLoad = [
+            {key: 'castleTower', path: './images/castle_tower.png'},
+            {key: 'brokenPillar', path: './images/broken_pillar.png'},
+            {key: 'gravestone', path: './images/gravestone.png'},
+            {key: 'deadTree', path: './images/dead_tree.png'},
+            {key: 'torch', path: './images/torch.png'}
+        ];
+        
+        // 开始加载图像
+        let loadedCount = 0;
+        imagesToLoad.forEach(img => {
+            textureLoader.load(
+                img.path,
+                (texture) => {
+                    console.log(`加载背景图像成功: ${img.key}`);
+                    this.textures[img.key] = texture;
+                    loadedCount++;
+                    
+                    // 所有图像加载完成后创建背景对象
+                    if (loadedCount === imagesToLoad.length) {
+                        this.createBackgroundObjects();
+                    }
+                },
+                undefined,
+                (error) => {
+                    console.error(`加载背景图像失败: ${img.key}`, error);
+                    // 即使失败也继续计数，确保进程能够继续
+                    loadedCount++;
+                    
+                    if (loadedCount === imagesToLoad.length) {
+                        this.createBackgroundObjects();
+                    }
+                }
+            );
+        });
     }
 } 
