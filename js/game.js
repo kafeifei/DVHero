@@ -87,16 +87,40 @@ class Game {
     
     // 更新Canvas显示状态
     updateCanvasVisibility() {
-        if (this.is3D) {
-            this.canvas2d.classList.remove('active');
-            this.canvas2d.classList.add('inactive');
-            this.canvas3d.classList.remove('inactive');
-            this.canvas3d.classList.add('active');
+        // 获取canvas元素，确保它们存在
+        const canvas2d = document.getElementById('game-canvas');
+        let canvas3d = document.getElementById('game-canvas-3d');
+        
+        // 如果3D canvas不存在且处于3D模式，则创建一个
+        if (!canvas3d && this.is3D) {
+            console.log('创建新的3D Canvas元素');
+            canvas3d = document.createElement('canvas');
+            canvas3d.id = 'game-canvas-3d';
+            canvas3d.width = this.canvas2d.width;
+            canvas3d.height = this.canvas2d.height;
+            
+            // 将新canvas添加到game-container中
+            const container = document.getElementById('game-container');
+            if (container) {
+                container.appendChild(canvas3d);
+            }
+        }
+        
+        if (canvas2d && canvas3d) {
+            if (this.is3D) {
+                canvas2d.classList.remove('active');
+                canvas2d.classList.add('inactive');
+                canvas3d.classList.remove('inactive');
+                canvas3d.classList.add('active');
+            } else {
+                canvas3d.classList.remove('active');
+                canvas3d.classList.add('inactive');
+                canvas2d.classList.remove('inactive');
+                canvas2d.classList.add('active');
+            }
+            console.log(`Canvas可见性更新: 2D ${this.is3D ? '隐藏' : '显示'}, 3D ${this.is3D ? '显示' : '隐藏'}`);
         } else {
-            this.canvas3d.classList.remove('active');
-            this.canvas3d.classList.add('inactive');
-            this.canvas2d.classList.remove('inactive');
-            this.canvas2d.classList.add('active');
+            console.warn('无法更新Canvas可见性，Canvas元素不存在');
         }
     }
     

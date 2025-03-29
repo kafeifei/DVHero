@@ -32,14 +32,17 @@ body {
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 0;
 }
 
 #game-canvas.active, #game-canvas-3d.active {
-    z-index: 1;
+    z-index: 10;
+    visibility: visible;
 }
 
 #game-canvas.inactive, #game-canvas-3d.inactive {
     z-index: 0;
+    visibility: hidden;
 }
 
 #level-up {
