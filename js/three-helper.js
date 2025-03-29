@@ -110,10 +110,10 @@ class ThreeHelper {
         this.scene.add(overlay);
         this.objects.set('ground_overlay', overlay);
         
-        // 添加网格线效果
-        this.createGroundGrid();
+        // 注释掉网格线创建
+        // this.createGroundGrid();
         
-        console.log('地面创建完成，使用程序生成的无缝纹理');
+        console.log('地面创建完成，使用程序生成的无缝纹理，不含网格线');
     }
     
     // 创建无缝草地纹理
