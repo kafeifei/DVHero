@@ -80,7 +80,7 @@ class ThreeHelper {
             if (this.textures.grassTexture) {
                 this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
                 this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-                this.textures.grassTexture.repeat.set(50, 50);
+                this.textures.grassTexture.repeat.set(5, 5); // 减少重复次数，使纹理显示更大
                 
                 console.log('使用预加载的草地纹理');
             }
@@ -243,7 +243,7 @@ class ThreeHelper {
                     // 设置纹理参数
                     grassTexture.wrapS = THREE.RepeatWrapping;
                     grassTexture.wrapT = THREE.RepeatWrapping;
-                    grassTexture.repeat.set(50, 50);
+                    grassTexture.repeat.set(5, 5); // 减少重复次数，使纹理显示更大
                     grassTexture.needsUpdate = true;
                     
                     // 记录纹理便于调试
@@ -443,7 +443,7 @@ class ThreeHelper {
         // 设置纹理重复属性
         this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
         this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-        this.textures.grassTexture.repeat.set(50, 50);
+        this.textures.grassTexture.repeat.set(5, 5); // 减少重复次数，使纹理显示更大
         
         console.log('已创建临时纹理，开始加载实际图像...');
         
@@ -474,7 +474,7 @@ class ThreeHelper {
             // 配置纹理重复
             this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
             this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-            this.textures.grassTexture.repeat.set(50, 50);
+            this.textures.grassTexture.repeat.set(5, 5); // 减少重复次数，使纹理显示更大
             
             console.log('所有图像纹理加载完成，刷新对象');
             
@@ -1233,10 +1233,10 @@ class ThreeHelper {
         // 创建新的地面几何体
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
         
-        // 配置纹理
+        // 配置纹理 - 减少重复次数，使纹理显示更大
         this.successTexture.wrapS = THREE.RepeatWrapping;
         this.successTexture.wrapT = THREE.RepeatWrapping;
-        this.successTexture.repeat.set(20, 20);
+        this.successTexture.repeat.set(5, 5); // 减少重复次数，从20减到5
         this.successTexture.needsUpdate = true;
         
         // 创建材质 - 使用BasicMaterial确保可见
