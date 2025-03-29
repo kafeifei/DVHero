@@ -36,14 +36,115 @@ class ThreeHelper {
         directionalLight.castShadow = true;
         this.scene.add(directionalLight);
         
-        // 创建地面
-        this.createGround();
-        
         // 存储3D对象的映射
         this.objects = new Map();
         
-        // 初始化玩家模型
+        // 加载纹理 - 纹理加载完成后会自动创建地面和背景对象
+        this.textures = {};
+        this.loadTextures();
+        
+        // 初始化玩家模型（不依赖纹理，可以立即创建）
         this.initPlayerModel();
+        
+        // 创建临时地面，在纹理加载完成前显示
+        this.createTemporaryGround();
+    }
+    
+    // 创建临时地面
+    createTemporaryGround() {
+        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
+        ground.position.y = -10; // 略微下沉
+        this.scene.add(ground);
+        this.objects.set('ground', ground);
+    }
+    
+    // 创建地面
+    createGround() {
+        // 如果已存在地面，先移除
+        const existingGround = this.objects.get('ground');
+        if (existingGround) {
+            this.scene.remove(existingGround);
+            this.objects.delete('ground');
+        }
+        
+        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.grassTexture,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
+        ground.position.y = -10; // 略微下沉
+        this.scene.add(ground);
+        this.objects.set('ground', ground);
+    }
+    
+    // 加载纹理
+    loadTextures() {
+        const textureLoader = new THREE.TextureLoader();
+        const textureUrls = [
+            'images/grass_texture.png',
+            'images/castle_tower.png',
+            'images/broken_pillar.png',
+            'images/gravestone.png',
+            'images/dead_tree.png',
+            'images/torch.png'
+        ];
+        
+        this.texturesLoaded = 0;
+        this.texturesTotal = textureUrls.length;
+        
+        const onLoad = () => {
+            this.texturesLoaded++;
+            console.log(`纹理加载进度: ${this.texturesLoaded}/${this.texturesTotal}`);
+            
+            // 当所有纹理加载完成时
+            if (this.texturesLoaded === this.texturesTotal) {
+                console.log('所有纹理加载完成');
+                // 设置纹理重复
+                if (this.textures.grassTexture) {
+                    this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
+                    this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
+                    this.textures.grassTexture.repeat.set(10, 10);
+                }
+                
+                // 重新创建使用纹理的对象
+                this.refreshTexturedObjects();
+            }
+        };
+        
+        const onError = (url) => {
+            console.error(`加载纹理失败: ${url}`);
+        };
+        
+        // 加载图像目录中的纹理，用于背景对象
+        this.textures.grassTexture = textureLoader.load('images/grass_texture.png', onLoad, undefined, () => onError('images/grass_texture.png'));
+        this.textures.castleTower = textureLoader.load('images/castle_tower.png', onLoad, undefined, () => onError('images/castle_tower.png'));
+        this.textures.brokenPillar = textureLoader.load('images/broken_pillar.png', onLoad, undefined, () => onError('images/broken_pillar.png'));
+        this.textures.gravestone = textureLoader.load('images/gravestone.png', onLoad, undefined, () => onError('images/gravestone.png'));
+        this.textures.deadTree = textureLoader.load('images/dead_tree.png', onLoad, undefined, () => onError('images/dead_tree.png'));
+        this.textures.torch = textureLoader.load('images/torch.png', onLoad, undefined, () => onError('images/torch.png'));
+    }
+    
+    // 刷新使用纹理的对象
+    refreshTexturedObjects() {
+        // 重新创建地面（使用草地纹理）
+        const ground = this.objects.get('ground');
+        if (ground && this.textures.grassTexture) {
+            ground.material.map = this.textures.grassTexture;
+            ground.material.needsUpdate = true;
+        }
+        
+        // 重新创建背景对象
+        this.createBackgroundObjects();
     }
     
     // 创建WebGL渲染器
@@ -114,6 +215,13 @@ class ThreeHelper {
             }
         });
         
+        // 清理纹理
+        for (const key in this.textures) {
+            if (this.textures[key]) {
+                this.textures[key].dispose();
+            }
+        }
+        
         this.objects.clear();
         this.scene = null;
         this.camera = null;
@@ -122,27 +230,120 @@ class ThreeHelper {
     // 重置函数，用于重新开始游戏时
     reset() {
         // 清除所有3D对象（除了地面和灯光）
-        this.objects.forEach((object) => {
-            this.scene.remove(object);
+        this.objects.forEach((object, key) => {
+            if (!key.startsWith('background_') && key !== 'ground') {
+                this.scene.remove(object);
+                this.objects.delete(key);
+            }
         });
-        this.objects.clear();
         
         // 重新初始化玩家模型
         this.initPlayerModel();
     }
     
-    // 创建地面
-    createGround() {
-        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            roughness: 0.8,
-            metalness: 0.2
+    // 创建背景对象
+    createBackgroundObjects() {
+        if (!this.game.backgroundObjects || this.game.backgroundObjects.length === 0) {
+            console.warn('没有找到背景对象数据');
+            return;
+        }
+        
+        // 清除现有的背景对象
+        this.objects.forEach((object, key) => {
+            if (key.startsWith('background_') || key.startsWith('torch_light_')) {
+                this.scene.remove(object);
+                this.objects.delete(key);
+            }
         });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
-        ground.position.y = -10; // 略微下沉
-        this.scene.add(ground);
+        
+        // 检查纹理是否已加载
+        const allTexturesLoaded = ['grassTexture', 'castleTower', 'brokenPillar', 'gravestone', 'deadTree', 'torch']
+            .every(textureKey => this.textures[textureKey] !== undefined);
+            
+        if (!allTexturesLoaded) {
+            console.warn('纹理尚未完全加载，延迟创建背景对象');
+            return;
+        }
+        
+        let createdCount = 0;
+        
+        // 遍历游戏中的背景对象
+        this.game.backgroundObjects.forEach((obj, index) => {
+            try {
+                let texture;
+                let height = 0;
+                
+                // 根据对象类型选择纹理
+                switch(obj.type) {
+                    case 'castleTower':
+                        texture = this.textures.castleTower;
+                        height = obj.height || 80;
+                        break;
+                    case 'brokenPillar':
+                        texture = this.textures.brokenPillar;
+                        height = 30;
+                        break;
+                    case 'gravestone':
+                        texture = this.textures.gravestone;
+                        height = 20;
+                        break;
+                    case 'deadTree':
+                        texture = this.textures.deadTree;
+                        height = 40;
+                        break;
+                    case 'torch':
+                        texture = this.textures.torch;
+                        height = 25;
+                        break;
+                    default:
+                        console.warn(`未知的背景对象类型: ${obj.type}`);
+                        return;
+                }
+                
+                if (!texture) {
+                    console.warn(`纹理未加载: ${obj.type}`);
+                    return;
+                }
+                
+                // 创建一个精灵（始终面向相机的平面）
+                const material = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    transparent: true
+                });
+                
+                const sprite = new THREE.Sprite(material);
+                
+                // 设置位置和大小
+                const scale = obj.scale || 1;
+                sprite.position.set(
+                    obj.x, 
+                    height * scale / 2, // 高度位置
+                    obj.y
+                );
+                sprite.scale.set(
+                    100 * scale, 
+                    100 * scale, 
+                    1
+                );
+                
+                // 添加到场景
+                this.scene.add(sprite);
+                this.objects.set(`background_${index}`, sprite);
+                createdCount++;
+                
+                // 为火把添加点光源
+                if (obj.type === 'torch') {
+                    const pointLight = new THREE.PointLight(0xff9900, 1, 100);
+                    pointLight.position.set(obj.x, height * scale, obj.y);
+                    this.scene.add(pointLight);
+                    this.objects.set(`torch_light_${index}`, pointLight);
+                }
+            } catch (e) {
+                console.error(`创建背景对象时出错: ${e.message}`);
+            }
+        });
+        
+        console.log(`创建了 ${createdCount} 个背景对象`);
     }
     
     // 初始化玩家模型

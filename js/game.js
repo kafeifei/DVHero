@@ -131,6 +131,14 @@ class Game {
                 if (!this.threeHelper) {
                     console.log('创建3D渲染器...');
                     this.threeHelper = new ThreeHelper(this);
+                    
+                    // 确保加载了背景对象图像后再创建背景
+                    if (this.threeHelper.textures && 
+                        Object.keys(this.threeHelper.textures).length > 0) {
+                        console.log('3D背景纹理加载完成');
+                    } else {
+                        console.warn('3D背景纹理可能未完全加载');
+                    }
                 }
             }, 50);
         } else {
@@ -964,6 +972,9 @@ class Game {
         this.expOrbs = [];
         this.allies = [];
         
+        // 重新生成背景对象（保持一致的背景）
+        // 保持backgroundObjects不变，只需在3D模式下重新创建对应的3D对象
+        
         // 重置玩家
         this.player = new Player(this);
         this.player.x = 0;
@@ -971,7 +982,7 @@ class Game {
         this.player.addWeapon(WeaponsLibrary[0]);
         
         // 重置3D场景
-        if (this.is3D) {
+        if (this.is3D && this.threeHelper) {
             this.threeHelper.reset();
         }
         
