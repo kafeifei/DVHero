@@ -173,38 +173,124 @@ class ThreeHelper {
         
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
         
-        // 确保有有效的草地纹理
-        if (!this.textures.grassTexture) {
-            console.warn('草地纹理未加载，使用临时纹理');
-            this.textures.grassTexture = this.createGridTexture('#336633', '#224422', 16);
-            this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
-            this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-            this.textures.grassTexture.repeat.set(50, 50);
-        }
+        // 创建纹理加载器并立即加载草地纹理
+        const textureLoader = new THREE.TextureLoader();
         
-        // 验证纹理并打印信息
-        console.log(`使用草地纹理: ${this.textures.grassTexture.isCanvasTexture ? '程序生成的Canvas纹理' : '图像纹理'}`);
+        // 尝试多种路径加载方式
+        const tryLoadPaths = [
+            './images/grass_texture.png',  // 相对路径
+            '/images/grass_texture.png',   // 根目录路径
+            'images/grass_texture.png',    // 无前缀路径
+            window.location.origin + '/images/grass_texture.png', // 绝对URL
+        ];
         
-        // 确保纹理正确设置了重复属性
-        this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
-        this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-        this.textures.grassTexture.repeat.set(50, 50);
+        console.log('尝试加载草地纹理，使用多种路径:', tryLoadPaths);
         
+        // 测试图像是否可访问
+        const testImageExists = (url) => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    console.log(`图像测试成功: ${url}, 尺寸: ${img.width}x${img.height}`);
+                    resolve(true);
+                };
+                img.onerror = () => {
+                    console.warn(`图像测试失败: ${url}`);
+                    resolve(false);
+                };
+                img.src = url;
+            });
+        };
+        
+        // 先测试图像是否存在
+        const checkImages = async () => {
+            console.log('测试图像是否可访问...');
+            
+            for (const path of tryLoadPaths) {
+                console.log(`测试图像路径: ${path}`);
+                const exists = await testImageExists(path);
+                if (exists) {
+                    console.log(`找到可用图像: ${path}`);
+                    
+                    // 使用可访问的图像路径
+                    loadTextureAndCreateGround(path);
+                    return;
+                }
+            }
+            
+            // 如果所有路径都不可访问
+            console.error('所有图像路径测试失败，使用备用地面');
+            this.createColorGround();
+        };
+        
+        // 加载纹理并创建地面
+        const loadTextureAndCreateGround = (path) => {
+            console.log(`开始加载纹理: ${path}`);
+            
+            textureLoader.load(
+                path,
+                (grassTexture) => {
+                    console.log(`草地纹理加载成功: ${path}`);
+                    console.log(`纹理信息: ${grassTexture.image.width}x${grassTexture.image.height}`);
+                    
+                    // 设置纹理参数
+                    grassTexture.wrapS = THREE.RepeatWrapping;
+                    grassTexture.wrapT = THREE.RepeatWrapping;
+                    grassTexture.repeat.set(50, 50);
+                    grassTexture.needsUpdate = true;
+                    
+                    // 记录纹理便于调试
+                    this.grassTextureLoaded = grassTexture;
+                    
+                    // 更新材质
+                    const groundMaterial = new THREE.MeshStandardMaterial({
+                        map: grassTexture,
+                        roughness: 0.8,
+                        metalness: 0.2,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                    ground.rotation.x = -Math.PI / 2;
+                    ground.position.y = -10;
+                    ground.receiveShadow = true;
+                    this.scene.add(ground);
+                    this.objects.set('ground', ground);
+                    
+                    console.log('创建了带纹理的地面');
+                },
+                (progress) => {
+                    console.log(`纹理加载进度: ${Math.round(progress.loaded / progress.total * 100)}%`);
+                },
+                (error) => {
+                    console.error(`纹理加载失败: ${path}`, error);
+                    this.createColorGround();
+                }
+            );
+        };
+        
+        // 开始检查图像
+        checkImages();
+    }
+    
+    // 创建纯色地面（作为备用）
+    createColorGround() {
+        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
         const groundMaterial = new THREE.MeshStandardMaterial({
-            map: this.textures.grassTexture,
+            color: 0x336633,
             roughness: 0.8,
             metalness: 0.2,
-            side: THREE.DoubleSide // 确保平面的两面都可见
+            side: THREE.DoubleSide
         });
         
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
-        ground.position.y = -10; // 略微下沉
-        ground.receiveShadow = true; // 接收阴影
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -10;
+        ground.receiveShadow = true;
         this.scene.add(ground);
         this.objects.set('ground', ground);
         
-        console.log('创建了带纹理的地面');
+        console.log('创建了纯色地面（草地纹理加载失败）');
     }
     
     // 加载纹理

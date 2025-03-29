@@ -296,6 +296,85 @@ function preloadTextures() {
     
     console.log('预加载3D纹理...');
     
+    // 添加调试元素，用于测试图像是否可以正确加载
+    function testImageVisibility() {
+        console.log('创建测试图像元素...');
+        const debugContainer = document.createElement('div');
+        debugContainer.id = 'texture-debug';
+        debugContainer.style.position = 'fixed';
+        debugContainer.style.bottom = '10px';
+        debugContainer.style.right = '10px';
+        debugContainer.style.background = 'rgba(0,0,0,0.7)';
+        debugContainer.style.padding = '10px';
+        debugContainer.style.borderRadius = '5px';
+        debugContainer.style.zIndex = '1000';
+        debugContainer.style.display = 'flex';
+        debugContainer.style.flexDirection = 'column';
+        debugContainer.style.gap = '5px';
+        
+        const title = document.createElement('h4');
+        title.textContent = '纹理测试';
+        title.style.color = 'white';
+        title.style.margin = '0 0 10px 0';
+        debugContainer.appendChild(title);
+        
+        // 尝试每个路径
+        const paths = [
+            './images/grass_texture.png',
+            '/images/grass_texture.png',
+            'images/grass_texture.png',
+            window.location.origin + '/images/grass_texture.png'
+        ];
+        
+        paths.forEach((path, index) => {
+            const imgContainer = document.createElement('div');
+            imgContainer.style.marginBottom = '10px';
+            
+            const label = document.createElement('div');
+            label.textContent = `路径 ${index+1}: ${path}`;
+            label.style.color = 'white';
+            label.style.fontSize = '12px';
+            imgContainer.appendChild(label);
+            
+            const img = document.createElement('img');
+            img.src = path;
+            img.alt = `纹理 ${index+1}`;
+            img.style.width = '100px';
+            img.style.height = '100px';
+            img.style.border = '1px solid white';
+            img.style.display = 'block';
+            
+            img.onload = () => {
+                label.style.color = '#00ff00';
+                label.textContent += ` (已加载: ${img.naturalWidth}x${img.naturalHeight})`;
+            };
+            
+            img.onerror = () => {
+                label.style.color = '#ff0000';
+                label.textContent += ' (加载失败)';
+                img.style.display = 'none';
+            };
+            
+            imgContainer.appendChild(img);
+            debugContainer.appendChild(imgContainer);
+        });
+        
+        // 添加关闭按钮
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '关闭';
+        closeBtn.style.padding = '5px';
+        closeBtn.style.marginTop = '10px';
+        closeBtn.onclick = () => {
+            document.body.removeChild(debugContainer);
+        };
+        debugContainer.appendChild(closeBtn);
+        
+        document.body.appendChild(debugContainer);
+    }
+    
+    // 延迟执行测试
+    setTimeout(testImageVisibility, 1000);
+    
     // 创建一个隐藏的纹理加载器
     const textureLoader = new THREE.TextureLoader();
     const loadingPromises = textureUrls.map(url => {
