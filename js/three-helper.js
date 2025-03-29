@@ -53,6 +53,9 @@ class ThreeHelper {
         // 加载纹理 - 尝试使用预加载的纹理
         this.textures = {};
         
+        // 直接测试加载草地纹理
+        this.testLoadGrassTexture();
+        
         // 检查是否有预加载的纹理可用
         if (window.preloadedTextures && window.preloadedTextures.length >= 6) {
             console.log('使用预加载的纹理');
@@ -171,6 +174,10 @@ class ThreeHelper {
             this.objects.delete('ground');
         }
         
+        // 直接创建一个带有图案的地面
+        this.createPatternGround();
+        
+        // 尝试加载纹理创建地面
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
         
         // 创建纹理加载器并立即加载草地纹理
@@ -242,13 +249,14 @@ class ThreeHelper {
                     // 记录纹理便于调试
                     this.grassTextureLoaded = grassTexture;
                     
-                    // 更新材质
-                    const groundMaterial = new THREE.MeshStandardMaterial({
+                    // 使用MeshBasicMaterial，它不依赖光照，更容易看到纹理问题
+                    const groundMaterial = new THREE.MeshBasicMaterial({
                         map: grassTexture,
-                        roughness: 0.8,
-                        metalness: 0.2,
                         side: THREE.DoubleSide
                     });
+                    
+                    // 确保材质更新
+                    groundMaterial.needsUpdate = true;
                     
                     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
                     ground.rotation.x = -Math.PI / 2;
@@ -257,7 +265,7 @@ class ThreeHelper {
                     this.scene.add(ground);
                     this.objects.set('ground', ground);
                     
-                    console.log('创建了带纹理的地面');
+                    console.log('创建了带纹理的地面 - 使用BasicMaterial');
                 },
                 (progress) => {
                     console.log(`纹理加载进度: ${Math.round(progress.loaded / progress.total * 100)}%`);
@@ -273,13 +281,63 @@ class ThreeHelper {
         checkImages();
     }
     
+    // 创建带有明显图案的地面（强制使用程序生成图案，便于调试）
+    createPatternGround() {
+        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        
+        // 创建一个棋盘格纹理，确保可见
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;  // 更大的尺寸
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        // 绘制醒目的棋盘格
+        const gridSize = 64;  // 更大的格子
+        for (let y = 0; y < canvas.height; y += gridSize) {
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.fillStyle = (x / gridSize + y / gridSize) % 2 === 0 ? '#ff0000' : '#0000ff';
+                ctx.fillRect(x, y, gridSize, gridSize);
+            }
+        }
+        
+        // 创建一个明显的标记，确保纹理方向正确
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('TOP', canvas.width/2, 50);
+        ctx.fillText('BOTTOM', canvas.width/2, canvas.height-50);
+        ctx.fillText('LEFT', 50, canvas.height/2);
+        ctx.fillText('RIGHT', canvas.width-50, canvas.height/2);
+        
+        // 创建纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 4);  // 减少重复次数，使文字可见
+        texture.needsUpdate = true;
+        
+        // 使用BasicMaterial
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            side: THREE.DoubleSide
+        });
+        
+        // 创建地面
+        const ground = new THREE.Mesh(groundGeometry, material);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -10;
+        this.scene.add(ground);
+        this.objects.set('debug_ground', ground);
+        
+        console.log('创建了带有明显图案的调试地面');
+    }
+    
     // 创建纯色地面（作为备用）
     createColorGround() {
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
-        const groundMaterial = new THREE.MeshStandardMaterial({
+        const groundMaterial = new THREE.MeshBasicMaterial({
             color: 0x336633,
-            roughness: 0.8,
-            metalness: 0.2,
             side: THREE.DoubleSide
         });
         
@@ -290,7 +348,7 @@ class ThreeHelper {
         this.scene.add(ground);
         this.objects.set('ground', ground);
         
-        console.log('创建了纯色地面（草地纹理加载失败）');
+        console.log('创建了纯色地面（草地纹理加载失败）- 使用BasicMaterial');
     }
     
     // 加载纹理
@@ -968,6 +1026,12 @@ class ThreeHelper {
             return false;
         }
         
+        // 如果有成功加载的纹理，并且还没有创建过成功纹理地面，则创建一个
+        if (this.successTexture && !this.successGroundCreated) {
+            this.createSuccessGround();
+            this.successGroundCreated = true;
+        }
+        
         try {
             // 更新场景中的动画对象
             this.animateObjects();
@@ -1076,5 +1140,118 @@ class ThreeHelper {
         
         // 记录主光源
         this.mainLight = directionalLight;
+    }
+    
+    // 测试直接加载草地纹理
+    testLoadGrassTexture() {
+        console.log('======= 直接测试加载草地纹理 =======');
+        
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.crossOrigin = 'anonymous'; // 尝试解决可能的跨域问题
+        
+        // 尝试不同的图片格式
+        const testPaths = [
+            './images/grass_texture.png',
+            './images/grass_texture.jpg',
+            'images/grass_texture.png',
+            '/images/grass_texture.png',
+            window.location.origin + '/images/grass_texture.png',
+            'https://via.placeholder.com/512x512/00ff00/ffffff?text=Grass'  // 外部图像，确保纹理加载器工作
+        ];
+        
+        console.log('测试路径列表:', testPaths);
+        
+        // 依次尝试每个路径
+        const testNext = (index) => {
+            if (index >= testPaths.length) {
+                console.log('所有路径测试完成');
+                return;
+            }
+            
+            const path = testPaths[index];
+            console.log(`测试路径 [${index+1}/${testPaths.length}]: ${path}`);
+            
+            try {
+                textureLoader.load(
+                    path,
+                    (texture) => {
+                        console.log(`✅ 纹理加载成功: ${path}`);
+                        console.log(`  - 尺寸: ${texture.image.width}x${texture.image.height}`);
+                        console.log(`  - 类型: ${texture.image.src.endsWith('.png') ? 'PNG' : (texture.image.src.endsWith('.jpg') ? 'JPG' : '未知')}`);
+                        
+                        // 保存成功加载的纹理
+                        this.successTexture = texture;
+                        
+                        // 测试下一个路径
+                        testNext(index + 1);
+                    },
+                    (progress) => {
+                        if (progress.lengthComputable) {
+                            console.log(`  加载进度: ${Math.round(progress.loaded / progress.total * 100)}%`);
+                        }
+                    },
+                    (error) => {
+                        console.error(`❌ 纹理加载失败: ${path}`);
+                        console.error(`  错误信息: ${error.message || '未知错误'}`);
+                        
+                        // 测试下一个路径
+                        testNext(index + 1);
+                    }
+                );
+            } catch (e) {
+                console.error(`❌ 加载过程出错: ${path}`);
+                console.error(`  错误信息: ${e.message}`);
+                
+                // 测试下一个路径
+                testNext(index + 1);
+            }
+        };
+        
+        // 开始测试第一个路径
+        testNext(0);
+    }
+    
+    // 使用成功加载的纹理创建地面
+    createSuccessGround() {
+        console.log('使用成功加载的纹理创建地面');
+        
+        // 如果没有成功加载的纹理，返回
+        if (!this.successTexture) {
+            console.warn('没有成功加载的纹理，无法创建地面');
+            return;
+        }
+        
+        // 移除所有现有地面
+        ['ground', 'debug_ground'].forEach(key => {
+            const existingGround = this.objects.get(key);
+            if (existingGround) {
+                this.scene.remove(existingGround);
+                this.objects.delete(key);
+            }
+        });
+        
+        // 创建新的地面几何体
+        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        
+        // 配置纹理
+        this.successTexture.wrapS = THREE.RepeatWrapping;
+        this.successTexture.wrapT = THREE.RepeatWrapping;
+        this.successTexture.repeat.set(20, 20);
+        this.successTexture.needsUpdate = true;
+        
+        // 创建材质 - 使用BasicMaterial确保可见
+        const groundMaterial = new THREE.MeshBasicMaterial({
+            map: this.successTexture,
+            side: THREE.DoubleSide
+        });
+        
+        // 创建地面
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -10;
+        this.scene.add(ground);
+        this.objects.set('success_ground', ground);
+        
+        console.log('成功创建带纹理的地面!');
     }
 } 
