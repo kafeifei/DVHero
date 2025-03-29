@@ -62,58 +62,76 @@ class ThreeHelper {
         // 创建几何体 - 大尺寸以确保覆盖视野
         const groundGeometry = new THREE.PlaneGeometry(3000, 3000);
         
-        // 创建无缝草地纹理
-        const grassTexture = this.createProceduralGrassTexture();
-        
-        // 设置纹理平铺参数
-        grassTexture.wrapS = THREE.RepeatWrapping;
-        grassTexture.wrapT = THREE.RepeatWrapping;
-        
-        // 设置重复次数 - 纹理大小为512x512，适当减少重复次数
-        const repeatX = 3000 / 512 * 2; // 每个纹理单元覆盖256单位
-        const repeatY = 3000 / 512 * 2;
-        grassTexture.repeat.set(repeatX, repeatY);
-        
-        // 设置更好的纹理过滤
-        grassTexture.magFilter = THREE.LinearFilter;
-        grassTexture.minFilter = THREE.LinearMipmapLinearFilter;
-        grassTexture.generateMipmaps = true;
-        grassTexture.anisotropy = 16;
-        grassTexture.needsUpdate = true;
-        
-        // 创建材质
-        const groundMaterial = new THREE.MeshBasicMaterial({
-            map: grassTexture,
-            side: THREE.DoubleSide
+        // 直接加载grass_texture.png
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('./images/grass_texture.png', (grassTexture) => {
+            console.log('草地纹理加载成功:', grassTexture.image.width, 'x', grassTexture.image.height);
+            
+            // 设置纹理平铺参数
+            grassTexture.wrapS = THREE.RepeatWrapping;
+            grassTexture.wrapT = THREE.RepeatWrapping;
+            
+            // 设置重复次数 - 基于图片尺寸和地面尺寸
+            // grass_texture.png是128x128像素，设置适当的重复次数
+            const repeatX = 3000 / 128; // 每128单位重复一次
+            const repeatY = 3000 / 128;
+            grassTexture.repeat.set(repeatX, repeatY);
+            
+            // 纹理过滤 - 使用NearestFilter避免边缘模糊
+            grassTexture.magFilter = THREE.NearestFilter;
+            grassTexture.minFilter = THREE.NearestFilter;
+            grassTexture.generateMipmaps = false; // 关闭mipmap避免边缘混合
+            grassTexture.needsUpdate = true;
+            
+            // 创建材质
+            const groundMaterial = new THREE.MeshBasicMaterial({
+                map: grassTexture,
+                side: THREE.DoubleSide
+            });
+            
+            // 创建地面网格
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
+            ground.position.y = -10; // 略微下沉
+            this.scene.add(ground);
+            this.objects.set('ground', ground);
+            
+            // 添加暗色叠加，匹配2D模式中的 rgba(20, 20, 40, 0.3)
+            const overlayGeometry = new THREE.PlaneGeometry(3000, 3000);
+            const overlayMaterial = new THREE.MeshBasicMaterial({
+                color: 0x14142A, // RGB(20, 20, 40)
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            
+            const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
+            overlay.rotation.x = -Math.PI / 2;
+            overlay.position.y = -9; // 略高于地面
+            this.scene.add(overlay);
+            this.objects.set('ground_overlay', overlay);
+            
+            // 不使用网格线
+            
+            console.log('地面创建完成，使用原始的grass_texture.png纹理');
+        }, undefined, (error) => {
+            console.error('草地纹理加载失败:', error);
+            
+            // 创建纯色备用地面
+            const fallbackMaterial = new THREE.MeshBasicMaterial({
+                color: 0x1a5c1a, // 2D模式中的后备颜色 #1a5c1a
+                side: THREE.DoubleSide
+            });
+            
+            const ground = new THREE.Mesh(groundGeometry, fallbackMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -10;
+            this.scene.add(ground);
+            this.objects.set('ground', ground);
+            
+            console.log('使用纯色地面作为后备');
         });
-        
-        // 创建地面网格
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
-        ground.position.y = -10; // 略微下沉
-        this.scene.add(ground);
-        this.objects.set('ground', ground);
-        
-        // 添加暗色叠加，匹配2D模式中的 rgba(20, 20, 40, 0.3)
-        const overlayGeometry = new THREE.PlaneGeometry(3000, 3000);
-        const overlayMaterial = new THREE.MeshBasicMaterial({
-            color: 0x14142A, // RGB(20, 20, 40)
-            transparent: true,
-            opacity: 0.3,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-        
-        const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
-        overlay.rotation.x = -Math.PI / 2;
-        overlay.position.y = -9; // 略高于地面
-        this.scene.add(overlay);
-        this.objects.set('ground_overlay', overlay);
-        
-        // 注释掉网格线创建
-        // this.createGroundGrid();
-        
-        console.log('地面创建完成，使用程序生成的无缝纹理，不含网格线');
     }
     
     // 创建无缝草地纹理
