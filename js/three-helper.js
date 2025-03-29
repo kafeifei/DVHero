@@ -89,49 +89,61 @@ class ThreeHelper {
     
     // 加载纹理
     loadTextures() {
+        // 使用THREE.TextureLoader创建纹理加载器
         const textureLoader = new THREE.TextureLoader();
-        const textureUrls = [
-            'images/grass_texture.png',
-            'images/castle_tower.png',
-            'images/broken_pillar.png',
-            'images/gravestone.png',
-            'images/dead_tree.png',
-            'images/torch.png'
+        
+        // 定义需要加载的图像类型
+        const textureTypes = [
+            'grassTexture', 'castleTower', 'brokenPillar', 
+            'gravestone', 'deadTree', 'torch'
         ];
         
         this.texturesLoaded = 0;
-        this.texturesTotal = textureUrls.length;
+        this.texturesTotal = textureTypes.length;
         
-        const onLoad = () => {
-            this.texturesLoaded++;
-            console.log(`纹理加载进度: ${this.texturesLoaded}/${this.texturesTotal}`);
-            
-            // 当所有纹理加载完成时
-            if (this.texturesLoaded === this.texturesTotal) {
-                console.log('所有纹理加载完成');
-                // 设置纹理重复
-                if (this.textures.grassTexture) {
-                    this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
-                    this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-                    this.textures.grassTexture.repeat.set(10, 10);
-                }
+        // 检查游戏中的图像是否已加载
+        const allImagesLoaded = textureTypes.every(type => 
+            this.game.images[type] && this.game.images[type].complete);
+        
+        if (!allImagesLoaded) {
+            console.warn('游戏图像尚未完全加载，等待中...');
+            // 设置延迟后再次尝试
+            setTimeout(() => this.loadTextures(), 500);
+            return;
+        }
+        
+        console.log('游戏图像已加载，创建3D纹理');
+        
+        // 从已加载的DOM图像创建Three.js纹理
+        textureTypes.forEach(type => {
+            try {
+                // 从游戏图像中创建纹理
+                this.textures[type] = new THREE.Texture(this.game.images[type]);
+                this.textures[type].needsUpdate = true; // 必须设置，告诉Three.js纹理已更新
+                this.texturesLoaded++;
                 
-                // 重新创建使用纹理的对象
-                this.refreshTexturedObjects();
+                console.log(`已创建纹理: ${type}`);
+                
+                // 设置特定纹理属性
+                if (type === 'grassTexture') {
+                    this.textures[type].wrapS = THREE.RepeatWrapping;
+                    this.textures[type].wrapT = THREE.RepeatWrapping;
+                    this.textures[type].repeat.set(10, 10);
+                }
+            } catch (e) {
+                console.error(`创建纹理失败: ${type}`, e);
             }
-        };
+        });
         
-        const onError = (url) => {
-            console.error(`加载纹理失败: ${url}`);
-        };
-        
-        // 加载图像目录中的纹理，用于背景对象
-        this.textures.grassTexture = textureLoader.load('images/grass_texture.png', onLoad, undefined, () => onError('images/grass_texture.png'));
-        this.textures.castleTower = textureLoader.load('images/castle_tower.png', onLoad, undefined, () => onError('images/castle_tower.png'));
-        this.textures.brokenPillar = textureLoader.load('images/broken_pillar.png', onLoad, undefined, () => onError('images/broken_pillar.png'));
-        this.textures.gravestone = textureLoader.load('images/gravestone.png', onLoad, undefined, () => onError('images/gravestone.png'));
-        this.textures.deadTree = textureLoader.load('images/dead_tree.png', onLoad, undefined, () => onError('images/dead_tree.png'));
-        this.textures.torch = textureLoader.load('images/torch.png', onLoad, undefined, () => onError('images/torch.png'));
+        // 检查是否所有纹理都已创建
+        if (this.texturesLoaded === this.texturesTotal) {
+            console.log('所有纹理加载完成');
+            this.refreshTexturedObjects();
+        } else {
+            console.warn(`只有${this.texturesLoaded}/${this.texturesTotal}个纹理加载成功`);
+            // 即使有些纹理加载失败，也尝试创建对象
+            this.refreshTexturedObjects();
+        }
     }
     
     // 刷新使用纹理的对象

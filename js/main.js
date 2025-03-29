@@ -199,11 +199,44 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 延迟启用3D模式切换功能，确保游戏已完全加载
     setTimeout(() => {
-        console.log('3D模式切换功能已启用');
-        canToggle3D = true;
-        updateModeIndicator();
-        
-        // 提示用户3D功能已启用
-        game.showWarning("3D模式已启用！按3键切换", 180);
+        // 检查图像是否已加载
+        if (game.imagesReady) {
+            console.log('3D模式切换功能已启用');
+            canToggle3D = true;
+            updateModeIndicator();
+            
+            // 提示用户3D功能已启用
+            game.showWarning("3D模式已启用！按3键切换", 180);
+        } else {
+            console.log('等待图像加载...');
+            
+            // 设置检查间隔，直到图像加载完成
+            const checkInterval = setInterval(() => {
+                if (game.imagesReady) {
+                    console.log('图像加载完成，3D模式切换功能已启用');
+                    canToggle3D = true;
+                    updateModeIndicator();
+                    
+                    // 提示用户3D功能已启用
+                    game.showWarning("3D模式已启用！按3键切换", 180);
+                    
+                    clearInterval(checkInterval);
+                }
+            }, 1000);
+            
+            // 设置超时，如果30秒后仍未加载完成，也启用功能但显示警告
+            setTimeout(() => {
+                if (!canToggle3D) {
+                    console.warn('图像加载超时，强制启用3D模式切换');
+                    canToggle3D = true;
+                    updateModeIndicator();
+                    
+                    // 提示用户
+                    game.showWarning("图像可能未完全加载，3D模式可能不完整，按3尝试切换", 180);
+                    
+                    clearInterval(checkInterval);
+                }
+            }, 30000);
+        }
     }, 3000);
 }); 

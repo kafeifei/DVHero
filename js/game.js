@@ -102,6 +102,12 @@ class Game {
     
     // 切换3D/2D模式
     toggleMode() {
+        // 如果图像尚未全部加载，显示提示并取消切换
+        if (!this.imagesReady) {
+            this.showWarning("图像资源尚未加载完成，请稍后再试", 180);
+            return;
+        }
+        
         // 如果当前是3D模式，先清理3D资源
         if (this.is3D && this.threeHelper) {
             this.threeHelper.dispose();
@@ -131,14 +137,6 @@ class Game {
                 if (!this.threeHelper) {
                     console.log('创建3D渲染器...');
                     this.threeHelper = new ThreeHelper(this);
-                    
-                    // 确保加载了背景对象图像后再创建背景
-                    if (this.threeHelper.textures && 
-                        Object.keys(this.threeHelper.textures).length > 0) {
-                        console.log('3D背景纹理加载完成');
-                    } else {
-                        console.warn('3D背景纹理可能未完全加载');
-                    }
                 }
             }, 50);
         } else {
@@ -999,24 +997,44 @@ class Game {
     
     // 加载游戏图像资源
     loadImages() {
+        this.imagesLoaded = 0;
+        this.imagesTotal = 6;
+        
+        const onLoad = () => {
+            this.imagesLoaded++;
+            console.log(`图像加载进度: ${this.imagesLoaded}/${this.imagesTotal}`);
+            
+            // 当所有图像加载完成时
+            if (this.imagesLoaded === this.imagesTotal) {
+                console.log('所有图像加载完成');
+                this.imagesReady = true;
+            }
+        };
+        
         // 背景图像
         this.images.grassTexture = new Image();
+        this.images.grassTexture.onload = onLoad;
         this.images.grassTexture.src = 'images/grass_texture.png';
         
         // 恶魔城元素
         this.images.castleTower = new Image();
+        this.images.castleTower.onload = onLoad;
         this.images.castleTower.src = 'images/castle_tower.png';
         
         this.images.brokenPillar = new Image();
+        this.images.brokenPillar.onload = onLoad;
         this.images.brokenPillar.src = 'images/broken_pillar.png';
         
         this.images.gravestone = new Image();
+        this.images.gravestone.onload = onLoad;
         this.images.gravestone.src = 'images/gravestone.png';
         
         this.images.deadTree = new Image();
+        this.images.deadTree.onload = onLoad;
         this.images.deadTree.src = 'images/dead_tree.png';
         
         this.images.torch = new Image();
+        this.images.torch.onload = onLoad;
         this.images.torch.src = 'images/torch.png';
     }
     
