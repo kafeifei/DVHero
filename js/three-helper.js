@@ -79,14 +79,7 @@ class ThreeHelper {
             // 配置草地纹理重复
             if (this.textures.grassTexture) {
                 // 计算基于纹理实际尺寸的合适重复次数
-                const textureWidth = this.textures.grassTexture.image.width;
-                const textureHeight = this.textures.grassTexture.image.height;
-                console.log(`预加载草地纹理尺寸: ${textureWidth}x${textureHeight}`);
-                
-                // 计算重复次数
-                const repeatX = 2000 / textureWidth * 0.5;
-                const repeatY = 2000 / textureHeight * 0.5;
-                console.log(`预加载纹理计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`);
+                const { x: repeatX, y: repeatY } = this.calculateTextureRepeat(this.textures.grassTexture, true);
                 
                 this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
                 this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
@@ -251,14 +244,7 @@ class ThreeHelper {
                     console.log(`纹理信息: ${grassTexture.image.width}x${grassTexture.image.height}`);
                     
                     // 计算基于纹理实际尺寸的合适重复次数
-                    const textureWidth = grassTexture.image.width;
-                    const textureHeight = grassTexture.image.height;
-                    
-                    // 计算重复次数
-                    const repeatX = 2000 / textureWidth * 0.5;
-                    const repeatY = 2000 / textureHeight * 0.5;
-                    
-                    console.log(`计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`);
+                    const { x: repeatX, y: repeatY } = this.calculateTextureRepeat(grassTexture, true);
                     
                     // 设置纹理参数
                     grassTexture.wrapS = THREE.RepeatWrapping;
@@ -464,17 +450,8 @@ class ThreeHelper {
         this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
         this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
         
-        // 计算基于纹理实际尺寸的合适重复次数
-        const textureWidth = this.textures.grassTexture.image.width;
-        const textureHeight = this.textures.grassTexture.image.height;
-        console.log(`加载的草地纹理尺寸: ${textureWidth}x${textureHeight}`);
-        
-        // 计算重复次数
-        const repeatX = 2000 / textureWidth * 0.5;
-        const repeatY = 2000 / textureHeight * 0.5;
-        console.log(`加载纹理计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`);
-        
-        this.textures.grassTexture.repeat.set(repeatX, repeatY);
+        // 这里this还没有创建calculateTextureRepeat方法，只能手动设置重复次数
+        this.textures.grassTexture.repeat.set(66, 66); // 固定草地纹理为66次重复
         
         console.log('已创建临时纹理，开始加载实际图像...');
         
@@ -506,16 +483,8 @@ class ThreeHelper {
             this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
             this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
             
-            // 计算基于纹理实际尺寸的合适重复次数
-            const textureWidth = this.textures.grassTexture.image.width;
-            const textureHeight = this.textures.grassTexture.image.height;
-            console.log(`加载的草地纹理尺寸: ${textureWidth}x${textureHeight}`);
-            
-            // 计算重复次数
-            const repeatX = 2000 / textureWidth * 0.5;
-            const repeatY = 2000 / textureHeight * 0.5;
-            console.log(`加载纹理计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`);
-            
+            // 计算基于纹理实际尺寸的合适重复次数 - 在Promise回调中已经可以访问this.calculateTextureRepeat
+            const { x: repeatX, y: repeatY } = this.calculateTextureRepeat(this.textures.grassTexture, true);
             this.textures.grassTexture.repeat.set(repeatX, repeatY);
             
             console.log('所有图像纹理加载完成，刷新对象');
@@ -1253,6 +1222,39 @@ class ThreeHelper {
         testNext(0);
     }
     
+    // 计算合适的重复系数，用于创建地面
+    calculateTextureRepeat(texture, isGrass = false) {
+        // 获取纹理尺寸
+        const textureWidth = texture.image.width;
+        const textureHeight = texture.image.height;
+        console.log(`纹理尺寸: ${textureWidth}x${textureHeight}`);
+        
+        // 地面尺寸为2000x2000
+        // 对于128x128像素的草地纹理
+        if (isGrass) {
+            // 对于grass_texture.png (128x128)，1个纹理单元在现实世界中应该大概为1-2米
+            // 在游戏中，假设角色直径约为30单位，约1.5米
+            // 因此1米约等于20游戏单位
+            // 所以一个草地纹理的理想尺寸应为20-40游戏单位
+            
+            // 地面尺寸为2000，希望每个纹理单元在30-40单位左右
+            // 重复次数应为: 2000 / 30 ≈ 66次
+            const repeatX = 66;
+            const repeatY = 66;
+            
+            console.log(`草地纹理使用固定重复次数: ${repeatX}x${repeatY}`);
+            return { x: repeatX, y: repeatY };
+        }
+        
+        // 对于其他纹理，使用动态计算
+        // 地面尺寸/纹理尺寸*0.5=纹理应该重复的次数
+        const repeatX = 2000 / textureWidth * 0.5;
+        const repeatY = 2000 / textureHeight * 0.5;
+        
+        console.log(`计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`);
+        return { x: repeatX, y: repeatY };
+    }
+    
     // 使用成功加载的纹理创建地面
     createSuccessGround() {
         console.log('使用成功加载的纹理创建地面');
@@ -1276,17 +1278,7 @@ class ThreeHelper {
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
         
         // 计算基于纹理实际尺寸的合适重复次数
-        // 地面尺寸是2000x2000单位
-        const textureWidth = this.successTexture.image.width;
-        const textureHeight = this.successTexture.image.height;
-        console.log(`纹理原始尺寸: ${textureWidth}x${textureHeight}`);
-        
-        // 计算重复次数 - 我们希望每个纹理在地面上显示为合理大小
-        // 地面尺寸/纹理尺寸=纹理应该重复的次数
-        const repeatX = 2000 / textureWidth * 0.5; // 乘以0.5使纹理显示更大
-        const repeatY = 2000 / textureHeight * 0.5; // 乘以0.5使纹理显示更大
-        
-        console.log(`计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`);
+        const { x: repeatX, y: repeatY } = this.calculateTextureRepeat(this.successTexture, true);
         
         // 配置纹理
         this.successTexture.wrapS = THREE.RepeatWrapping;
