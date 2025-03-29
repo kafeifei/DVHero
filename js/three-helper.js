@@ -50,12 +50,49 @@ class ThreeHelper {
         // 初始化玩家模型（不依赖纹理，可以立即创建）
         this.initPlayerModel();
         
-        // 创建临时地面和默认对象
-        this.createTemporaryGround();
-        
-        // 加载纹理 - 不依赖游戏中的图像
+        // 加载纹理 - 尝试使用预加载的纹理
         this.textures = {};
-        this.loadTextures();
+        
+        // 检查是否有预加载的纹理可用
+        if (window.preloadedTextures && window.preloadedTextures.length >= 6) {
+            console.log('使用预加载的纹理');
+            const [
+                grassTexture,
+                castleTowerTexture,
+                brokenPillarTexture,
+                gravestoneTexture,
+                deadTreeTexture,
+                torchTexture
+            ] = window.preloadedTextures;
+            
+            // 使用预加载的纹理
+            this.textures.grassTexture = grassTexture;
+            this.textures.castleTower = castleTowerTexture;
+            this.textures.brokenPillar = brokenPillarTexture;
+            this.textures.gravestone = gravestoneTexture;
+            this.textures.deadTree = deadTreeTexture;
+            this.textures.torch = torchTexture;
+            
+            // 配置草地纹理重复
+            if (this.textures.grassTexture) {
+                this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
+                this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
+                this.textures.grassTexture.repeat.set(50, 50);
+                
+                console.log('使用预加载的草地纹理');
+            }
+            
+            // 创建临时地面
+            this.createTemporaryGround();
+            
+            // 刷新带有纹理的对象
+            this.refreshTexturedObjects();
+        } else {
+            // 没有预加载纹理，创建临时地面并加载纹理
+            console.log('没有找到预加载的纹理，创建临时地面并加载新纹理');
+            this.createTemporaryGround();
+            this.loadTextures();
+        }
         
         console.log('ThreeHelper初始化完成');
     }
@@ -135,14 +172,23 @@ class ThreeHelper {
         }
         
         const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
-        // 确保纹理已加载
+        
+        // 确保有有效的草地纹理
         if (!this.textures.grassTexture) {
-            console.warn('草地纹理未加载，重新创建');
+            console.warn('草地纹理未加载，使用临时纹理');
             this.textures.grassTexture = this.createGridTexture('#336633', '#224422', 16);
             this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
             this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-            this.textures.grassTexture.repeat.set(50, 50); // 增加重复次数，扩大纹理覆盖
+            this.textures.grassTexture.repeat.set(50, 50);
         }
+        
+        // 验证纹理并打印信息
+        console.log(`使用草地纹理: ${this.textures.grassTexture.isCanvasTexture ? '程序生成的Canvas纹理' : '图像纹理'}`);
+        
+        // 确保纹理正确设置了重复属性
+        this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
+        this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
+        this.textures.grassTexture.repeat.set(50, 50);
         
         const groundMaterial = new THREE.MeshStandardMaterial({
             map: this.textures.grassTexture,
@@ -150,6 +196,7 @@ class ThreeHelper {
             metalness: 0.2,
             side: THREE.DoubleSide // 确保平面的两面都可见
         });
+        
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
         ground.position.y = -10; // 略微下沉
@@ -162,14 +209,34 @@ class ThreeHelper {
     
     // 加载纹理
     loadTextures() {
-        console.log('开始加载纹理...');
+        console.log('开始加载图像纹理...');
         
-        // 使用内置的纹理，避免加载外部资源
-        // 创建简单的彩色纹理
-        const createColorTexture = (color) => {
+        // 创建纹理加载器
+        const textureLoader = new THREE.TextureLoader();
+        
+        // 使用Promise加载所有纹理
+        const loadTexture = (url) => {
+            return new Promise((resolve, reject) => {
+                textureLoader.load(
+                    url,
+                    (texture) => {
+                        console.log(`成功加载纹理: ${url}`);
+                        resolve(texture);
+                    },
+                    undefined,
+                    (error) => {
+                        console.error(`无法加载纹理 ${url}:`, error);
+                        reject(error);
+                    }
+                );
+            });
+        };
+        
+        // 保留原有的纹理创建函数作为备用
+        this.createColorTexture = this.createColorTexture || ((color) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 128; // 增加纹理尺寸
-            canvas.height = 128; // 增加纹理尺寸
+            canvas.width = 128;
+            canvas.height = 128;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = color;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -177,20 +244,17 @@ class ThreeHelper {
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
             return texture;
-        };
+        });
         
-        // 创建网格纹理
-        const createGridTexture = (color1, color2, gridSize = 8) => {
+        this.createGridTexture = this.createGridTexture || ((color1, color2, gridSize = 8) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 128; // 增加纹理尺寸
-            canvas.height = 128; // 增加纹理尺寸
+            canvas.width = 128;
+            canvas.height = 128;
             const ctx = canvas.getContext('2d');
             
-            // 填充背景
             ctx.fillStyle = color1;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // 绘制网格
             ctx.fillStyle = color2;
             for (let y = 0; y < canvas.height; y += gridSize) {
                 for (let x = 0; x < canvas.width; x += gridSize) {
@@ -203,20 +267,17 @@ class ThreeHelper {
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
             return texture;
-        };
+        });
         
-        // 创建图案纹理
-        const createPatternTexture = (bgColor, patternColor) => {
+        this.createPatternTexture = this.createPatternTexture || ((bgColor, patternColor) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 128; // 增加纹理尺寸
-            canvas.height = 128; // 增加纹理尺寸
+            canvas.width = 128;
+            canvas.height = 128;
             const ctx = canvas.getContext('2d');
             
-            // 填充背景
             ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // 绘制图案
             ctx.fillStyle = patternColor;
             ctx.beginPath();
             ctx.arc(canvas.width/2, canvas.height/2, canvas.width/4, 0, Math.PI * 2);
@@ -225,30 +286,62 @@ class ThreeHelper {
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
             return texture;
-        };
+        });
         
-        // 存储创建函数以便其他地方使用
-        this.createColorTexture = createColorTexture;
-        this.createGridTexture = createGridTexture;
-        this.createPatternTexture = createPatternTexture;
-        
-        // 创建各种纹理
-        this.textures.grassTexture = createGridTexture('#336633', '#224422', 16);
-        this.textures.castleTower = createPatternTexture('#666666', '#444444');
-        this.textures.brokenPillar = createPatternTexture('#999999', '#777777');
-        this.textures.gravestone = createColorTexture('#555555');
-        this.textures.deadTree = createPatternTexture('#663300', '#442200');
-        this.textures.torch = createPatternTexture('#663300', '#ffcc00');
+        // 先用程序生成的纹理作为备用，避免加载过程中出现空白
+        this.textures.grassTexture = this.createGridTexture('#336633', '#224422', 16);
+        this.textures.castleTower = this.createPatternTexture('#666666', '#444444');
+        this.textures.brokenPillar = this.createPatternTexture('#999999', '#777777');
+        this.textures.gravestone = this.createColorTexture('#555555');
+        this.textures.deadTree = this.createPatternTexture('#663300', '#442200');
+        this.textures.torch = this.createPatternTexture('#663300', '#ffcc00');
         
         // 设置纹理重复属性
         this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
         this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
-        this.textures.grassTexture.repeat.set(50, 50); // 增加重复次数
+        this.textures.grassTexture.repeat.set(50, 50);
         
-        console.log('所有纹理创建完成，创建场景对象');
+        console.log('已创建临时纹理，开始加载实际图像...');
         
-        // 所有纹理都已创建，刷新对象
-        this.refreshTexturedObjects();
+        // 加载实际图像纹理
+        Promise.all([
+            loadTexture('./images/grass_texture.png'),
+            loadTexture('./images/castle_tower.png'),
+            loadTexture('./images/broken_pillar.png'),
+            loadTexture('./images/gravestone.png'),
+            loadTexture('./images/dead_tree.png'),
+            loadTexture('./images/torch.png')
+        ]).then(([
+            grassTexture,
+            castleTowerTexture,
+            brokenPillarTexture,
+            gravestoneTexture,
+            deadTreeTexture,
+            torchTexture
+        ]) => {
+            // 更新纹理对象
+            this.textures.grassTexture = grassTexture;
+            this.textures.castleTower = castleTowerTexture;
+            this.textures.brokenPillar = brokenPillarTexture;
+            this.textures.gravestone = gravestoneTexture;
+            this.textures.deadTree = deadTreeTexture;
+            this.textures.torch = torchTexture;
+            
+            // 配置纹理重复
+            this.textures.grassTexture.wrapS = THREE.RepeatWrapping;
+            this.textures.grassTexture.wrapT = THREE.RepeatWrapping;
+            this.textures.grassTexture.repeat.set(50, 50);
+            
+            console.log('所有图像纹理加载完成，刷新对象');
+            
+            // 刷新纹理对象
+            this.refreshTexturedObjects();
+        }).catch(error => {
+            console.error('加载图像纹理发生错误:', error);
+            console.log('使用备用程序生成的纹理');
+            // 已经有备用纹理，不需要额外处理
+            this.refreshTexturedObjects();
+        });
     }
     
     // 刷新使用纹理的对象
@@ -461,23 +554,49 @@ class ThreeHelper {
                         return;
                 }
                 
+                // 验证纹理可用性
                 if (!texture) {
                     console.warn(`纹理未加载: ${obj.type}，使用默认颜色`);
-                    // 使用默认颜色
-                    const geometry = new THREE.BoxGeometry(30, height, 30);
-                    const material = new THREE.MeshStandardMaterial({
-                        color: 0x777777,
-                        emissive: 0x222222,
-                        emissiveIntensity: 0.2
-                    });
+                    // 尝试重新生成纹理
+                    try {
+                        switch(obj.type) {
+                            case 'castleTower':
+                                texture = this.createPatternTexture('#666666', '#444444');
+                                break;
+                            case 'brokenPillar':
+                                texture = this.createPatternTexture('#999999', '#777777');
+                                break;
+                            case 'gravestone':
+                                texture = this.createColorTexture('#555555');
+                                break;
+                            case 'deadTree':
+                                texture = this.createPatternTexture('#663300', '#442200');
+                                break;
+                            case 'torch':
+                                texture = this.createPatternTexture('#663300', '#ffcc00');
+                                break;
+                        }
+                    } catch (e) {
+                        console.error('创建备用纹理失败', e);
+                    }
                     
-                    const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.set(obj.x, height/2, obj.y);
-                    
-                    this.scene.add(mesh);
-                    this.objects.set(`background_${index}`, mesh);
-                    createdCount++;
-                    return;
+                    // 如果仍然没有纹理，使用默认材质
+                    if (!texture) {
+                        const geometry = new THREE.BoxGeometry(30, height, 30);
+                        const material = new THREE.MeshStandardMaterial({
+                            color: 0x777777,
+                            emissive: 0x222222,
+                            emissiveIntensity: 0.2
+                        });
+                        
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.position.set(obj.x, height/2, obj.y);
+                        
+                        this.scene.add(mesh);
+                        this.objects.set(`background_${index}`, mesh);
+                        createdCount++;
+                        return;
+                    }
                 }
                 
                 // 为背景对象使用3D网格而不是精灵，以便更好地显示纹理

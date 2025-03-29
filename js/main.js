@@ -227,6 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化模式指示器
     updateModeIndicator();
     
+    // 预加载Three.js所需的纹理
+    preloadTextures();
+    
     // 启动游戏
     console.log('启动游戏...');
     game.start();
@@ -278,4 +281,47 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 30000);
         }
     }, 3000);
-}); 
+});
+
+// 预加载Three.js纹理
+function preloadTextures() {
+    const textureUrls = [
+        './images/grass_texture.png',
+        './images/castle_tower.png',
+        './images/broken_pillar.png',
+        './images/gravestone.png',
+        './images/dead_tree.png',
+        './images/torch.png'
+    ];
+    
+    console.log('预加载3D纹理...');
+    
+    // 创建一个隐藏的纹理加载器
+    const textureLoader = new THREE.TextureLoader();
+    const loadingPromises = textureUrls.map(url => {
+        return new Promise((resolve, reject) => {
+            textureLoader.load(
+                url,
+                texture => {
+                    console.log(`预加载纹理成功: ${url}`);
+                    resolve(texture);
+                },
+                undefined,
+                error => {
+                    console.warn(`预加载纹理失败: ${url}`, error);
+                    resolve(null); // 即使失败也继续
+                }
+            );
+        });
+    });
+    
+    // 不需要等待预加载完成，这只是为了提前缓存纹理
+    Promise.all(loadingPromises)
+        .then(textures => {
+            window.preloadedTextures = textures.filter(t => t !== null);
+            console.log(`预加载完成 ${window.preloadedTextures.length}/${textureUrls.length} 个纹理`);
+        })
+        .catch(err => {
+            console.error('预加载纹理时出错', err);
+        });
+} 
