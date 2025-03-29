@@ -1,15 +1,28 @@
 class Game {
     constructor() {
-        this.canvas = document.getElementById('game-canvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        this.canvas2d = document.getElementById('game-canvas');
+        this.canvas3d = document.getElementById('game-canvas-3d');
+        
+        // 3D支持
+        this.is3D = false; // 默认从2D模式开始，避免初始化冲突
         
         this.frameCount = 0;
         this.gameTime = 0;
         this.isRunning = false;
         this.isGameOver = false;
         this.isPaused = false;
+        
+        // 设置Canvas尺寸
+        this.canvas2d.width = 800;
+        this.canvas2d.height = 600;
+        this.canvas3d.width = 800;
+        this.canvas3d.height = 600;
+        
+        // 初始化2D上下文
+        this.ctx = this.canvas2d.getContext('2d');
+        
+        // 显示正确的Canvas
+        this.updateCanvasVisibility();
         
         // 帧率控制
         this.fps = 60;
@@ -70,6 +83,65 @@ class Game {
         
         // 初始化
         this.init();
+    }
+    
+    // 更新Canvas显示状态
+    updateCanvasVisibility() {
+        if (this.is3D) {
+            this.canvas2d.classList.remove('active');
+            this.canvas2d.classList.add('inactive');
+            this.canvas3d.classList.remove('inactive');
+            this.canvas3d.classList.add('active');
+        } else {
+            this.canvas3d.classList.remove('active');
+            this.canvas3d.classList.add('inactive');
+            this.canvas2d.classList.remove('inactive');
+            this.canvas2d.classList.add('active');
+        }
+    }
+    
+    // 切换3D/2D模式
+    toggleMode() {
+        // 如果当前是3D模式，先清理3D资源
+        if (this.is3D && this.threeHelper) {
+            this.threeHelper.dispose();
+            this.threeHelper = null;
+        }
+        
+        // 切换模式标志
+        this.is3D = !this.is3D;
+        
+        // 重置某些可能导致问题的游戏对象
+        if (!this.is3D) {
+            // 从3D切换到2D时，需要重新创建经验球，确保它们有正确的属性
+            const tempExpOrbs = [];
+            for (const orb of this.expOrbs) {
+                tempExpOrbs.push(new ExperienceOrb(orb.x, orb.y, orb.value));
+            }
+            this.expOrbs = tempExpOrbs;
+        }
+        
+        // 更新Canvas显示状态
+        this.updateCanvasVisibility();
+        
+        // 如果切换到3D模式，在Canvas准备好后创建3D帮助器
+        if (this.is3D) {
+            // 使用setTimeout确保DOM更新后再创建WebGL上下文
+            setTimeout(() => {
+                if (!this.threeHelper) {
+                    console.log('创建3D渲染器...');
+                    this.threeHelper = new ThreeHelper(this);
+                }
+            }, 50);
+        } else {
+            // 确保2D上下文存在
+            if (!this.ctx) {
+                this.ctx = this.canvas2d.getContext('2d');
+            }
+        }
+        
+        // 显示模式切换提示
+        this.showWarning(this.is3D ? "已切换到3D模式" : "已切换到2D模式", 120);
     }
     
     init() {
@@ -236,68 +308,220 @@ class Game {
     draw() {
         if (this.isPaused && !this.levelUpElement.classList.contains('hidden')) return;
         
-        // 清除屏幕
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // 计算相机偏移（使玩家居中）
-        const cameraOffsetX = this.canvas.width / 2 - this.player.x;
-        const cameraOffsetY = this.canvas.height / 2 - this.player.y;
-        
-        // 绘制背景
-        this.drawBackground(cameraOffsetX, cameraOffsetY);
-        
-        // 绘制边界指示
-        this.drawBoundary();
-        
-        // 绘制经验球
-        this.expOrbs.forEach(orb => {
-            orb.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        });
-        
-        // 绘制效果
-        for (const effect of this.effects) {
-            effect.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+        if (this.is3D) {
+            // 3D渲染逻辑
+            if (!this.threeHelper) {
+                // 如果没有渲染器，暂时回退到2D渲染
+                this.draw2D();
+                return;
+            }
+            
+            // 确保渲染器可用
+            if (!this.threeHelper.renderer) {
+                console.warn('3D渲染器不可用，回退到2D渲染');
+                this.draw2D();
+                return;
+            }
+            
+            // 更新玩家位置
+            this.threeHelper.updateObjectPosition('player', this.player.x, this.player.y);
+            
+            // 更新敌人位置
+            this.enemies.forEach(enemy => {
+                const key = `enemy_${enemy.id}`;
+                if (!this.threeHelper.objects.has(key)) {
+                    this.threeHelper.createEnemyModel(enemy);
+                } else {
+                    this.threeHelper.updateObjectPosition(key, enemy.x, enemy.y);
+                }
+            });
+            
+            // 更新投射物位置
+            this.projectiles.concat(this.enemyProjectiles).forEach(projectile => {
+                const key = `projectile_${projectile.id}`;
+                if (!this.threeHelper.objects.has(key)) {
+                    this.threeHelper.createProjectileModel(projectile);
+                } else {
+                    this.threeHelper.updateObjectPosition(key, projectile.x, projectile.y, 10);
+                }
+            });
+            
+            // 更新经验球位置
+            this.expOrbs.forEach(orb => {
+                const key = `expOrb_${orb.id}`;
+                if (!this.threeHelper.objects.has(key)) {
+                    this.threeHelper.createExpOrbModel(orb);
+                } else {
+                    this.threeHelper.updateObjectPosition(key, orb.x, orb.y, 5);
+                }
+            });
+            
+            // 清理已经不存在的对象
+            this.threeHelper.objects.forEach((_, key) => {
+                if (key.startsWith('enemy_')) {
+                    const id = key.replace('enemy_', '');
+                    if (!this.enemies.some(e => e.id.toString() === id)) {
+                        this.threeHelper.removeObject(key);
+                    }
+                } else if (key.startsWith('projectile_')) {
+                    const id = key.replace('projectile_', '');
+                    if (!this.projectiles.some(p => p.id.toString() === id) && 
+                        !this.enemyProjectiles.some(p => p.id.toString() === id)) {
+                        this.threeHelper.removeObject(key);
+                    }
+                } else if (key.startsWith('expOrb_')) {
+                    const id = key.replace('expOrb_', '');
+                    if (!this.expOrbs.some(o => o.id.toString() === id)) {
+                        this.threeHelper.removeObject(key);
+                    }
+                }
+            });
+            
+            try {
+                // 渲染3D场景
+                this.threeHelper.render();
+                
+                // 在3D场景上绘制UI
+                this.draw2DUI();
+                
+                if (this.isGameOver) {
+                    this.drawGameOver();
+                } else if (this.isPaused) {
+                    this.drawPaused();
+                }
+            } catch (e) {
+                console.error('3D渲染错误，回退到2D渲染', e);
+                this.draw2D();
+            }
+            
+            return;
         }
         
-        // 绘制敌人
-        for (const enemy of this.enemies) {
-            enemy.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
-        
-        // 绘制盟友
-        for (const ally of this.allies) {
-            ally.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
-        
-        // 绘制玩家
-        this.player.draw(this.ctx);
-        
-        // 绘制投射物
-        for (const projectile of this.projectiles) {
-            projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
-        
-        // 绘制敌人投射物
-        for (const projectile of this.enemyProjectiles) {
-            projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
-        
-        // 绘制粒子效果
-        for (const particle of this.particles) {
-            particle.draw(this.ctx, cameraOffsetX, cameraOffsetY);
-        }
-        
-        // 绘制UI元素
-        this.drawUI();
-        
-        // 如果游戏结束显示游戏结束UI
-        if (this.isGameOver) {
-            this.drawGameOver();
-        }
-        
-        // 如果暂停显示暂停UI
-        if (this.isPaused) {
-            this.drawPaused();
+        // 2D渲染逻辑
+        this.draw2D();
+    }
+    
+    // 2D渲染逻辑
+    draw2D() {
+        try {
+            // 确保2D上下文存在
+            if (!this.ctx) {
+                this.ctx = this.canvas2d.getContext('2d');
+                if (!this.ctx) {
+                    console.error('无法获取2D上下文');
+                    return;
+                }
+            }
+            
+            // 清除屏幕
+            this.ctx.clearRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+            
+            // 计算相机偏移（使玩家居中）
+            const cameraOffsetX = this.canvas2d.width / 2 - this.player.x;
+            const cameraOffsetY = this.canvas2d.height / 2 - this.player.y;
+            
+            // 绘制背景
+            this.drawBackground(cameraOffsetX, cameraOffsetY);
+            
+            // 绘制边界指示
+            this.drawBoundary();
+            
+            // 绘制经验球
+            try {
+                this.expOrbs.forEach(orb => {
+                    try {
+                        orb.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                    } catch (e) {
+                        console.error('绘制经验球错误:', e);
+                    }
+                });
+            } catch (e) {
+                console.error('经验球循环错误:', e);
+            }
+            
+            // 绘制效果
+            for (const effect of this.effects) {
+                try {
+                    effect.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                } catch (e) {
+                    console.error('绘制效果错误:', e);
+                }
+            }
+            
+            // 绘制敌人
+            for (const enemy of this.enemies) {
+                try {
+                    enemy.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                } catch (e) {
+                    console.error('绘制敌人错误:', e);
+                }
+            }
+            
+            // 绘制盟友
+            for (const ally of this.allies) {
+                try {
+                    ally.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                } catch (e) {
+                    console.error('绘制盟友错误:', e);
+                }
+            }
+            
+            // 绘制玩家
+            try {
+                this.player.draw(this.ctx);
+            } catch (e) {
+                console.error('绘制玩家错误:', e);
+            }
+            
+            // 绘制投射物
+            for (const projectile of this.projectiles) {
+                try {
+                    projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                } catch (e) {
+                    console.error('绘制投射物错误:', e);
+                }
+            }
+            
+            // 绘制敌人投射物
+            for (const projectile of this.enemyProjectiles) {
+                try {
+                    projectile.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                } catch (e) {
+                    console.error('绘制敌人投射物错误:', e);
+                }
+            }
+            
+            // 绘制粒子效果
+            for (const particle of this.particles) {
+                try {
+                    particle.draw(this.ctx, cameraOffsetX, cameraOffsetY);
+                } catch (e) {
+                    console.error('绘制粒子效果错误:', e);
+                }
+            }
+            
+            // 绘制UI
+            try {
+                this.draw2DUI();
+            } catch (e) {
+                console.error('绘制UI错误:', e);
+            }
+            
+            if (this.isGameOver) {
+                try {
+                    this.drawGameOver();
+                } catch (e) {
+                    console.error('绘制游戏结束画面错误:', e);
+                }
+            } else if (this.isPaused) {
+                try {
+                    this.drawPaused();
+                } catch (e) {
+                    console.error('绘制暂停画面错误:', e);
+                }
+            }
+        } catch (e) {
+            console.error('2D渲染主循环错误:', e);
         }
     }
     
@@ -315,16 +539,16 @@ class Game {
             // 绘制足够覆盖整个画布的草地纹理
             this.ctx.save();
             this.ctx.translate(cameraOffsetX % patternSize, cameraOffsetY % patternSize);
-            this.ctx.fillRect(-patternSize, -patternSize, this.canvas.width + 2 * patternSize, this.canvas.height + 2 * patternSize);
+            this.ctx.fillRect(-patternSize, -patternSize, this.canvas2d.width + 2 * patternSize, this.canvas2d.height + 2 * patternSize);
             this.ctx.restore();
             
             // 添加暗色叠加，创造恶魔城般的阴暗氛围
             this.ctx.fillStyle = 'rgba(20, 20, 40, 0.3)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
         } else {
             // 后备方案：绘制简单的颜色背景
             this.ctx.fillStyle = '#1a5c1a';  // 深绿色草地
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
         }
         
         // 绘制背景网格（淡化）
@@ -338,18 +562,18 @@ class Game {
         const startY = cameraOffsetY % gridSize;
         
         // 绘制垂直线
-        for (let x = startX; x <= this.canvas.width; x += gridSize) {
+        for (let x = startX; x <= this.canvas2d.width; x += gridSize) {
             this.ctx.beginPath();
             this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.lineTo(x, this.canvas2d.height);
             this.ctx.stroke();
         }
         
         // 绘制水平线
-        for (let y = startY; y <= this.canvas.height; y += gridSize) {
+        for (let y = startY; y <= this.canvas2d.height; y += gridSize) {
             this.ctx.beginPath();
             this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.lineTo(this.canvas2d.width, y);
             this.ctx.stroke();
         }
         
@@ -368,8 +592,8 @@ class Game {
             
             // 只绘制屏幕附近的对象（性能优化）
             if (
-                screenX > -200 && screenX < this.canvas.width + 200 &&
-                screenY > -200 && screenY < this.canvas.height + 200
+                screenX > -200 && screenX < this.canvas2d.width + 200 &&
+                screenY > -200 && screenY < this.canvas2d.height + 200
             ) {
                 // 特殊处理火炬
                 if (obj.type === 'torch') {
@@ -469,8 +693,8 @@ class Game {
     
     drawBoundary() {
         const boundary = 1000; // 与玩家边界限制相同
-        const cameraOffsetX = this.canvas.width / 2 - this.player.x;
-        const cameraOffsetY = this.canvas.height / 2 - this.player.y;
+        const cameraOffsetX = this.canvas2d.width / 2 - this.player.x;
+        const cameraOffsetY = this.canvas2d.height / 2 - this.player.y;
         
         // 设置边界线样式
         this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
@@ -489,7 +713,7 @@ class Game {
         this.ctx.setLineDash([]); // 重置虚线设置
     }
     
-    drawUI() {
+    draw2DUI() {
         // 绘制玩家UI（生命、经验等）
         this.player.drawUI(this.ctx);
         
@@ -500,15 +724,15 @@ class Game {
         const seconds = this.gameTime % 60;
         this.ctx.fillText(
             `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
-            this.canvas.width - 70,
+            this.canvas2d.width - 70,
             30
         );
         
         // 绘制游戏等级
-        this.ctx.fillText(`难度: ${this.gameLevel}`, this.canvas.width - 70, 50);
+        this.ctx.fillText(`难度: ${this.gameLevel}`, this.canvas2d.width - 70, 50);
         
         // 绘制敌人数量
-        this.ctx.fillText(`敌人: ${this.enemies.length}`, this.canvas.width - 70, 70);
+        this.ctx.fillText(`敌人: ${this.enemies.length}`, this.canvas2d.width - 70, 70);
         
         // 绘制警告文本
         if (this.warningTimer > 0) {
@@ -517,7 +741,7 @@ class Game {
             this.ctx.fillStyle = '#ff0000';
             this.ctx.font = '24px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(this.warningText, this.canvas.width / 2, 100);
+            this.ctx.fillText(this.warningText, this.canvas2d.width / 2, 100);
             this.ctx.textAlign = 'left';
             this.ctx.globalAlpha = 1;
         }
@@ -526,13 +750,13 @@ class Game {
     drawGameOver() {
         // 半透明黑色覆盖
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
         
         // 游戏结束文本
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '48px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('游戏结束', this.canvas.width / 2, this.canvas.height / 2 - 50);
+        this.ctx.fillText('游戏结束', this.canvas2d.width / 2, this.canvas2d.height / 2 - 50);
         
         // 显示存活时间
         this.ctx.font = '24px Arial';
@@ -540,16 +764,16 @@ class Game {
         const seconds = this.gameTime % 60;
         this.ctx.fillText(
             `存活时间: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
-            this.canvas.width / 2,
-            this.canvas.height / 2
+            this.canvas2d.width / 2,
+            this.canvas2d.height / 2
         );
         
         // 显示等级
-        this.ctx.fillText(`最终等级: ${this.player.level}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+        this.ctx.fillText(`最终等级: ${this.player.level}`, this.canvas2d.width / 2, this.canvas2d.height / 2 + 40);
         
         // 重新开始提示
         this.ctx.font = '20px Arial';
-        this.ctx.fillText('按空格键重新开始', this.canvas.width / 2, this.canvas.height / 2 + 100);
+        this.ctx.fillText('按空格键重新开始', this.canvas2d.width / 2, this.canvas2d.height / 2 + 100);
         
         this.ctx.textAlign = 'left';
     }
@@ -559,17 +783,17 @@ class Game {
         if (this.levelUpElement.classList.contains('hidden')) {
             // 半透明黑色覆盖
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
             
             // 暂停文本
             this.ctx.fillStyle = '#fff';
             this.ctx.font = '48px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText('游戏暂停', this.canvas.width / 2, this.canvas.height / 2);
+            this.ctx.fillText('游戏暂停', this.canvas2d.width / 2, this.canvas2d.height / 2);
             
             // 继续提示
             this.ctx.font = '20px Arial';
-            this.ctx.fillText('按 P 键继续游戏', this.canvas.width / 2, this.canvas.height / 2 + 50);
+            this.ctx.fillText('按 P 键继续游戏', this.canvas2d.width / 2, this.canvas2d.height / 2 + 50);
             
             this.ctx.textAlign = 'left';
         }
@@ -722,11 +946,14 @@ class Game {
     
     restart() {
         // 重置游戏状态
-        this.frameCount = 0;
-        this.gameTime = 0;
-        this.isRunning = false;
         this.isGameOver = false;
         this.isPaused = false;
+        this.gameTime = 0;
+        this.frameCount = 0;
+        this.difficultyMultiplier = 1;
+        this.attackMultiplier = 1;
+        this.enemySpawnRate = 60;
+        this.maxEnemies = 100;
         
         // 清空游戏元素
         this.enemies = [];
@@ -737,21 +964,26 @@ class Game {
         this.expOrbs = [];
         this.allies = [];
         
-        // 重置难度设置
-        this.gameLevel = 1;
-        this.difficultyMultiplier = 1;
-        this.attackMultiplier = 1;
-        this.enemySpawnRate = 60; // 与构造函数保持一致
-        this.maxEnemies = 100; // 与构造函数保持一致
-        
-        // 创建新玩家
+        // 重置玩家
         this.player = new Player(this);
+        this.player.x = 0;
+        this.player.y = 0;
+        this.player.addWeapon(WeaponsLibrary[0]);
         
-        // 初始化游戏
-        this.init();
+        // 重置3D场景
+        if (this.is3D) {
+            this.threeHelper.reset();
+        }
         
-        // 重新开始游戏
-        this.start();
+        // 添加初始敌人
+        for (let i = 0; i < 5; i++) {
+            this.spawnEnemy();
+        }
+        
+        // 重新开始
+        if (!this.isRunning) {
+            this.start();
+        }
     }
     
     // 加载游戏图像资源
@@ -882,34 +1114,21 @@ class Projectile {
         this.angle = options.angle || 0;
         this.speed = options.speed || 5;
         this.damage = options.damage || 1;
-        this.range = options.range || 100;
-        this.color = options.color || '#fff';
+        this.range = options.range || 200;
+        this.distanceTraveled = 0;
+        this.color = options.color || '#ffffff';
         this.width = options.width || 10;
-        this.height = options.height || 5;
+        this.height = options.height || 10;
+        this.shape = options.shape || 'circle'; // circle, rect, etc.
         this.piercing = options.piercing || false;
         this.knockback = options.knockback || 0;
-        this.shape = options.shape || 'rect'; // rect, circle, sword, axe, rune, star
-        this.rotateSpeed = options.rotateSpeed || 0;
-        this.rotation = 0;
-        this.duration = options.duration || null;
-        this.distance = 0;
+        this.hitEnemies = new Set(); // 用于穿透武器记录已经击中的敌人
         this.active = true;
-        this.onHit = options.onHit || null;
-        this.onKill = options.onKill || null;
-        this.type = options.type || 'normal';
-        this.fixed = options.fixed || false;
-        this.fixedTarget = options.fixedTarget || null;
-        this.fixedOffset = options.fixedOffset || {x: 0, y: 0};
-        this.returning = options.returning || false;
-        this.returnAfter = options.returnAfter || 0;
-        this.returnTarget = options.returnTarget || null;
-        this.returnTimer = 0;
-        this.homing = options.homing || false;
-        this.homingTarget = options.homingTarget || null;
-        this.homingStrength = options.homingStrength || 0.05;
-        this.onUpdate = options.onUpdate || null;
+        this.rotateSpeed = options.rotateSpeed || 0;
+        this.rotation = options.rotation || 0;
+        this.id = Projectile.nextId++;
         
-        // 判定半径（用于碰撞检测）
+        // 动态属性
         this.radius = Math.max(this.width, this.height) / 2;
     }
     
@@ -1000,10 +1219,10 @@ class Projectile {
         this.y += Math.sin(this.angle) * this.speed;
         
         // 更新已移动距离
-        this.distance += this.speed;
+        this.distanceTraveled += this.speed;
         
         // 检查是否超出范围
-        if (this.distance >= this.range) {
+        if (this.distanceTraveled >= this.range) {
             this.active = false;
         }
     }
@@ -1132,23 +1351,33 @@ class Projectile {
     }
 }
 
+// 添加静态计数器用于生成唯一ID
+Projectile.nextId = 1;
+
 // 经验球类
 class ExperienceOrb {
     constructor(x, y, value) {
         this.x = x;
         this.y = y;
         this.value = value;
-        this.radius = 5 + value / 2; // 经验值越高，球越大
-        this.color = '#5ebaff';
+        this.radius = 5 + Math.min(5, value);
+        this.magnetDistance = 150;
+        this.baseSpeed = 1;
+        this.maxSpeed = 8;
+        this.color = '#00ffff';
         this.pulseSpeed = 0.05;
         this.pulseAmount = 0.2;
-        this.pulseOffset = Math.random() * Math.PI * 2; // 随机初始相位
-        this.attractionRange = 150; // 吸引范围
-        this.maxSpeed = 5; // 最大移动速度
-        this.speed = 0;
+        this.pulse = 0;
+        this.pulseOffset = Math.random() * Math.PI * 2; // 添加随机初始相位
+        this.attractionRange = this.magnetDistance; // 修复缺失的吸引范围属性
+        this.speed = this.baseSpeed; // 添加初始速度
+        this.id = ExperienceOrb.nextId++;
     }
     
     update(game) {
+        // 更新脉动效果
+        this.pulse = (this.pulse + this.pulseSpeed) % (Math.PI * 2);
+        
         // 计算与玩家的距离
         const dx = game.player.x - this.x;
         const dy = game.player.y - this.y;
@@ -1169,30 +1398,52 @@ class ExperienceOrb {
     }
     
     draw(ctx, offsetX, offsetY) {
-        // 脉动效果
-        const pulse = 1 + Math.sin(this.pulseOffset + Date.now() * this.pulseSpeed) * this.pulseAmount;
-        const displayRadius = this.radius * pulse;
-        
-        // 绘制经验球
-        ctx.beginPath();
-        ctx.fillStyle = this.color;
-        ctx.arc(this.x + offsetX, this.y + offsetY, displayRadius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 绘制发光效果
-        const gradient = ctx.createRadialGradient(
-            this.x + offsetX, this.y + offsetY, displayRadius * 0.5,
-            this.x + offsetX, this.y + offsetY, displayRadius * 1.5
-        );
-        gradient.addColorStop(0, 'rgba(94, 186, 255, 0.5)');
-        gradient.addColorStop(1, 'rgba(94, 186, 255, 0)');
-        
-        ctx.beginPath();
-        ctx.fillStyle = gradient;
-        ctx.arc(this.x + offsetX, this.y + offsetY, displayRadius * 1.5, 0, Math.PI * 2);
-        ctx.fill();
+        try {
+            // 脉动效果 - 使用this.pulse而不是依赖Date.now()
+            const pulseValue = Math.sin(this.pulse + this.pulseOffset);
+            const pulse = 1 + pulseValue * this.pulseAmount;
+            const displayRadius = this.radius * pulse;
+            
+            if (isNaN(displayRadius) || !isFinite(displayRadius)) {
+                // 防止无效半径，使用默认值
+                console.warn('经验球半径无效，使用默认值');
+                return;
+            }
+            
+            // 绘制经验球
+            ctx.beginPath();
+            ctx.fillStyle = this.color;
+            ctx.arc(this.x + offsetX, this.y + offsetY, displayRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 绘制发光效果 - 添加错误处理
+            const innerRadius = displayRadius * 0.5;
+            const outerRadius = displayRadius * 1.5;
+            
+            if (isNaN(innerRadius) || !isFinite(innerRadius) || 
+                isNaN(outerRadius) || !isFinite(outerRadius)) {
+                return; // 防止创建径向渐变时使用无效半径
+            }
+            
+            const gradient = ctx.createRadialGradient(
+                this.x + offsetX, this.y + offsetY, innerRadius,
+                this.x + offsetX, this.y + offsetY, outerRadius
+            );
+            gradient.addColorStop(0, 'rgba(94, 186, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(94, 186, 255, 0)');
+            
+            ctx.beginPath();
+            ctx.fillStyle = gradient;
+            ctx.arc(this.x + offsetX, this.y + offsetY, outerRadius, 0, Math.PI * 2);
+            ctx.fill();
+        } catch (e) {
+            console.error('经验球绘制错误:', e);
+        }
     }
 }
+
+// 添加静态计数器用于生成唯一ID
+ExperienceOrb.nextId = 1;
 
 // 粒子效果
 class Particle {

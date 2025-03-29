@@ -17,6 +17,7 @@ class Enemy {
         this.knockbackX = 0;
         this.knockbackY = 0;
         this.alive = true;
+        this.id = Enemy.nextId++;
     }
 
     update(game) {
@@ -123,6 +124,9 @@ class Enemy {
         this.knockbackY = Math.sin(angle) * adjustedForce;
     }
 }
+
+// 添加静态计数器用于生成唯一ID
+Enemy.nextId = 1;
 
 // 僵尸
 class Zombie extends Enemy {

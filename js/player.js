@@ -87,8 +87,8 @@ class Player {
         
         // 鼠标拖拽控制
         if (this.game.isDragging) {
-            const deltaX = this.game.mouseX - this.game.canvas.width / 2;
-            const deltaY = this.game.mouseY - this.game.canvas.height / 2;
+            const deltaX = this.game.mouseX - this.game.canvas2d.width / 2;
+            const deltaY = this.game.mouseY - this.game.canvas2d.height / 2;
             const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
             if (length > 0) {
@@ -271,7 +271,7 @@ class Player {
         
         ctx.fillStyle = this.isPetrified ? '#b0b0b0' : this.color;
         ctx.beginPath();
-        ctx.arc(this.game.canvas.width / 2, this.game.canvas.height / 2, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.game.canvas2d.width / 2, this.game.canvas2d.height / 2, this.radius, 0, Math.PI * 2);
         ctx.fill();
         
         // 绘制面部方向指示
@@ -282,19 +282,19 @@ class Player {
         
         if (this.facingDirection === 'right') {
             ctx.beginPath();
-            ctx.arc(this.game.canvas.width / 2 + directionOffset, this.game.canvas.height / 2, eyeSize, 0, Math.PI * 2);
+            ctx.arc(this.game.canvas2d.width / 2 + directionOffset, this.game.canvas2d.height / 2, eyeSize, 0, Math.PI * 2);
             ctx.fill();
         } else if (this.facingDirection === 'left') {
             ctx.beginPath();
-            ctx.arc(this.game.canvas.width / 2 - directionOffset, this.game.canvas.height / 2, eyeSize, 0, Math.PI * 2);
+            ctx.arc(this.game.canvas2d.width / 2 - directionOffset, this.game.canvas2d.height / 2, eyeSize, 0, Math.PI * 2);
             ctx.fill();
         } else if (this.facingDirection === 'up') {
             ctx.beginPath();
-            ctx.arc(this.game.canvas.width / 2, this.game.canvas.height / 2 - directionOffset, eyeSize, 0, Math.PI * 2);
+            ctx.arc(this.game.canvas2d.width / 2, this.game.canvas2d.height / 2 - directionOffset, eyeSize, 0, Math.PI * 2);
             ctx.fill();
         } else if (this.facingDirection === 'down') {
             ctx.beginPath();
-            ctx.arc(this.game.canvas.width / 2, this.game.canvas.height / 2 + directionOffset, eyeSize, 0, Math.PI * 2);
+            ctx.arc(this.game.canvas2d.width / 2, this.game.canvas2d.height / 2 + directionOffset, eyeSize, 0, Math.PI * 2);
             ctx.fill();
         }
         
@@ -308,16 +308,16 @@ class Player {
         
         ctx.fillStyle = '#333';
         ctx.fillRect(
-            this.game.canvas.width / 2 - healthBarWidth / 2,
-            this.game.canvas.height / 2 - this.radius - 15,
+            this.game.canvas2d.width / 2 - healthBarWidth / 2,
+            this.game.canvas2d.height / 2 - this.radius - 15,
             healthBarWidth,
             healthBarHeight
         );
         
         ctx.fillStyle = healthPercentage > 0.5 ? '#0f0' : healthPercentage > 0.25 ? '#ff0' : '#f00';
         ctx.fillRect(
-            this.game.canvas.width / 2 - healthBarWidth / 2,
-            this.game.canvas.height / 2 - this.radius - 15,
+            this.game.canvas2d.width / 2 - healthBarWidth / 2,
+            this.game.canvas2d.height / 2 - this.radius - 15,
             healthBarWidth * healthPercentage,
             healthBarHeight
         );
@@ -330,16 +330,16 @@ class Player {
             
             ctx.fillStyle = '#777';
             ctx.fillRect(
-                this.game.canvas.width / 2 - dashBarWidth / 2,
-                this.game.canvas.height / 2 - this.radius - 8,
+                this.game.canvas2d.width / 2 - dashBarWidth / 2,
+                this.game.canvas2d.height / 2 - this.radius - 8,
                 dashBarWidth,
                 dashBarHeight
             );
             
             ctx.fillStyle = '#00ffff';
             ctx.fillRect(
-                this.game.canvas.width / 2 - dashBarWidth / 2,
-                this.game.canvas.height / 2 - this.radius - 8,
+                this.game.canvas2d.width / 2 - dashBarWidth / 2,
+                this.game.canvas2d.height / 2 - this.radius - 8,
                 dashBarWidth * (1 - dashCooldownPercentage),
                 dashBarHeight
             );
@@ -347,32 +347,56 @@ class Player {
     }
 
     drawUI(ctx) {
-        // 绘制经验条
-        const experienceBarWidth = this.game.canvas.width - 40;
-        const experienceBarHeight = 10;
-        const experiencePercentage = this.experience / this.experienceToNextLevel;
+        if (!ctx) return;
         
-        ctx.fillStyle = '#444';
-        ctx.fillRect(20, 20, experienceBarWidth, experienceBarHeight);
+        // 绘制血条
+        // 血条背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(10, 10, 200, 20);
         
-        ctx.fillStyle = '#4080ff';
-        ctx.fillRect(20, 20, experienceBarWidth * experiencePercentage, experienceBarHeight);
+        // 当前血量
+        const healthPercentage = this.health / this.maxHealth;
+        ctx.fillStyle = healthPercentage > 0.5 ? '#00ff00' : healthPercentage > 0.25 ? '#ffff00' : '#ff0000';
+        ctx.fillRect(10, 10, 200 * healthPercentage, 20);
         
-        // 绘制等级
+        // 血条边框
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(10, 10, 200, 20);
+        
+        // 显示具体数值
         ctx.fillStyle = '#fff';
-        ctx.font = '16px Arial';
-        ctx.fillText(`Lv ${this.level}`, 20, 50);
+        ctx.font = '12px Arial';
+        ctx.fillText(`${Math.ceil(this.health)}/${this.maxHealth}`, 15, 25);
         
-        // 绘制健康状态
-        ctx.fillText(`HP: ${Math.ceil(this.health)}/${this.maxHealth}`, 100, 50);
+        // 绘制经验条
+        // 经验条背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(10, 35, 200, 10);
         
-        // 绘制武器信息
-        ctx.font = '14px Arial';
+        // 当前经验
+        const expPercentage = this.experience / this.experienceToNextLevel;
+        ctx.fillStyle = '#00ffff';
+        ctx.fillRect(10, 35, 200 * expPercentage, 10);
+        
+        // 经验条边框
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(10, 35, 200, 10);
+        
+        // 显示等级
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.fillText(`等级 ${this.level}`, 15, 60);
+        
+        // 显示装备的武器
         let weaponY = 80;
+        ctx.font = '14px Arial';
+        ctx.fillText('武器:', 15, weaponY);
         
         for (const weapon of this.weapons) {
-            ctx.fillText(`${weapon.name} Lv${weapon.level}`, 20, weaponY);
             weaponY += 20;
+            ctx.fillText(`${weapon.name} Lv${weapon.level}`, 30, weaponY);
         }
     }
 } 
