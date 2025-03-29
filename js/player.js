@@ -87,25 +87,50 @@ class Player {
         
         // 鼠标拖拽控制
         if (this.game.isDragging) {
-            const deltaX = this.game.mouseX - this.game.canvas2d.width / 2;
-            const deltaY = this.game.mouseY - this.game.canvas2d.height / 2;
-            const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            // 使用保存的鼠标初始位置作为锚点，而不是屏幕中心
+            // 首先检查我们是否有保存的初始点击位置
+            if (!this.game.dragStartX || !this.game.dragStartY) {
+                // 如果没有保存的初始位置，则使用当前鼠标位置作为起始点
+                this.game.dragStartX = this.game.mouseX;
+                this.game.dragStartY = this.game.mouseY;
+                this.game.dragStartPlayerX = this.x;
+                this.game.dragStartPlayerY = this.y;
+            }
             
-            if (length > 0) {
-                // 确定方向
+            // 计算鼠标当前位置与开始位置的差值
+            const deltaX = this.game.mouseX - this.game.dragStartX;
+            const deltaY = this.game.mouseY - this.game.dragStartY;
+            
+            // 根据拖动方向确定玩家面向
+            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) { // 添加一个小阈值避免轻微抖动改变方向
                 if (Math.abs(deltaX) > Math.abs(deltaY)) {
                     this.facingDirection = deltaX > 0 ? 'right' : 'left';
                 } else {
                     this.facingDirection = deltaY > 0 ? 'down' : 'up';
                 }
-                
-                // 移动
+            }
+            
+            // 计算拖动方向和力度
+            const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (length > 0) {
+                // 标准化方向矢量
                 const normalizedX = deltaX / length;
                 const normalizedY = deltaY / length;
                 
-                dx = normalizedX * this.speed;
-                dy = normalizedY * this.speed;
+                // 根据拖动距离调整速度(有一个最大值限制)
+                const speedMultiplier = Math.min(length / 50, 1.5); // 拖动50像素达到最大速度
+                
+                // 应用移动
+                dx = normalizedX * this.speed * speedMultiplier;
+                dy = normalizedY * this.speed * speedMultiplier;
             }
+        } else {
+            // 如果不再拖动，清除保存的起始位置
+            this.game.dragStartX = null;
+            this.game.dragStartY = null;
+            this.game.dragStartPlayerX = null;
+            this.game.dragStartPlayerY = null;
         }
         
         // 冲刺（按住Shift键）
@@ -328,18 +353,22 @@ class Player {
             const dashBarWidth = this.radius * 1.5;
             const dashBarHeight = 3;
             
+            // 获取当前画布尺寸
+            const canvasWidth = this.game.is3D ? this.game.canvasUI.width : this.game.canvas2d.width;
+            const canvasHeight = this.game.is3D ? this.game.canvasUI.height : this.game.canvas2d.height;
+            
             ctx.fillStyle = '#777';
             ctx.fillRect(
-                this.game.canvas2d.width / 2 - dashBarWidth / 2,
-                this.game.canvas2d.height / 2 - this.radius - 8,
+                canvasWidth / 2 - dashBarWidth / 2,
+                canvasHeight / 2 - this.radius - 8,
                 dashBarWidth,
                 dashBarHeight
             );
             
             ctx.fillStyle = '#00ffff';
             ctx.fillRect(
-                this.game.canvas2d.width / 2 - dashBarWidth / 2,
-                this.game.canvas2d.height / 2 - this.radius - 8,
+                canvasWidth / 2 - dashBarWidth / 2,
+                canvasHeight / 2 - this.radius - 8,
                 dashBarWidth * (1 - dashCooldownPercentage),
                 dashBarHeight
             );
@@ -348,6 +377,10 @@ class Player {
 
     drawUI(ctx) {
         if (!ctx) return;
+        
+        // 获取Canvas尺寸
+        const canvasWidth = this.game.canvasUI?.width || this.game.canvas2d.width;
+        const canvasHeight = this.game.canvasUI?.height || this.game.canvas2d.height;
         
         // 绘制血条
         // 血条背景

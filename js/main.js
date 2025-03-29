@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
             game.isPaused = !game.isPaused;
         }
         
-        // 按3键切换2D/3D模式
-        if (e.key === '3' && canToggle3D) {
+        // 按G键切换2D/3D模式
+        if (e.key.toLowerCase() === 'g' && canToggle3D) {
             console.log('切换3D/2D模式');
             game.toggleMode();
             updateModeIndicator();
@@ -61,18 +61,35 @@ document.addEventListener('DOMContentLoaded', () => {
     game.canvas2d.addEventListener('mousedown', (e) => {
         if (e.button === 0) { // 左键
             game.isDragging = true;
+            // 记录拖动开始的位置
+            const rect = game.canvas2d.getBoundingClientRect();
+            game.dragStartX = e.clientX - rect.left;
+            game.dragStartY = e.clientY - rect.top;
+            game.dragStartPlayerX = game.player.x;
+            game.dragStartPlayerY = game.player.y;
         }
     });
     
     game.canvas3d.addEventListener('mousedown', (e) => {
         if (e.button === 0) { // 左键
             game.isDragging = true;
+            // 记录拖动开始的位置
+            const rect = game.canvas3d.getBoundingClientRect();
+            game.dragStartX = e.clientX - rect.left;
+            game.dragStartY = e.clientY - rect.top;
+            game.dragStartPlayerX = game.player.x;
+            game.dragStartPlayerY = game.player.y;
         }
     });
     
     document.addEventListener('mouseup', (e) => {
         if (e.button === 0) { // 左键
             game.isDragging = false;
+            // 清除拖动的起始位置
+            game.dragStartX = null;
+            game.dragStartY = null;
+            game.dragStartPlayerX = null;
+            game.dragStartPlayerY = null;
         }
     });
     
@@ -108,6 +125,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const rect = game.canvas2d.getBoundingClientRect();
             game.mouseX = e.touches[0].clientX - rect.left;
             game.mouseY = e.touches[0].clientY - rect.top;
+            
+            // 记录拖动开始的位置
+            game.dragStartX = game.mouseX;
+            game.dragStartY = game.mouseY;
+            game.dragStartPlayerX = game.player.x;
+            game.dragStartPlayerY = game.player.y;
         }
     });
     
@@ -119,6 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const rect = game.canvas3d.getBoundingClientRect();
             game.mouseX = e.touches[0].clientX - rect.left;
             game.mouseY = e.touches[0].clientY - rect.top;
+            
+            // 记录拖动开始的位置
+            game.dragStartX = game.mouseX;
+            game.dragStartY = game.mouseY;
+            game.dragStartPlayerX = game.player.x;
+            game.dragStartPlayerY = game.player.y;
         }
     });
     
@@ -143,11 +172,21 @@ document.addEventListener('DOMContentLoaded', () => {
     game.canvas2d.addEventListener('touchend', (e) => {
         e.preventDefault();
         game.isDragging = false;
+        // 清除拖动的起始位置
+        game.dragStartX = null;
+        game.dragStartY = null;
+        game.dragStartPlayerX = null;
+        game.dragStartPlayerY = null;
     });
     
     game.canvas3d.addEventListener('touchend', (e) => {
         e.preventDefault();
         game.isDragging = false;
+        // 清除拖动的起始位置
+        game.dragStartX = null;
+        game.dragStartY = null;
+        game.dragStartPlayerX = null;
+        game.dragStartPlayerY = null;
     });
     
     // 页面可见性变化处理（切换标签页时暂停游戏）
@@ -206,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateModeIndicator();
             
             // 提示用户3D功能已启用
-            game.showWarning("3D模式已启用！按3键切换", 180);
+            game.showWarning("3D模式已启用！按G键切换", 180);
         } else {
             console.log('等待图像加载...');
             
@@ -218,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateModeIndicator();
                     
                     // 提示用户3D功能已启用
-                    game.showWarning("3D模式已启用！按3键切换", 180);
+                    game.showWarning("3D模式已启用！按G键切换", 180);
                     
                     clearInterval(checkInterval);
                 }
@@ -232,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateModeIndicator();
                     
                     // 提示用户
-                    game.showWarning("图像可能未完全加载，3D模式可能不完整，按3尝试切换", 180);
+                    game.showWarning("图像可能未完全加载，3D模式可能不完整，按G尝试切换", 180);
                     
                     clearInterval(checkInterval);
                 }

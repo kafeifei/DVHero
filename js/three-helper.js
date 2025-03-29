@@ -2,25 +2,8 @@
 class ThreeHelper {
     constructor(game) {
         this.game = game;
-        this.canvas3d = document.getElementById('game-canvas-3d');
+        this.canvas3d = game.canvas3d;
         
-        // 如果找不到canvas元素，则创建一个
-        if (!this.canvas3d) {
-            console.warn('找不到game-canvas-3d元素，创建新的canvas');
-            this.canvas3d = document.createElement('canvas');
-            this.canvas3d.id = 'game-canvas-3d';
-            this.canvas3d.className = 'inactive';
-            
-            // 将新canvas添加到game-container中
-            const container = document.getElementById('game-container');
-            if (container) {
-                container.appendChild(this.canvas3d);
-            } else {
-                // 如果找不到container，则添加到body
-                document.body.appendChild(this.canvas3d);
-            }
-        }
-
         // 确保canvas尺寸正确
         if (this.canvas3d.width === 0 || this.canvas3d.height === 0) {
             this.canvas3d.width = 800;
@@ -35,24 +18,25 @@ class ThreeHelper {
         console.log(`初始化相机，canvas尺寸: ${this.canvas3d.width}x${this.canvas3d.height}`);
         
         // 使用正交相机，更适合于俯视角游戏
+        // 固定视口尺寸，避免多次切换导致放大
+        this.viewSize = 800; // 固定视口高度
         const aspectRatio = this.canvas3d.width / this.canvas3d.height;
-        const viewSize = 800; // 增大视口高度，显示更多内容
         this.camera = new THREE.OrthographicCamera(
-            -viewSize * aspectRatio / 2, 
-            viewSize * aspectRatio / 2, 
-            viewSize / 2, 
-            -viewSize / 2, 
+            -this.viewSize * aspectRatio / 2, 
+            this.viewSize * aspectRatio / 2, 
+            this.viewSize / 2, 
+            -this.viewSize / 2, 
             1, 
-            2000 // 增加远裁剪面的距离
+            2000 // 远裁剪面的距离
         );
         
-        // 将相机位置设置为俯视视角，稍微偏移以便更好地观察
-        this.camera.position.set(200, 400, 200);
+        // 将相机位置设置为纯俯视视角，避免45度角造成坐标系混淆
+        this.camera.position.set(0, 600, 0); // 使用纯俯视角度
         this.camera.lookAt(0, 0, 0);
         
-        // 添加相机调试辅助对象
-        this.cameraHelper = new THREE.CameraHelper(this.camera);
-        this.scene.add(this.cameraHelper);
+        // 添加相机调试辅助对象 - 已禁用以提高性能
+        // this.cameraHelper = new THREE.CameraHelper(this.camera);
+        // this.scene.add(this.cameraHelper);
         
         // 创建WebGL渲染器
         this.createRenderer();
@@ -263,37 +247,52 @@ class ThreeHelper {
     // 创建WebGL渲染器
     createRenderer() {
         try {
-            // 确保canvas没有其他上下文
-            const existingContext = this.canvas3d.__context;
-            if (existingContext) {
-                console.warn('Canvas已经有了上下文：', existingContext);
+            // 如果已经有渲染器，先清理
+            if (this.renderer) {
+                console.log('清理现有渲染器...');
+                this.renderer.dispose();
+                this.renderer.forceContextLoss();
+                this.renderer = null;
             }
             
-            // 确保canvas尺寸已设置
-            if (this.canvas3d.width === 0 || this.canvas3d.height === 0) {
-                this.canvas3d.width = 800;
-                this.canvas3d.height = 600;
-            }
-            
-            // 创建WebGL渲染器
+            // 简化渲染器创建过程，不传递GL上下文，让THREE.js自己创建
             this.renderer = new THREE.WebGLRenderer({
                 canvas: this.canvas3d,
                 antialias: true,
                 alpha: true,
-                powerPreference: 'high-performance'
+                powerPreference: 'default'
             });
             
-            // 设置渲染器尺寸和像素比
+            // 设置渲染器基本参数
             this.renderer.setSize(this.canvas3d.width, this.canvas3d.height);
-            this.renderer.setPixelRatio(window.devicePixelRatio);
-            this.renderer.setClearColor(0x000000, 0); // 透明背景
+            this.renderer.setPixelRatio(1); // 使用1:1的像素比，提高性能
+            this.renderer.setClearColor(0x222222, 1);
             
             console.log('WebGL渲染器创建成功');
+            return true;
         } catch (error) {
             console.error("无法创建WebGL渲染器", error);
-            // 记录更详细的错误信息
-            if (!window.WebGLRenderingContext) {
-                console.error("浏览器不支持WebGL");
+            
+            // 尝试使用备用选项创建
+            try {
+                console.log("尝试使用备用选项创建渲染器...");
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: this.canvas3d,
+                    antialias: false,
+                    alpha: false,
+                    precision: 'lowp',
+                    powerPreference: 'low-power'
+                });
+                
+                this.renderer.setSize(this.canvas3d.width, this.canvas3d.height);
+                this.renderer.setPixelRatio(1);
+                this.renderer.setClearColor(0x222222, 1);
+                
+                console.log('备用渲染器创建成功');
+                return true;
+            } catch (e) {
+                console.error("备用渲染器创建也失败", e);
+                return false;
             }
         }
     }
@@ -301,23 +300,24 @@ class ThreeHelper {
     // 清理Three.js资源
     dispose() {
         if (this.renderer) {
-            // 从DOM中移除canvas
-            if (this.renderer.domElement.parentNode) {
-                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-            }
+            // 不再从DOM中移除canvas，只清理渲染器资源
+            // 之前的代码:
+            // if (this.renderer.domElement.parentNode) {
+            //     this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            // }
             
             // 清理渲染器
             this.renderer.dispose();
+            this.renderer.forceContextLoss();
+            this.renderer.domElement.__webglFramebuffer = null;
             this.renderer = null;
         }
         
         // 清理场景中的对象
-        while(this.scene.children.length > 0) { 
-            this.scene.remove(this.scene.children[0]); 
-        }
-        
-        // 清理材质和几何体
-        this.objects.forEach((object) => {
+        while(this.scene && this.scene.children.length > 0) { 
+            const object = this.scene.children[0];
+            this.scene.remove(object); 
+            // 清理对象资源
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
                 if (Array.isArray(object.material)) {
@@ -326,18 +326,38 @@ class ThreeHelper {
                     object.material.dispose();
                 }
             }
-        });
-        
-        // 清理纹理
-        for (const key in this.textures) {
-            if (this.textures[key]) {
-                this.textures[key].dispose();
-            }
         }
         
-        this.objects.clear();
+        // 清理材质和几何体
+        if (this.objects) {
+            this.objects.forEach((object) => {
+                if (object.geometry) object.geometry.dispose();
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => material.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+            });
+            this.objects.clear();
+        }
+        
+        // 清理纹理
+        if (this.textures) {
+            for (const key in this.textures) {
+                if (this.textures[key]) {
+                    this.textures[key].dispose();
+                }
+            }
+            this.textures = {};
+        }
+        
         this.scene = null;
         this.camera = null;
+        // this.cameraHelper = null;
+        
+        console.log('已清理Three.js资源');
     }
     
     // 重置函数，用于重新开始游戏时
@@ -591,25 +611,30 @@ class ThreeHelper {
             return;
         }
         
-        // 在xz平面跟随玩家，保持y轴高度不变
+        // 在xz平面跟随玩家，保持纯俯视角度
         const targetX = player.position.x;
         const targetZ = player.position.z;
         
-        // 使用偏移量，以便有更好的视角
-        this.camera.position.x = targetX + 200;
-        this.camera.position.z = targetZ + 200;
+        // 直接在玩家上方，无偏移
+        this.camera.position.x = targetX;
+        this.camera.position.z = targetZ;
         
-        // 始终看向玩家
+        // 始终从上方正视玩家
         this.camera.lookAt(targetX, 0, targetZ);
         
         // 更新相机辅助对象
-        if (this.cameraHelper) {
-            this.cameraHelper.update();
-        }
+        // if (this.cameraHelper) {
+        //     this.cameraHelper.update();
+        // }
     }
     
     // 更新场景状态，添加调试信息
     renderDebugInfo() {
+        // 已禁用调试信息显示
+        return;
+        
+        // 以下代码已禁用
+        /*
         // 创建或获取调试信息容器
         let debugContainer = document.getElementById('three-debug-info');
         
@@ -646,13 +671,14 @@ class ThreeHelper {
         // 更新HTML
         debugContainer.innerHTML = '<h3>Three.js Debug</h3>' + 
             Object.entries(stats).map(([key, value]) => `<div><strong>${key}:</strong> ${value}</div>`).join('');
+        */
     }
     
     // 渲染场景
     render() {
         if (!this.renderer) {
             console.warn('渲染器未初始化');
-            return;
+            return false;
         }
         
         try {
@@ -667,8 +693,10 @@ class ThreeHelper {
             
             // 渲染场景
             this.renderer.render(this.scene, this.camera);
+            return true;
         } catch (e) {
             console.error('渲染场景时出错:', e);
+            return false;
         }
     }
     
@@ -704,15 +732,18 @@ class ThreeHelper {
     resize(width, height) {
         if (!this.renderer) return;
         
+        // 确保宽高比例正确
         const aspectRatio = width / height;
-        const viewSize = 800;
+        // 使用相同的viewSize，避免缩放问题
         
-        this.camera.left = -viewSize * aspectRatio / 2;
-        this.camera.right = viewSize * aspectRatio / 2;
-        this.camera.top = viewSize / 2;
-        this.camera.bottom = -viewSize / 2;
+        // 更新相机参数
+        this.camera.left = -this.viewSize * aspectRatio / 2;
+        this.camera.right = this.viewSize * aspectRatio / 2;
+        this.camera.top = this.viewSize / 2;
+        this.camera.bottom = -this.viewSize / 2;
         this.camera.updateProjectionMatrix();
         
+        console.log(`调整渲染器尺寸: ${width}x${height}`);
         this.canvas3d.width = width;
         this.canvas3d.height = height;
         this.renderer.setSize(width, height);
@@ -724,9 +755,9 @@ class ThreeHelper {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // 增加环境光强度
         this.scene.add(ambientLight);
         
-        // 主方向光
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // 增加强度
-        directionalLight.position.set(200, 400, 200); // 与相机位置相似
+        // 主方向光 - 从上方直射
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(0, 600, 0); // 与相机位置一致，纯垂直方向
         directionalLight.lookAt(0, 0, 0);
         directionalLight.castShadow = true;
         
@@ -742,12 +773,12 @@ class ThreeHelper {
         
         this.scene.add(directionalLight);
         
-        // 添加辅助照明
+        // 添加辅助照明 - 半球光提供更均匀的环境光照
         const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
         this.scene.add(hemisphereLight);
         
-        // 添加灯光辅助对象
-        const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 100);
-        this.scene.add(directionalLightHelper);
+        // 添加灯光辅助对象 - 已禁用以提高性能
+        // const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 100);
+        // this.scene.add(directionalLightHelper);
     }
 } 
