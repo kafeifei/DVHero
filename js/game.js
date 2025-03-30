@@ -33,7 +33,9 @@ export class Game {
         // 3D支持
         this.is3D = false; // 默认从2D模式开始，会在initGame中设置为3D
         this.threeHelperLoaded = false; // 标记ThreeHelper是否已加载
-
+        this.threeHelperLoading = false; // Three.js模块是否正在加载中
+        this._pendingRender = null; // 用于跟踪待处理的渲染请求
+        
         this.frameCount = 0;
         this.gameTime = 0;
         this.isRunning = false;
@@ -47,8 +49,16 @@ export class Game {
         this.canvas3d.width = this.canvas2d.width;
         this.canvas3d.height = this.canvas2d.height;
 
-        // 初始化2D上下文
-        this.ctx = this.canvas2d.getContext('2d', { willReadFrequently: true });
+        // 初始化2D上下文，禁用alpha通道以减少闪烁
+        this.ctx = this.canvas2d.getContext('2d', { 
+            willReadFrequently: true,
+            alpha: false 
+        });
+        
+        // 禁用图像平滑，提高像素风格画面清晰度
+        if (this.ctx) {
+            this.ctx.imageSmoothingEnabled = false;
+        }
 
         // 帧率控制
         this.fps = 60;
@@ -136,17 +146,9 @@ export class Game {
         let canvas2d = document.getElementById('game-canvas');
         let canvas3d = document.getElementById('game-canvas-3d');
 
-        console.log('更新Canvas可见性:', {
-            is3D: this.is3D,
-            canvas2d: canvas2d ? '存在' : '不存在',
-            canvas3d: canvas3d ? '存在' : '不存在',
-            threeHelper: this.threeHelper ? '已加载' : '未加载'
-        });
-
         if (canvas2d && canvas3d) {
             if (this.is3D) {
                 // 3D模式：3D canvas活跃，2D canvas不活跃
-                console.log('设置为3D模式显示');
                 
                 // 设置2D Canvas为不可见
                 canvas2d.style.display = 'none';
@@ -160,15 +162,19 @@ export class Game {
                 canvas3d.classList.remove('inactive');
                 canvas3d.classList.add('active');
                 
-                // 强制重绘
-                setTimeout(() => {
+                // 强制重绘 - 只使用一个渲染请求
+                if (this._pendingRender) {
+                    cancelAnimationFrame(this._pendingRender);
+                }
+                
+                this._pendingRender = requestAnimationFrame(() => {
                     if (this.threeHelper && this.threeHelper.renderer) {
                         this.threeHelper.render();
                     }
-                }, 50);
+                    this._pendingRender = null;
+                });
             } else {
                 // 2D模式：2D canvas活跃，3D canvas不活跃
-                console.log('设置为2D模式显示');
                 
                 // 设置3D Canvas为不可见
                 canvas3d.style.display = 'none';
@@ -182,25 +188,18 @@ export class Game {
                 canvas2d.classList.remove('inactive');
                 canvas2d.classList.add('active');
                 
-                // 强制重绘
-                setTimeout(() => {
+                // 强制重绘 - 只使用一个渲染请求
+                if (this._pendingRender) {
+                    cancelAnimationFrame(this._pendingRender);
+                }
+                
+                this._pendingRender = requestAnimationFrame(() => {
                     if (this.ctx) {
                         this.draw2D();
                     }
-                }, 50);
-            }
-            
-            // 更新后再次检查状态
-            setTimeout(() => {
-                console.log('更新后Canvas状态:', {
-                    canvas2dClass: canvas2d.className,
-                    canvas3dClass: canvas3d.className,
-                    canvas2dStyle: canvas2d.style.display,
-                    canvas3dStyle: canvas3d.style.display,
-                    canvas2dVisible: canvas2d.style.visibility,
-                    canvas3dVisible: canvas3d.style.visibility
+                    this._pendingRender = null;
                 });
-            }, 100);
+            }
         } else {
             console.warn('无法更新Canvas可见性，Canvas元素不存在', {
                 canvas2d: canvas2d,
@@ -589,7 +588,22 @@ export class Game {
                 this.update();
             }
 
-            this.draw();
+            // 在2D模式下使用requestAnimationFrame绘制，避免过多重绘
+            if (!this.is3D) {
+                // 避免多个绘制请求排队
+                if (this._pendingRender) {
+                    cancelAnimationFrame(this._pendingRender);
+                }
+                
+                this._pendingRender = requestAnimationFrame(() => {
+                    this.draw();
+                    this._pendingRender = null;
+                });
+            } else {
+                // 3D模式直接调用draw
+                this.draw();
+            }
+            
             this.frameCount++;
 
             // 每60帧(1秒)增加游戏时间
@@ -729,6 +743,16 @@ export class Game {
 
         // 3D模式渲染处理
         if (this.is3D) {
+            // 检查是否正在加载ThreeHelper
+            if (this.threeHelperLoading) {
+                // 正在加载中，显示2D模式并等待
+                this.draw2D();
+                this.draw2DUI();
+                
+                // 不持续显示提示，warningText会自动更新
+                return;
+            }
+            
             // 1. 检查ThreeHelper是否存在
             if (!this.threeHelper) {
                 console.warn('3D模式已启用但ThreeHelper未创建，回退到2D渲染');
@@ -848,14 +872,18 @@ export class Game {
             if (!this.ctx) {
                 this.ctx = this.canvas2d.getContext('2d', {
                     willReadFrequently: true,
+                    alpha: false // 禁用alpha通道，减少闪烁
                 });
                 if (!this.ctx) {
                     console.error('无法获取2D上下文');
                     return;
                 }
+                
+                // 设置图像平滑
+                this.ctx.imageSmoothingEnabled = false;
             }
 
-            // 清除屏幕
+            // 清除屏幕（使用完整尺寸，避免部分清除导致闪烁）
             this.ctx.clearRect(0, 0, this.canvas2d.width, this.canvas2d.height);
 
             // 计算相机偏移（使玩家居中）
@@ -1398,9 +1426,37 @@ export class Game {
         // this.allies.push(new Ally(options));
     }
 
-    showWarning(text, duration = 180) {
+    showWarning(text, duration = 120) {
         this.warningText = text;
         this.warningTimer = duration;
+        console.log(`显示警告: ${text} (持续 ${duration} 帧)`);
+        
+        // 如果正在加载3D模式，显示更详细的加载状态
+        if (text.includes('加载3D模式')) {
+            if (!this._showLoading3DStatus) {
+                this._showLoading3DStatus = true;
+                this._loadingTimestamp = Date.now();
+                
+                // 定期更新加载状态
+                this._updateLoadingInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - this._loadingTimestamp) / 1000);
+                    this.warningText = `正在加载3D模式...${elapsed}秒`;
+                    this.warningTimer = 5; // 保持显示
+                    
+                    // 如果已经加载完成或超时，清除定时器
+                    if (this.threeHelperLoaded || elapsed > 30) {
+                        clearInterval(this._updateLoadingInterval);
+                        this._showLoading3DStatus = false;
+                    }
+                }, 1000);
+            }
+        } else if (text.includes('3D模式已加载')) {
+            // 清除加载状态更新
+            if (this._updateLoadingInterval) {
+                clearInterval(this._updateLoadingInterval);
+                this._showLoading3DStatus = false;
+            }
+        }
     }
 
     increaseDifficulty() {

@@ -205,21 +205,15 @@ window.testImageVisibility = function () {
 function initGame() {
     console.log('初始化游戏...');
     
-    // 创建游戏实例（直接以3D模式启动）
+    // 创建游戏实例（默认以2D模式启动）
     game = new Game();
     
     // 设置所有事件监听器
     console.log('初始化所有事件监听器');
     game.setupAllEventListeners();
     
-    // 强制从3D模式启动
-    game.is3D = true;
-    
-    const modeIndicator = document.getElementById('mode-indicator');
-    // 初始显示3D模式
-    if (modeIndicator) {
-        modeIndicator.textContent = '3D模式加载中...';
-    }
+    // 先以2D模式启动游戏
+    game.is3D = false;
     
     // 启动游戏
     game.start();
@@ -229,6 +223,9 @@ function initGame() {
         game.spawnEnemy();
     }
     
+    // 显示加载提示
+    game.showWarning('正在加载3D模式...', 120);
+    
     // 立即加载3D模式
     loadThreeJS();
 }
@@ -236,6 +233,11 @@ function initGame() {
 // 加载Three.js
 function loadThreeJS() {
     console.log('加载3D模块...');
+    
+    // 标记加载状态
+    if (game) {
+        game.threeHelperLoading = true;
+    }
     
     // 检查是否已预加载
     if (window._threeJSPreloaded) {
@@ -247,12 +249,21 @@ function loadThreeJS() {
         console.log('3D模块加载成功，正在初始化...');
         
         try {
+            if (!game) {
+                console.error('游戏对象不存在，无法初始化3D模式');
+                return;
+            }
+            
             // 创建ThreeHelper实例
             game.threeHelper = new module.ThreeHelper(game);
             game.threeHelperLoaded = true;
+            game.threeHelperLoading = false;
             
             // 设置3D事件监听器
             game.setupMouseEvents();
+            
+            // 只有在成功创建ThreeHelper后才切换到3D模式
+            game.is3D = true;
             
             // 更新Canvas可见性
             game.updateCanvasVisibility();
@@ -266,10 +277,24 @@ function loadThreeJS() {
             game.showWarning('3D模式已加载', 60);
         } catch (error) {
             console.error('3D模块初始化失败:', error);
+            
+            // 标记加载状态
+            if (game) {
+                game.threeHelperLoaded = false;
+                game.threeHelperLoading = false;
+            }
+            
             fallbackTo2D();
         }
     }).catch(error => {
         console.error('3D模块加载失败:', error);
+        
+        // 标记加载状态
+        if (game) {
+            game.threeHelperLoaded = false;
+            game.threeHelperLoading = false;
+        }
+        
         fallbackTo2D();
     });
 }
