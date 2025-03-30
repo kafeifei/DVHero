@@ -726,6 +726,7 @@ export class Game {
     }
 
     draw() {
+        // 如果正在升级，不进行渲染
         if (this.isPaused && !this.levelUpElement.classList.contains('hidden'))
             return;
 
@@ -746,8 +747,6 @@ export class Game {
                 // 正在加载中，显示2D模式并等待
                 this.draw2D();
                 this.draw2DUI();
-                
-                // 不持续显示提示，warningText会自动更新
                 return;
             }
             
@@ -793,7 +792,6 @@ export class Game {
                     this.renderFailCount = (this.renderFailCount || 0) + 1;
                     console.warn(`3D渲染失败 (${this.renderFailCount}/5)`);
                     
-                    
                     if (this.renderFailCount > 5) {
                         this.renderFallbackTo2D('3D渲染连续失败多次');
                         return;
@@ -832,7 +830,7 @@ export class Game {
             }
         }
 
-        // 2D渲染逻辑
+        // 2D渲染逻辑 - 确保清除整个画布
         this.draw2D();
         this.draw2DUI();
         
