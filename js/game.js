@@ -388,15 +388,17 @@ export class Game {
         }
         
         // 清除所有现有事件监听器
-        this.removeEventListeners(this.canvas2d);
-        this.removeEventListeners(this.canvas3d);
+        this.removeEventListeners(canvas2d);
+        this.removeEventListeners(canvas3d);
         
-        // 使用现有的canvas，不替换它们
+        // 确保canvas引用是最新的
         this.canvas2d = canvas2d;
         this.canvas3d = canvas3d;
         
         // 确定当前活动的canvas
-        const activeCanvas = this.is3D ? this.canvas3d : this.canvas2d;
+        const activeCanvas = this.is3D ? canvas3d : canvas2d;
+        
+        console.log('当前活动的Canvas:', this.is3D ? 'canvas3d' : 'canvas2d');
         
         // 统一的事件处理函数
         const handleMouseDown = (e) => {
@@ -409,6 +411,12 @@ export class Game {
                 this.dragStartY = e.clientY - rect.top;
                 this.mouseX = this.dragStartX;
                 this.mouseY = this.dragStartY;
+                
+                console.log('鼠标按下:', { 
+                    x: this.dragStartX, 
+                    y: this.dragStartY,
+                    canvas: this.is3D ? '3D' : '2D'
+                });
             }
         };
         

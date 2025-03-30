@@ -303,14 +303,16 @@ function loadThreeJS() {
             window.game.threeHelperLoaded = true;
             window.game.threeHelperLoading = false;
             
-            // 设置3D事件监听器
-            window.game.setupMouseEvents();
-            
             // 只有在成功创建ThreeHelper后才切换到3D模式
             window.game.is3D = true;
             
             // 更新Canvas可见性
             window.game.updateCanvasVisibility();
+            
+            // 设置鼠标事件监听 - 确保在Canvas切换后设置
+            setTimeout(() => {
+                window.game.setupMouseEvents();
+            }, 50);
             
             // 加载纹理
             if (window.game.threeHelper.loadBackgroundImages) {
