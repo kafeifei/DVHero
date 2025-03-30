@@ -37,7 +37,7 @@ export class Game {
         }
 
         // 3D支持
-        this.is3D = false; // 默认从2D模式开始，避免初始化冲突
+        this.is3D = true; // 默认从3D模式开始
 
         this.frameCount = 0;
         this.gameTime = 0;

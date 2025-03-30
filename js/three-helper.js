@@ -60,6 +60,10 @@ export class ThreeHelper {
         this.createDefaultObjects();
 
         console.log('ThreeHelper初始化完成');
+        
+        // 立即开始加载纹理
+        console.log('ThreeHelper构造函数中开始加载纹理...');
+        this.loadBackgroundImages();
     }
 
     // 创建默认3D对象
@@ -1275,7 +1279,7 @@ export class ThreeHelper {
     }
 
     // 加载背景对象图像
-    loadBackgroundImages() {
+    loadBackgroundImages(sync = false) {
         // 使用简单的方法加载背景对象图像
         const textureLoader = new THREE.TextureLoader();
 
@@ -1291,6 +1295,92 @@ export class ThreeHelper {
             { key: 'torch', path: '/torch.png' },
         ];
 
+        // 如果是同步模式，使用Promise.all确保所有纹理加载完成
+        if (sync) {
+            console.log('使用同步模式加载纹理...');
+            
+            // 创建加载Promise数组
+            const loadPromises = imagesToLoad.map(img => {
+                return new Promise((resolve) => {
+                    // 定义多个可能的路径
+                    const possiblePaths = [
+                        img.path,                         // /xxx.png
+                        '.' + img.path,                   // ./xxx.png
+                        img.path.substring(1),            // xxx.png
+                        window.location.origin + img.path  // 完整URL
+                    ];
+                    
+                    // 尝试加载每个路径，直到成功
+                    const tryLoadSync = (pathIndex = 0) => {
+                        if (pathIndex >= possiblePaths.length) {
+                            // 所有路径都尝试过了，尝试生成纹理
+                            try {
+                                let texture = null;
+                                switch (img.key) {
+                                    case 'castleTower':
+                                        texture = this.generateCastleTowerTexture();
+                                        break;
+                                    case 'brokenPillar':
+                                        texture = this.generateBrokenPillarTexture();
+                                        break;
+                                    case 'gravestone':
+                                        texture = this.generateGravestoneTexture();
+                                        break;
+                                    case 'deadTree':
+                                        texture = this.generateDeadTreeTexture();
+                                        break;
+                                    case 'torch':
+                                        texture = this.generateTorchTexture();
+                                        break;
+                                }
+                                
+                                if (texture) {
+                                    console.log(`使用生成的纹理替代: ${img.key}`);
+                                    this.textures[img.key] = texture;
+                                }
+                            } catch (e) {
+                                console.error(`无法生成备用纹理: ${img.key}`, e);
+                            }
+                            
+                            // 无论成功与否，都视为已处理
+                            resolve();
+                            return;
+                        }
+                        
+                        const currentPath = possiblePaths[pathIndex];
+                        console.log(`尝试路径[${pathIndex+1}/${possiblePaths.length}]: ${currentPath} for ${img.key}`);
+                        
+                        textureLoader.load(
+                            currentPath,
+                            (texture) => {
+                                console.log(`加载背景图像成功: ${img.key} (with path: ${currentPath})`);
+                                this.textures[img.key] = texture;
+                                resolve();
+                            },
+                            undefined,
+                            (error) => {
+                                console.warn(`路径加载失败: ${currentPath} for ${img.key}`, error);
+                                // 尝试下一个路径
+                                tryLoadSync(pathIndex + 1);
+                            }
+                        );
+                    };
+                    
+                    // 开始第一次尝试
+                    tryLoadSync();
+                });
+            });
+            
+            // 等待所有纹理加载完成，然后创建背景对象
+            Promise.all(loadPromises).then(() => {
+                console.log('所有纹理加载完成，立即创建背景对象');
+                this.createBackgroundObjects();
+            });
+            
+            return;
+        }
+        
+        // 异步模式 - 原有代码保持不变
         // 开始加载图像
         let loadedCount = 0;
         imagesToLoad.forEach((img) => {

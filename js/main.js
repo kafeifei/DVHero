@@ -18,11 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
               : '2D模式 (3D功能加载中...)';
     }
 
-    // 初始隐藏3D模式指示器
-    modeIndicator.textContent = '2D模式 (3D功能加载中...)';
+    // 初始显示3D模式指示器
+    modeIndicator.textContent = '3D模式';
 
     // 3D模式切换功能启用标志
-    let canToggle3D = false;
+    let canToggle3D = true;
 
     // 键盘事件监听
     document.addEventListener('keydown', (e) => {
@@ -239,61 +239,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 预加载Three.js所需的纹理
     preloadTextures();
-
-    // 启动游戏
-    console.log('启动游戏...');
-    game.start();
-
-    // 添加一些初始敌人
-    for (let i = 0; i < 5; i++) {
-        game.spawnEnemy();
-    }
-
-    // 延迟启用3D模式切换功能，确保游戏已完全加载
-    setTimeout(() => {
-        // 检查图像是否已加载
-        if (game.imagesReady) {
-            console.log('3D模式切换功能已启用');
-            canToggle3D = true;
-            updateModeIndicator();
-
-            // 提示用户3D功能已启用
-            game.showWarning('3D模式已启用！按G键切换', 180);
-        } else {
-            console.log('等待图像加载...');
-
-            // 设置检查间隔，直到图像加载完成
-            const checkInterval = setInterval(() => {
-                if (game.imagesReady) {
-                    console.log('图像加载完成，3D模式切换功能已启用');
-                    canToggle3D = true;
-                    updateModeIndicator();
-
-                    // 提示用户3D功能已启用
-                    game.showWarning('3D模式已启用！按G键切换', 180);
-
-                    clearInterval(checkInterval);
-                }
-            }, 1000);
-
-            // 设置超时，如果30秒后仍未加载完成，也启用功能但显示警告
-            setTimeout(() => {
-                if (!canToggle3D) {
-                    console.warn('图像加载超时，强制启用3D模式切换');
-                    canToggle3D = true;
-                    updateModeIndicator();
-
-                    // 提示用户
-                    game.showWarning(
-                        '图像可能未完全加载，3D模式可能不完整，按G尝试切换',
-                        180
-                    );
-
-                    clearInterval(checkInterval);
-                }
-            }, 30000);
+    
+    // 初始化3D渲染器并直接开始3D模式
+    import('./three-helper.js').then(module => {
+        // 创建3D渲染器
+        console.log('初始化3D渲染器...');
+        game.threeHelper = new module.ThreeHelper(game);
+        
+        // 更新Canvas可见性，确保3D模式可见
+        game.updateCanvasVisibility();
+        
+        // 等待纹理加载
+        console.log('等待纹理加载...');
+        
+        // 显式调用同步版本的loadBackgroundImages
+        if (game.threeHelper.loadBackgroundImages) {
+            console.log('手动调用同步版本的loadBackgroundImages...');
+            game.threeHelper.loadBackgroundImages(true);  // 传入true表示使用同步模式
         }
-    }, 3000);
+        
+        // 延长等待时间，确保纹理和背景对象都已创建完成
+        setTimeout(() => {
+            // 启动游戏
+            console.log('启动游戏...');
+            game.start();
+            
+            // 添加一些初始敌人
+            for (let i = 0; i < 5; i++) {
+                game.spawnEnemy();
+            }
+            
+            // 提示用户游戏已在3D模式下启动
+            game.showWarning('游戏已在3D模式下启动！按G键可切换到2D', 180);
+        }, 500);  // 等待500ms确保初始化完成
+    });
 });
 
 // 预加载Three.js纹理
