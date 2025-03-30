@@ -20,7 +20,7 @@ export class ThreeHelper {
 
         // 初始化Three.js
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x222222); // 设置场景背景色
+        this.scene.background = new THREE.Color(0x111111); // 设置更暗的场景背景色
 
         // 使用正交相机，更适合于俯视角游戏
         // 计算视口参数
@@ -110,10 +110,11 @@ export class ThreeHelper {
         grassTexture.generateMipmaps = false; // 关闭mipmap避免边缘混合
         grassTexture.needsUpdate = true;
 
-        // 创建材质
+        // 创建材质 - 降低亮度使其更暗，与2D模式匹配
         const groundMaterial = new THREE.MeshBasicMaterial({
             map: grassTexture, // Apply the generated texture
             side: THREE.DoubleSide,
+            color: 0x224422  // 添加深绿色调，使整体更暗
         });
 
         // 创建地面网格
@@ -123,12 +124,12 @@ export class ThreeHelper {
         this.scene.add(ground);
         this.objects.set('ground', ground);
 
-        // 添加暗色叠加，匹配2D模式中的 rgba(20, 20, 40, 0.3)
+        // 添加暗色叠加，匹配2D模式中的深色调
         const overlayGeometry = new THREE.PlaneGeometry(9000, 9000);
         const overlayMaterial = new THREE.MeshBasicMaterial({
-            color: 0x14142a, // RGB(20, 20, 40)
+            color: 0x101020, // 更深的蓝黑色调
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.5,    // 增加不透明度
             side: THREE.DoubleSide,
             depthWrite: false,
         });

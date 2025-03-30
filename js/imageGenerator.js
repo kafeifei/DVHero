@@ -9,8 +9,8 @@ export function generateGrassTexture() {
     const ctx = canvas.getContext('2d');
     const size = 128;
 
-    // 背景色 - 深绿色
-    ctx.fillStyle = '#1a5c1a';
+    // 背景色 - 更深的绿色
+    ctx.fillStyle = '#0f3f0f';
     ctx.fillRect(0, 0, size, size);
 
     // 添加暗色变化
@@ -19,7 +19,7 @@ export function generateGrassTexture() {
         const y = Math.random() * size;
         const radius = 1 + Math.random() * 4;
 
-        ctx.fillStyle = `rgba(10, 40, 10, ${Math.random() * 0.3})`;
+        ctx.fillStyle = `rgba(5, 20, 5, ${Math.random() * 0.4})`;
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -33,9 +33,9 @@ export function generateGrassTexture() {
         const width = 1 + Math.random();
         const angle = Math.random() * Math.PI;
 
-        // 随机选择草的颜色 - 不同色调的绿色
-        const greenValue = 60 + Math.floor(Math.random() * 30);
-        ctx.strokeStyle = `rgb(20, ${greenValue}, 20)`;
+        // 随机选择草的颜色 - 更暗色调的绿色
+        const greenValue = 40 + Math.floor(Math.random() * 25);
+        ctx.strokeStyle = `rgb(10, ${greenValue}, 10)`;
         ctx.lineWidth = width;
 
         ctx.beginPath();
@@ -50,13 +50,13 @@ export function generateGrassTexture() {
         ctx.stroke();
     }
 
-    // 添加一些亮点
-    for (let i = 0; i < 50; i++) {
+    // 添加一些亮点 - 减少数量，使整体更暗
+    for (let i = 0; i < 30; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
         const radius = 0.5 + Math.random() * 1.5;
 
-        ctx.fillStyle = `rgba(180, 255, 180, ${Math.random() * 0.4})`;
+        ctx.fillStyle = `rgba(100, 180, 100, ${Math.random() * 0.3})`;
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
