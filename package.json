@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint js/**/*.js",
     "format": "prettier --write \"**/*.{js,css,html,md}\""
@@ -25,6 +26,7 @@
   "devDependencies": {
     "eslint": "^8.0.0",
     "prettier": "^3.0.0",
+    "terser": "^5.39.0",
     "vite": "^6.2.3"
   }
 }
