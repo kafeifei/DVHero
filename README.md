@@ -33,6 +33,7 @@
 ## 🚀 运行游戏
 
 1. 克隆仓库到本地:
+
 ```
 git clone https://github.com/yourusername/DVHero.git
 ```
@@ -48,6 +49,7 @@ git clone https://github.com/yourusername/DVHero.git
 ## 💻 开发说明
 
 ### 项目结构
+
 ```
 DVHero/
 ├── css/              # 样式文件
@@ -63,6 +65,7 @@ DVHero/
 ```
 
 ### 主要游戏系统
+
 - **游戏循环**: 固定60fps的游戏循环，保证平滑体验
 - **碰撞检测**: 简单而高效的圆形碰撞检测系统
 - **敌人AI**: 基于玩家位置的简单追踪AI
@@ -94,4 +97,4 @@ DVHero/
 ## 🙏 致谢
 
 - 感谢经典恶魔城系列的灵感
-- 感谢所有对本项目提供反馈和建议的玩家 
+- 感谢所有对本项目提供反馈和建议的玩家

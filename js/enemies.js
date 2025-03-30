@@ -1,3 +1,5 @@
+import { Utils } from './utils.js';
+
 // 敌人基类
 class Enemy {
     constructor(options) {
@@ -10,7 +12,8 @@ class Enemy {
         this.radius = options.radius || 15;
         this.color = options.color || '#ff0000';
         this.level = options.level || 1;
-        this.expValue = options.expValue || Math.max(1, Math.floor(this.level / 2));
+        this.expValue =
+            options.expValue || Math.max(1, Math.floor(this.level / 2));
         this.type = options.type || 'normal'; // normal, dark, etc.
         this.target = options.target;
         this.knockbackResistance = options.knockbackResistance || 1;
@@ -29,10 +32,10 @@ class Enemy {
             this.y += this.knockbackY;
             this.knockbackX *= 0.8;
             this.knockbackY *= 0.8;
-            
+
             if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
             if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
-            
+
             return; // 被击退时不移动
         }
 
@@ -41,14 +44,14 @@ class Enemy {
             const dx = this.target.x - this.x;
             const dy = this.target.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance > 0) {
                 const moveX = (dx / distance) * this.speed;
                 const moveY = (dy / distance) * this.speed;
                 this.x += moveX;
                 this.y += moveY;
             }
-            
+
             // 检查与玩家的碰撞
             if (Utils.checkCollision(this, this.target)) {
                 this.onHit(this.target);
@@ -58,17 +61,23 @@ class Enemy {
 
     draw(ctx, offsetX, offsetY) {
         if (!this.alive) return;
-        
+
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x + offsetX, this.y + offsetY, this.radius, 0, Math.PI * 2);
+        ctx.arc(
+            this.x + offsetX,
+            this.y + offsetY,
+            this.radius,
+            0,
+            Math.PI * 2
+        );
         ctx.fill();
-        
+
         // 绘制血条
         const healthPercentage = this.health / this.maxHealth;
         const healthBarWidth = this.radius * 2;
         const healthBarHeight = 4;
-        
+
         ctx.fillStyle = '#333';
         ctx.fillRect(
             this.x + offsetX - healthBarWidth / 2,
@@ -76,8 +85,13 @@ class Enemy {
             healthBarWidth,
             healthBarHeight
         );
-        
-        ctx.fillStyle = healthPercentage > 0.5 ? '#0f0' : healthPercentage > 0.25 ? '#ff0' : '#f00';
+
+        ctx.fillStyle =
+            healthPercentage > 0.5
+                ? '#0f0'
+                : healthPercentage > 0.25
+                  ? '#ff0'
+                  : '#f00';
         ctx.fillRect(
             this.x + offsetX - healthBarWidth / 2,
             this.y + offsetY - this.radius - 10,
@@ -88,7 +102,7 @@ class Enemy {
 
     takeDamage(amount) {
         this.health -= amount;
-        
+
         if (this.health <= 0 && this.alive) {
             this.die();
         }
@@ -106,7 +120,7 @@ class Enemy {
             const enemyLevel = this.level || 1; // 如果level未定义，默认为1级
             const levelBonus = Math.min(0.5, (enemyLevel - 1) * 0.1); // 每级增加10%，最多增加到100%
             const dropChance = baseDropChance + levelBonus;
-            
+
             // 根据概率决定是否掉落
             if (Math.random() < dropChance) {
                 this.target.game.createExp(this.x, this.y, this.expValue);
@@ -140,7 +154,7 @@ class Zombie extends Enemy {
             color: '#83a83b',
             expValue: 1,
             type: 'dark',
-            knockbackResistance: 1
+            knockbackResistance: 1,
         });
     }
 }
@@ -157,7 +171,7 @@ class SkeletonSoldier extends Enemy {
             color: '#c8c8c8',
             expValue: 2,
             type: 'dark',
-            knockbackResistance: 1.2
+            knockbackResistance: 1.2,
         });
     }
 }
@@ -174,23 +188,28 @@ class AxeArmor extends Enemy {
             color: '#db7d46',
             expValue: 4,
             type: 'normal',
-            knockbackResistance: 2
+            knockbackResistance: 2,
         });
-        
+
         this.attackRange = 100;
         this.attackCooldown = 0;
         this.maxAttackCooldown = 120;
     }
-    
+
     update(game) {
         super.update(game);
-        
+
         if (!this.alive) return;
-        
+
         // 远程攻击
         if (this.attackCooldown <= 0) {
-            const distanceToTarget = Utils.distance(this.x, this.y, this.target.x, this.target.y);
-            
+            const distanceToTarget = Utils.distance(
+                this.x,
+                this.y,
+                this.target.x,
+                this.target.y
+            );
+
             if (distanceToTarget < this.attackRange) {
                 this.attack(game);
                 this.attackCooldown = this.maxAttackCooldown;
@@ -199,12 +218,15 @@ class AxeArmor extends Enemy {
             this.attackCooldown--;
         }
     }
-    
+
     attack(game) {
         if (!this.target) return;
-        
-        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-        
+
+        const angle = Math.atan2(
+            this.target.y - this.y,
+            this.target.x - this.x
+        );
+
         game.createEnemyProjectile({
             x: this.x,
             y: this.y,
@@ -216,7 +238,7 @@ class AxeArmor extends Enemy {
             width: 20,
             height: 20,
             shape: 'axe',
-            rotateSpeed: 0.2
+            rotateSpeed: 0.2,
         });
     }
 }
@@ -233,47 +255,52 @@ class MedusaHead extends Enemy {
             color: '#b0ff40',
             expValue: 3,
             type: 'dark',
-            knockbackResistance: 0.5
+            knockbackResistance: 0.5,
         });
-        
+
         this.waveAmplitude = 50; // 波动幅度
         this.waveFrequency = 0.05; // 波动频率
         this.waveOffset = Math.random() * Math.PI * 2; // 随机波动起始点
         this.baseY = this.y;
         this.movementTime = 0;
     }
-    
+
     update(game) {
         if (!this.alive) return;
-        
+
         this.movementTime += 1;
-        
+
         // 处理击退效果
         if (this.knockbackX !== 0 || this.knockbackY !== 0) {
             this.x += this.knockbackX;
             this.y += this.knockbackY;
             this.knockbackX *= 0.8;
             this.knockbackY *= 0.8;
-            
+
             if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
             if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
-            
+
             return;
         }
-        
+
         // 波浪式移动
         if (this.target) {
             const dx = this.target.x - this.x;
             const distance = Math.abs(dx);
-            
+
             if (distance > 0) {
                 const moveX = Math.sign(dx) * this.speed;
                 this.x += moveX;
-                
+
                 // 波浪运动（上下波动）
-                this.y = this.baseY + Math.sin(this.movementTime * this.waveFrequency + this.waveOffset) * this.waveAmplitude;
+                this.y =
+                    this.baseY +
+                    Math.sin(
+                        this.movementTime * this.waveFrequency + this.waveOffset
+                    ) *
+                        this.waveAmplitude;
             }
-            
+
             // 检查与玩家的碰撞
             if (Utils.checkCollision(this, this.target)) {
                 this.onHit(this.target);
@@ -294,23 +321,29 @@ class BladeSoldier extends Enemy {
             color: '#5273b8',
             expValue: 5,
             type: 'normal',
-            knockbackResistance: 1.5
+            knockbackResistance: 1.5,
         });
-        
+
         this.attackCooldown = 0;
         this.maxAttackCooldown = 90;
     }
-    
+
     update(game) {
         super.update(game);
-        
+
         if (!this.alive) return;
-        
+
         // 攻击逻辑
         if (this.attackCooldown <= 0) {
-            const distanceToTarget = Utils.distance(this.x, this.y, this.target.x, this.target.y);
-            
-            if (distanceToTarget < 60) { // 攻击范围
+            const distanceToTarget = Utils.distance(
+                this.x,
+                this.y,
+                this.target.x,
+                this.target.y
+            );
+
+            if (distanceToTarget < 60) {
+                // 攻击范围
                 this.attack(game);
                 this.attackCooldown = this.maxAttackCooldown;
             }
@@ -318,16 +351,19 @@ class BladeSoldier extends Enemy {
             this.attackCooldown--;
         }
     }
-    
+
     attack(game) {
         if (!this.target) return;
-        
-        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-        
+
+        const angle = Math.atan2(
+            this.target.y - this.y,
+            this.target.x - this.x
+        );
+
         // 剑气攻击
         for (let i = -1; i <= 1; i++) {
-            const spreadAngle = angle + i * Math.PI / 8;
-            
+            const spreadAngle = angle + (i * Math.PI) / 8;
+
             game.createEnemyProjectile({
                 x: this.x,
                 y: this.y,
@@ -338,7 +374,7 @@ class BladeSoldier extends Enemy {
                 color: '#80a0ff',
                 width: 40,
                 height: 5,
-                duration: 20
+                duration: 20,
             });
         }
     }
@@ -356,23 +392,28 @@ class SpearGuard extends Enemy {
             color: '#d8d8a0',
             expValue: 6,
             type: 'dark',
-            knockbackResistance: 1.8
+            knockbackResistance: 1.8,
         });
-        
+
         this.attackRange = 120;
         this.attackCooldown = 0;
         this.maxAttackCooldown = 150;
     }
-    
+
     update(game) {
         super.update(game);
-        
+
         if (!this.alive) return;
-        
+
         // 长矛攻击
         if (this.attackCooldown <= 0) {
-            const distanceToTarget = Utils.distance(this.x, this.y, this.target.x, this.target.y);
-            
+            const distanceToTarget = Utils.distance(
+                this.x,
+                this.y,
+                this.target.x,
+                this.target.y
+            );
+
             if (distanceToTarget < this.attackRange) {
                 this.attack(game);
                 this.attackCooldown = this.maxAttackCooldown;
@@ -381,12 +422,15 @@ class SpearGuard extends Enemy {
             this.attackCooldown--;
         }
     }
-    
+
     attack(game) {
         if (!this.target) return;
-        
-        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-        
+
+        const angle = Math.atan2(
+            this.target.y - this.y,
+            this.target.x - this.x
+        );
+
         game.createEnemyProjectile({
             x: this.x,
             y: this.y,
@@ -398,7 +442,7 @@ class SpearGuard extends Enemy {
             width: 60,
             height: 8,
             duration: 30,
-            piercing: true
+            piercing: true,
         });
     }
 }
@@ -415,23 +459,28 @@ class FireDemon extends Enemy {
             color: '#ff4000',
             expValue: 8,
             type: 'dark',
-            knockbackResistance: 1.7
+            knockbackResistance: 1.7,
         });
-        
+
         this.attackRange = 180;
         this.attackCooldown = 0;
         this.maxAttackCooldown = 120;
     }
-    
+
     update(game) {
         super.update(game);
-        
+
         if (!this.alive) return;
-        
+
         // 火球攻击
         if (this.attackCooldown <= 0) {
-            const distanceToTarget = Utils.distance(this.x, this.y, this.target.x, this.target.y);
-            
+            const distanceToTarget = Utils.distance(
+                this.x,
+                this.y,
+                this.target.x,
+                this.target.y
+            );
+
             if (distanceToTarget < this.attackRange) {
                 this.attack(game);
                 this.attackCooldown = this.maxAttackCooldown;
@@ -440,31 +489,37 @@ class FireDemon extends Enemy {
             this.attackCooldown--;
         }
     }
-    
+
     attack(game) {
         if (!this.target) return;
-        
-        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-        
+
+        const angle = Math.atan2(
+            this.target.y - this.y,
+            this.target.x - this.x
+        );
+
         // 三个火球
         for (let i = -1; i <= 1; i++) {
-            const spreadAngle = angle + i * Math.PI / 12;
-            
-            setTimeout(() => {
-                game.createEnemyProjectile({
-                    x: this.x,
-                    y: this.y,
-                    angle: spreadAngle,
-                    speed: 4,
-                    damage: this.damage,
-                    range: this.attackRange,
-                    color: '#ff7700',
-                    width: 20,
-                    height: 20,
-                    shape: 'circle',
-                    duration: 120
-                });
-            }, i * 200 + 200); // 间隔发射
+            const spreadAngle = angle + (i * Math.PI) / 12;
+
+            setTimeout(
+                () => {
+                    game.createEnemyProjectile({
+                        x: this.x,
+                        y: this.y,
+                        angle: spreadAngle,
+                        speed: 4,
+                        damage: this.damage,
+                        range: this.attackRange,
+                        color: '#ff7700',
+                        width: 20,
+                        height: 20,
+                        shape: 'circle',
+                        duration: 120,
+                    });
+                },
+                i * 200 + 200
+            ); // 间隔发射
         }
     }
 }
@@ -481,9 +536,9 @@ class ValhallaKnight extends Enemy {
             color: '#c0a060',
             expValue: 10,
             type: 'normal',
-            knockbackResistance: 2.2
+            knockbackResistance: 2.2,
         });
-        
+
         this.dashCooldown = 0;
         this.maxDashCooldown = 180;
         this.isDashing = false;
@@ -493,68 +548,68 @@ class ValhallaKnight extends Enemy {
         this.dashTargetX = 0;
         this.dashTargetY = 0;
     }
-    
+
     update(game) {
         if (!this.alive) return;
-        
+
         // 处理击退效果
         if (this.knockbackX !== 0 || this.knockbackY !== 0) {
             this.x += this.knockbackX;
             this.y += this.knockbackY;
             this.knockbackX *= 0.8;
             this.knockbackY *= 0.8;
-            
+
             if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
             if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
-            
+
             return;
         }
-        
+
         // 冲刺攻击
         if (this.isDashing) {
             this.dashDuration--;
-            
+
             const dx = this.dashTargetX - this.x;
             const dy = this.dashTargetY - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance > 0) {
                 const moveX = (dx / distance) * this.dashSpeed;
                 const moveY = (dy / distance) * this.dashSpeed;
                 this.x += moveX;
                 this.y += moveY;
             }
-            
+
             // 检查与玩家的碰撞
             if (Utils.checkCollision(this, this.target)) {
                 this.onHit(this.target);
             }
-            
+
             if (this.dashDuration <= 0) {
                 this.isDashing = false;
             }
-            
+
             return;
         }
-        
+
         // 普通移动逻辑
         if (this.target) {
             const dx = this.target.x - this.x;
             const dy = this.target.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance > 0) {
                 const moveX = (dx / distance) * this.speed;
                 const moveY = (dy / distance) * this.speed;
                 this.x += moveX;
                 this.y += moveY;
             }
-            
+
             // 检查与玩家的碰撞
             if (Utils.checkCollision(this, this.target)) {
                 this.onHit(this.target);
             }
-            
+
             // 冲刺逻辑
             if (this.dashCooldown <= 0 && distance < 200 && distance > 50) {
                 this.startDash();
@@ -564,14 +619,14 @@ class ValhallaKnight extends Enemy {
             }
         }
     }
-    
+
     startDash() {
         this.isDashing = true;
         this.dashDuration = this.maxDashDuration;
         this.dashTargetX = this.target.x;
         this.dashTargetY = this.target.y;
     }
-    
+
     onHit(target) {
         // 冲刺时造成更多伤害
         const damage = this.isDashing ? this.damage * 1.5 : this.damage;
@@ -591,25 +646,30 @@ class Gorgon extends Enemy {
             color: '#ffd700',
             expValue: 12,
             type: 'dark',
-            knockbackResistance: 1.8
+            knockbackResistance: 1.8,
         });
-        
+
         this.petrifyRange = 150;
         this.petrifyChance = 0.3; // 石化几率
         this.petrifyDuration = 180; // 3秒
         this.attackCooldown = 0;
         this.maxAttackCooldown = 240;
     }
-    
+
     update(game) {
         super.update(game);
-        
+
         if (!this.alive) return;
-        
+
         // 石化攻击
         if (this.attackCooldown <= 0) {
-            const distanceToTarget = Utils.distance(this.x, this.y, this.target.x, this.target.y);
-            
+            const distanceToTarget = Utils.distance(
+                this.x,
+                this.y,
+                this.target.x,
+                this.target.y
+            );
+
             if (distanceToTarget < this.petrifyRange) {
                 this.attack(game);
                 this.attackCooldown = this.maxAttackCooldown;
@@ -618,10 +678,10 @@ class Gorgon extends Enemy {
             this.attackCooldown--;
         }
     }
-    
+
     attack(game) {
         if (!this.target) return;
-        
+
         // 石化眼光
         const petrifyRay = {
             x: this.x,
@@ -639,9 +699,9 @@ class Gorgon extends Enemy {
                 if (Math.random() < this.petrifyChance) {
                     target.petrify(this.petrifyDuration);
                 }
-            }
+            },
         };
-        
+
         game.createEnemyProjectile(petrifyRay);
     }
 }
@@ -658,21 +718,21 @@ class Guardian extends Enemy {
             color: '#8000ff',
             expValue: 20,
             type: 'dark',
-            knockbackResistance: 3
+            knockbackResistance: 3,
         });
-        
+
         this.attackPhase = 0; // 攻击阶段
         this.attackCooldown = 0;
         this.maxAttackCooldown = 120;
         this.specialCooldown = 0;
         this.maxSpecialCooldown = 600; // 10秒特殊攻击冷却
     }
-    
+
     update(game) {
         super.update(game);
-        
+
         if (!this.alive) return;
-        
+
         // 普通攻击
         if (this.attackCooldown <= 0) {
             this.attack(game);
@@ -680,7 +740,7 @@ class Guardian extends Enemy {
         } else {
             this.attackCooldown--;
         }
-        
+
         // 特殊攻击
         if (this.specialCooldown <= 0) {
             this.specialAttack(game);
@@ -689,20 +749,23 @@ class Guardian extends Enemy {
             this.specialCooldown--;
         }
     }
-    
+
     attack(game) {
         if (!this.target) return;
-        
-        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-        
+
+        const angle = Math.atan2(
+            this.target.y - this.y,
+            this.target.x - this.x
+        );
+
         // 根据不同的阶段使用不同的攻击
         this.attackPhase = (this.attackPhase + 1) % 3;
-        
+
         switch (this.attackPhase) {
             case 0: // 能量波
                 for (let i = -2; i <= 2; i++) {
-                    const spreadAngle = angle + i * Math.PI / 10;
-                    
+                    const spreadAngle = angle + (i * Math.PI) / 10;
+
                     game.createEnemyProjectile({
                         x: this.x,
                         y: this.y,
@@ -713,11 +776,11 @@ class Guardian extends Enemy {
                         color: '#c080ff',
                         width: 30,
                         height: 10,
-                        duration: 90
+                        duration: 90,
                     });
                 }
                 break;
-                
+
             case 1: // 能量球
                 game.createEnemyProjectile({
                     x: this.x,
@@ -731,17 +794,21 @@ class Guardian extends Enemy {
                     height: 25,
                     shape: 'circle',
                     duration: 150,
-                    piercing: true
+                    piercing: true,
                 });
                 break;
-                
+
             case 2: // 追踪弹
+            {
                 const numProjectiles = 3;
                 for (let i = 0; i < numProjectiles; i++) {
                     setTimeout(() => {
                         if (this.alive && this.target) {
-                            const currentAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-                            
+                            const currentAngle = Math.atan2(
+                                this.target.y - this.y,
+                                this.target.x - this.x
+                            );
+
                             game.createEnemyProjectile({
                                 x: this.x,
                                 y: this.y,
@@ -756,26 +823,30 @@ class Guardian extends Enemy {
                                 duration: 180,
                                 homing: true,
                                 homingTarget: this.target,
-                                homingStrength: 0.03
+                                homingStrength: 0.03,
                             });
                         }
                     }, i * 300);
                 }
                 break;
+            }
         }
     }
-    
+
     specialAttack(game) {
         if (!this.target) return;
-        
+
         // 毁灭光线 - 大范围强力攻击
-        game.showWarning("终极守卫正在准备毁灭光线！", 3000);
-        
+        game.showWarning('终极守卫正在准备毁灭光线！', 3000);
+
         setTimeout(() => {
             if (!this.alive) return;
-            
-            const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-            
+
+            const angle = Math.atan2(
+                this.target.y - this.y,
+                this.target.x - this.x
+            );
+
             // 创建大型光线攻击
             game.createEnemyProjectile({
                 x: this.x,
@@ -800,14 +871,14 @@ class Guardian extends Enemy {
                             30
                         );
                     }
-                }
+                },
             });
         }, 2000); // 2秒预警时间
     }
 }
 
 // 敌人库
-const EnemyLibrary = {
+export const EnemyLibrary = {
     Zombie,
     SkeletonSoldier,
     AxeArmor,
@@ -817,5 +888,5 @@ const EnemyLibrary = {
     FireDemon,
     ValhallaKnight,
     Gorgon,
-    Guardian
-}; 
+    Guardian,
+};

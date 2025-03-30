@@ -1,0 +1,30 @@
+{
+  "name": "dvhero",
+  "version": "1.0.0",
+  "description": "恶魔城风格动作生存游戏",
+  "main": "js/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint js/**/*.js",
+    "format": "prettier --write \"**/*.{js,css,html,md}\""
+  },
+  "keywords": [
+    "game",
+    "javascript",
+    "canvas",
+    "three.js"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "vite": "^6.2.3"
+  }
+}

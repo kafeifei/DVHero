@@ -24,7 +24,8 @@ body {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
 }
 
-#game-canvas, #game-canvas-3d {
+#game-canvas,
+#game-canvas-3d {
     background-color: #000;
     width: 100%;
     height: 100%;
@@ -35,12 +36,14 @@ body {
     z-index: 0;
 }
 
-#game-canvas.active, #game-canvas-3d.active {
+#game-canvas.active,
+#game-canvas-3d.active {
     z-index: 10;
     visibility: visible;
 }
 
-#game-canvas.inactive, #game-canvas-3d.inactive {
+#game-canvas.inactive,
+#game-canvas-3d.inactive {
     z-index: 0;
     visibility: hidden;
 }
@@ -187,4 +190,4 @@ body {
     height: 100%;
     z-index: 20; /* 确保UI层比游戏Canvas更高 */
     pointer-events: none; /* 允许点击事件穿透到下层Canvas */
-} 
+}
