@@ -1282,41 +1282,95 @@ export class ThreeHelper {
         // 创建纹理对象存储结构
         this.textures = this.textures || {};
 
-        // 加载背景对象所需的图像
+        // 加载背景对象所需的图像 - 修复路径问题
         const imagesToLoad = [
-            { key: 'castleTower', path: './images/castle_tower.png' },
-            { key: 'brokenPillar', path: './images/broken_pillar.png' },
-            { key: 'gravestone', path: './images/gravestone.png' },
-            { key: 'deadTree', path: './images/dead_tree.png' },
-            { key: 'torch', path: './images/torch.png' },
+            { key: 'castleTower', path: '../images/castle_tower.png' },
+            { key: 'brokenPillar', path: '../images/broken_pillar.png' },
+            { key: 'gravestone', path: '../images/gravestone.png' },
+            { key: 'deadTree', path: '../images/dead_tree.png' },
+            { key: 'torch', path: '../images/torch.png' },
         ];
 
         // 开始加载图像
         let loadedCount = 0;
         imagesToLoad.forEach((img) => {
-            textureLoader.load(
-                img.path,
-                (texture) => {
-                    console.log(`加载背景图像成功: ${img.key}`);
-                    this.textures[img.key] = texture;
+            // 使用不同的备用路径尝试加载
+            const tryLoad = (pathIndex = 0) => {
+                // 定义多个可能的路径
+                const possiblePaths = [
+                    img.path,                         // ../images/xxx.png
+                    img.path.replace('../', './'),    // ./images/xxx.png
+                    img.path.replace('../', '/'),     // /images/xxx.png
+                    'images/' + img.path.split('/').pop()  // images/xxx.png
+                ];
+                
+                if (pathIndex >= possiblePaths.length) {
+                    // 所有路径都尝试过了，仍然失败
+                    console.error(`所有路径都无法加载图像: ${img.key}`);
                     loadedCount++;
-
-                    // 所有图像加载完成后创建背景对象
+                    
+                    // 尝试生成纹理
+                    try {
+                        let texture = null;
+                        switch (img.key) {
+                            case 'castleTower':
+                                texture = this.generateCastleTowerTexture();
+                                break;
+                            case 'brokenPillar':
+                                texture = this.generateBrokenPillarTexture();
+                                break;
+                            case 'gravestone':
+                                texture = this.generateGravestoneTexture();
+                                break;
+                            case 'deadTree':
+                                texture = this.generateDeadTreeTexture();
+                                break;
+                            case 'torch':
+                                texture = this.generateTorchTexture();
+                                break;
+                        }
+                        
+                        if (texture) {
+                            console.log(`使用生成的纹理替代: ${img.key}`);
+                            this.textures[img.key] = texture;
+                        }
+                    } catch (e) {
+                        console.error(`无法生成备用纹理: ${img.key}`, e);
+                    }
+                    
+                    // 检查是否所有图像处理完毕
                     if (loadedCount === imagesToLoad.length) {
                         this.createBackgroundObjects();
                     }
-                },
-                undefined,
-                (error) => {
-                    console.error(`加载背景图像失败: ${img.key}`, error);
-                    // 即使失败也继续计数，确保进程能够继续
-                    loadedCount++;
-
-                    if (loadedCount === imagesToLoad.length) {
-                        this.createBackgroundObjects();
-                    }
+                    return;
                 }
-            );
+                
+                const currentPath = possiblePaths[pathIndex];
+                console.log(`尝试路径[${pathIndex+1}/${possiblePaths.length}]: ${currentPath} for ${img.key}`);
+                
+                textureLoader.load(
+                    currentPath,
+                    (texture) => {
+                        console.log(`加载背景图像成功: ${img.key} (with path: ${currentPath})`);
+                        this.textures[img.key] = texture;
+                        loadedCount++;
+
+                        // 所有图像加载完成后创建背景对象
+                        if (loadedCount === imagesToLoad.length) {
+                            this.createBackgroundObjects();
+                        }
+                    },
+                    undefined,
+                    (error) => {
+                        console.warn(`路径加载失败: ${currentPath} for ${img.key}`, error);
+                        // 尝试下一个路径
+                        tryLoad(pathIndex + 1);
+                    }
+                );
+            };
+            
+            // 开始第一次尝试
+            tryLoad();
         });
     }
 
@@ -1563,5 +1617,203 @@ export class ThreeHelper {
             // 如果冲刺冷却条不存在，创建所有状态条
             this.createPlayerStatusBars();
         }
+    }
+
+    // 生成城堡塔楼纹理
+    generateCastleTowerTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        
+        // 清空画布
+        ctx.fillStyle = '#777777';  // 石头灰色
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加石头纹理
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = 3 + Math.random() * 5;
+            ctx.fillStyle = `rgba(${100 + Math.random() * 50}, ${100 + Math.random() * 50}, ${100 + Math.random() * 50}, 0.5)`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // 添加窗口
+        const windowCount = 5;
+        const windowWidth = 12;
+        const windowHeight = 20;
+        const spacing = canvas.height / (windowCount + 1);
+        
+        for (let i = 1; i <= windowCount; i++) {
+            const y = i * spacing;
+            
+            // 在左右两侧添加窗口
+            ctx.fillStyle = '#443322';
+            ctx.fillRect(20, y - windowHeight/2, windowWidth, windowHeight);
+            ctx.fillRect(canvas.width - 20 - windowWidth, y - windowHeight/2, windowWidth, windowHeight);
+        }
+        
+        return new THREE.CanvasTexture(canvas);
+    }
+    
+    // 生成断裂石柱纹理
+    generateBrokenPillarTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // 清空画布
+        ctx.fillStyle = '#aaaaaa';  // 浅灰色
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加大理石纹理
+        for (let i = 0; i < 10; i++) {
+            const startX = Math.random() * canvas.width;
+            const startY = 0;
+            const endX = Math.random() * canvas.width;
+            const endY = canvas.height;
+            
+            const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+            gradient.addColorStop(0.5, 'rgba(190, 190, 190, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0.1)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // 添加断裂线
+        ctx.strokeStyle = '#666666';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 30);
+        ctx.lineTo(canvas.width - 10, 40);
+        ctx.stroke();
+        
+        return new THREE.CanvasTexture(canvas);
+    }
+    
+    // 生成墓碑纹理
+    generateGravestoneTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 96;
+        const ctx = canvas.getContext('2d');
+        
+        // 清空画布
+        ctx.fillStyle = '#888888';  // 灰色
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加石头纹理
+        for (let i = 0; i < 100; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = 1 + Math.random() * 2;
+            ctx.fillStyle = `rgba(${80 + Math.random() * 40}, ${80 + Math.random() * 40}, ${80 + Math.random() * 40}, 0.3)`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // 添加文字效果
+        ctx.fillStyle = '#555555';
+        ctx.fillRect(10, 20, canvas.width - 20, 40);
+        
+        // 模拟文字行
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            ctx.beginPath();
+            ctx.moveTo(15, 30 + i * 8);
+            ctx.lineTo(canvas.width - 15, 30 + i * 8);
+            ctx.stroke();
+        }
+        
+        return new THREE.CanvasTexture(canvas);
+    }
+    
+    // 生成枯树纹理
+    generateDeadTreeTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // 清空画布 - 透明背景
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 画树干
+        ctx.fillStyle = '#663300';
+        ctx.fillRect(canvas.width/2 - 5, canvas.height/2, 10, canvas.height/2);
+        
+        // 画枝干
+        ctx.strokeStyle = '#663300';
+        ctx.lineWidth = 3;
+        
+        const drawBranch = (x, y, length, angle, width) => {
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            const endX = x + Math.cos(angle) * length;
+            const endY = y + Math.sin(angle) * length;
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // 递归绘制分支
+            if (width > 1) {
+                drawBranch(endX, endY, length * 0.7, angle + Math.random() * 0.5, width * 0.7);
+                drawBranch(endX, endY, length * 0.7, angle - Math.random() * 0.5, width * 0.7);
+            }
+        };
+        
+        // 画几个主干分支
+        drawBranch(canvas.width/2, canvas.height/2, canvas.height/4, -Math.PI/4, 3);
+        drawBranch(canvas.width/2, canvas.height/2, canvas.height/4, -Math.PI/2, 3);
+        drawBranch(canvas.width/2, canvas.height/2, canvas.height/4, -3 * Math.PI/4, 3);
+        
+        return new THREE.CanvasTexture(canvas);
+    }
+    
+    // 生成火把纹理
+    generateTorchTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 画火把手柄
+        ctx.fillStyle = '#8B4513';  // 棕色
+        ctx.fillRect(canvas.width/2 - 2, canvas.height/2, 4, canvas.height/2 - 5);
+        
+        // 画火把头部
+        ctx.fillStyle = '#A0522D';  // 红棕色
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2 - 2, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 画火焰
+        const flameGradient = ctx.createRadialGradient(
+            canvas.width/2, canvas.height/2 - 8,
+            2,
+            canvas.width/2, canvas.height/2 - 8,
+            12
+        );
+        flameGradient.addColorStop(0, 'rgba(255, 255, 0, 0.9)');
+        flameGradient.addColorStop(0.5, 'rgba(255, 120, 0, 0.8)');
+        flameGradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        ctx.fillStyle = flameGradient;
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2 - 8, 12, 0, Math.PI * 2);
+        ctx.fill();
+        
+        return new THREE.CanvasTexture(canvas);
     }
 }
