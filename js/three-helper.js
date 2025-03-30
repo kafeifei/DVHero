@@ -37,9 +37,12 @@ export class ThreeHelper {
             2000 // 远裁剪面的距离
         );
 
-        // 将相机位置设置为略微向前倾斜的视角
-        this.camera.position.set(0, 600, 600); // 将z方向偏移从200增加到600，增强梯形效果
+        // 将相机位置设置为略微向前倾斜的视角，但调整角度使游戏更易看清
+        this.camera.position.set(0, 700, 500); // 调整相机高度和前后位置
         this.camera.lookAt(0, 0, 0);
+        
+        // 设置相机阴影参数
+        this.camera.updateProjectionMatrix();
 
         // 创建WebGL渲染器
         this.createRenderer();
@@ -136,63 +139,158 @@ export class ThreeHelper {
             // 如果已经有渲染器，先清理
             if (this.renderer) {
                 console.log('清理现有渲染器...');
-                this.renderer.dispose();
-                this.renderer.forceContextLoss();
-                this.renderer = null;
+                try {
+                    this.renderer.dispose();
+                    this.renderer.forceContextLoss();
+                    this.renderer = null;
+                } catch (e) {
+                    console.error('清理渲染器时出错:', e);
+                }
+            }
+            
+            // 确保Canvas干净，强制释放可能存在的任何现有上下文
+            try {
+                // 获取任何现有上下文
+                const existingContext2d = this.canvas3d.getContext('2d');
+                const existingContextWebGL = 
+                    this.canvas3d.getContext('webgl') || 
+                    this.canvas3d.getContext('experimental-webgl');
+                    
+                if (existingContext2d || existingContextWebGL) {
+                    console.log('Canvas已有上下文，尝试重置...');
+                    
+                    // 尝试重置上下文
+                    if (existingContextWebGL) {
+                        if (existingContextWebGL.getExtension('WEBGL_lose_context')) {
+                            existingContextWebGL.getExtension('WEBGL_lose_context').loseContext();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('重置Canvas上下文失败:', e);
             }
 
-            // 简化渲染器创建过程，不传递GL上下文，让THREE.js自己创建
+            console.log('Canvas 3D信息:', {
+                width: this.canvas3d.width,
+                height: this.canvas3d.height,
+                offsetWidth: this.canvas3d.offsetWidth,
+                offsetHeight: this.canvas3d.offsetHeight,
+                clientWidth: this.canvas3d.clientWidth, 
+                clientHeight: this.canvas3d.clientHeight
+            });
+
+            // 确保canvas尺寸合法
+            if (this.canvas3d.width < 1 || this.canvas3d.height < 1) {
+                console.warn('Canvas尺寸无效，使用默认值');
+                this.canvas3d.width = 800;
+                this.canvas3d.height = 600;
+            }
+
+            // 检查WebGL支持
+            if (!window.WebGLRenderingContext) {
+                console.error('浏览器不支持WebGL');
+                return false;
+            }
+
+            // 尝试获取WebGL上下文前，确认上下文类型
+            try {
+                // 检查是否支持webgl2
+                const canWebGL2 = !!window.WebGL2RenderingContext;
+                if (canWebGL2) {
+                    console.log('浏览器支持WebGL2');
+                } else {
+                    console.log('浏览器不支持WebGL2，将使用WebGL1');
+                }
+            } catch (e) {
+                console.warn('检查WebGL2支持失败:', e);
+            }
+
+            // 使用更安全的选项创建WebGL渲染器
             this.renderer = new THREE.WebGLRenderer({
                 canvas: this.canvas3d,
-                antialias: true,
+                antialias: true, // 启用抗锯齿
                 alpha: true,
-                powerPreference: 'default',
+                powerPreference: 'high-performance',
+                preserveDrawingBuffer: true, // 防止闪烁
+                failIfMajorPerformanceCaveat: false,
+                depth: true,
+                stencil: false,
+                logarithmicDepthBuffer: false
             });
 
             // 设置渲染器基本参数
-            this.renderer.setSize(this.canvas3d.width, this.canvas3d.height);
-            this.renderer.setPixelRatio(1); // 使用1:1的像素比，提高性能
+            this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, false);
+            this.renderer.setPixelRatio(window.devicePixelRatio || 1); // 使用设备像素比
             this.renderer.setClearColor(0x222222, 1);
 
-            // 启用阴影
-            this.renderer.shadowMap.enabled = true;
-            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 更柔和的阴影
+            // 仅在确认renderer创建成功后才尝试启用阴影
+            if (this.renderer.capabilities && this.renderer.capabilities.isWebGL2) {
+                // WebGL 2.0 支持更好的阴影
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            } else if (this.renderer.capabilities) {
+                // WebGL 1.0 使用基础阴影
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.BasicShadowMap;
+            }
 
-            console.log('WebGL渲染器创建成功');
+            console.log('WebGL渲染器创建成功', {
+                isWebGL2: this.renderer.capabilities && this.renderer.capabilities.isWebGL2,
+                maxTextures: this.renderer.capabilities && this.renderer.capabilities.maxTextures,
+                precision: this.renderer.capabilities && this.renderer.capabilities.precision
+            });
             return true;
         } catch (error) {
-            console.error('无法创建WebGL渲染器', error);
+            console.error('创建WebGL渲染器时出错:', error);
 
-            // 尝试使用备用选项创建
+            // 尝试使用极简设置创建
             try {
-                console.log('尝试使用备用选项创建渲染器...');
+                console.log('尝试使用极简选项创建渲染器...');
+                
+                // 确保canvas干净
+                const parent = this.canvas3d.parentNode;
+                const oldCanvas = this.canvas3d;
+                
+                // 创建新的canvas元素
+                this.canvas3d = document.createElement('canvas');
+                this.canvas3d.width = 800;
+                this.canvas3d.height = 600;
+                this.canvas3d.id = 'game-canvas-3d';
+                
+                // 替换原有canvas
+                if (parent) {
+                    parent.replaceChild(this.canvas3d, oldCanvas);
+                } else {
+                    document.getElementById('game-container').appendChild(this.canvas3d);
+                }
+                
+                // 使用最低配置
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: this.canvas3d,
-                    antialias: false,
-                    alpha: false,
-                    precision: 'lowp',
-                    powerPreference: 'low-power',
+                    antialias: true, // 启用抗锯齿
+                    alpha: true,
+                    precision: 'mediump', // 使用中等精度
+                    powerPreference: 'default',
+                    preserveDrawingBuffer: true, // 防止闪烁
+                    depth: true,
+                    stencil: false,
+                    failIfMajorPerformanceCaveat: false
                 });
 
-                this.renderer.setSize(
-                    this.canvas3d.width,
-                    this.canvas3d.height
-                );
-                this.renderer.setPixelRatio(1);
+                this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, false);
+                this.renderer.setPixelRatio(window.devicePixelRatio || 1); // 使用设备像素比
                 this.renderer.setClearColor(0x222222, 1);
-
-                // 尝试启用阴影，但使用更基础的阴影类型
-                try {
-                    this.renderer.shadowMap.enabled = true;
-                    this.renderer.shadowMap.type = THREE.BasicShadowMap; // 基础阴影，性能更好
-                } catch (err) {
-                    console.warn('无法启用阴影', err);
-                }
+                
+                // 关闭阴影以提高性能
+                this.renderer.shadowMap.enabled = false;
 
                 console.log('备用渲染器创建成功');
                 return true;
             } catch (e) {
-                console.error('备用渲染器创建也失败', e);
+                console.error('备用渲染器创建失败:', e);
+                
+                // 通知游戏引擎3D模式不可用
+                this.game.showWarning('3D模式不可用，将使用2D模式', 180);
                 return false;
             }
         }
@@ -200,67 +298,163 @@ export class ThreeHelper {
 
     // 清理Three.js资源
     dispose() {
-        if (this.renderer) {
-            // 不再从DOM中移除canvas，只清理渲染器资源
-            // 之前的代码:
-            // if (this.renderer.domElement.parentNode) {
-            //     this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-            // }
-
-            // 清理渲染器
-            this.renderer.dispose();
-            this.renderer.forceContextLoss();
-            this.renderer.domElement.__webglFramebuffer = null;
-            this.renderer = null;
-        }
-
-        // 清理场景中的对象
-        while (this.scene && this.scene.children.length > 0) {
-            const object = this.scene.children[0];
-            this.scene.remove(object);
-            // 清理对象资源
-            if (object.geometry) object.geometry.dispose();
-            if (object.material) {
-                if (Array.isArray(object.material)) {
-                    object.material.forEach((material) => material.dispose());
-                } else {
-                    object.material.dispose();
-                }
-            }
-        }
-
-        // 清理材质和几何体
-        if (this.objects) {
-            this.objects.forEach((object) => {
-                if (object.geometry) object.geometry.dispose();
-                if (object.material) {
-                    if (Array.isArray(object.material)) {
-                        object.material.forEach((material) =>
-                            material.dispose()
-                        );
-                    } else {
-                        object.material.dispose();
-                    }
-                }
-            });
-            this.objects.clear();
-        }
-
-        // 清理纹理
+        console.log('开始清理Three.js资源...');
+        
+        // 首先尝试解除所有纹理的引用
         if (this.textures) {
             for (const key in this.textures) {
                 if (this.textures[key]) {
-                    this.textures[key].dispose();
+                    // 在处理前确保纹理存在
+                    try {
+                        this.textures[key].dispose();
+                        // 明确移除引用
+                        this.textures[key] = null;
+                    } catch (e) {
+                        console.warn(`清理纹理 ${key} 失败:`, e);
+                    }
                 }
             }
+            // 清空纹理对象
             this.textures = {};
         }
 
-        this.scene = null;
+        // 清理场景中的对象及其材质和几何体
+        if (this.scene) {
+            try {
+                // 递归遍历场景中所有对象
+                const disposeNode = (node) => {
+                    if (node.children) {
+                        // 从后向前遍历，这样在移除子对象时不会影响索引
+                        for (let i = node.children.length - 1; i >= 0; i--) {
+                            disposeNode(node.children[i]);
+                        }
+                    }
+                    
+                    // 移除对象材质和几何体
+                    if (node.geometry) {
+                        node.geometry.dispose();
+                    }
+                    
+                    if (node.material) {
+                        if (Array.isArray(node.material)) {
+                            node.material.forEach(material => {
+                                disposeMaterial(material);
+                            });
+                        } else {
+                            disposeMaterial(node.material);
+                        }
+                    }
+                    
+                    // 移除引用
+                    if (node.parent) {
+                        node.parent.remove(node);
+                    }
+                };
+                
+                // 处理材质及其纹理
+                const disposeMaterial = (material) => {
+                    // 处理材质的各种纹理和映射
+                    const disposeProperty = (prop) => {
+                        if (material[prop] && material[prop].isTexture) {
+                            material[prop].dispose();
+                            material[prop] = null;
+                        }
+                    };
+                    
+                    // 处理常见的纹理属性
+                    disposeProperty('map');
+                    disposeProperty('lightMap');
+                    disposeProperty('bumpMap');
+                    disposeProperty('normalMap');
+                    disposeProperty('displacementMap');
+                    disposeProperty('specularMap');
+                    disposeProperty('emissiveMap');
+                    disposeProperty('metalnessMap');
+                    disposeProperty('roughnessMap');
+                    disposeProperty('alphaMap');
+                    disposeProperty('aoMap');
+                    disposeProperty('envMap');
+                    
+                    // 处理材质本身
+                    material.dispose();
+                };
+                
+                // 处理场景中的所有对象
+                while (this.scene.children.length > 0) {
+                    disposeNode(this.scene.children[0]);
+                }
+            } catch (e) {
+                console.error('清理场景对象失败:', e);
+            }
+            
+            // 清除场景引用
+            this.scene = null;
+        }
+
+        // 清理对象映射
+        if (this.objects) {
+            try {
+                this.objects.clear();
+            } catch (e) {
+                console.warn('清理对象映射失败:', e);
+            }
+            this.objects = null;
+        }
+
+        // 清理动画相关
+        this.animatedTorches = null;
+        this.animatedLights = null;
+        
+        // 清理相机
         this.camera = null;
-        // this.cameraHelper = null;
+
+        // 最后清理渲染器
+        if (this.renderer) {
+            try {
+                // 尝试使用WEBGL_lose_context扩展显式释放上下文
+                const gl = this.renderer.getContext();
+                if (gl) {
+                    const loseContextExt = gl.getExtension('WEBGL_lose_context');
+                    if (loseContextExt) {
+                        console.log('使用WEBGL_lose_context扩展释放WebGL上下文');
+                        loseContextExt.loseContext();
+                    }
+                }
+                
+                // 设置渲染DOM元素引用为null，帮助垃圾回收
+                const renderDomElement = this.renderer.domElement;
+                
+                // 处理渲染器自身
+                this.renderer.dispose();
+                
+                // 清理WebGL上下文关联的资源
+                this.renderer.forceContextLoss();
+                
+                // 帮助垃圾回收器清理
+                if (renderDomElement) {
+                    renderDomElement.__webglFramebuffer = null;
+                }
+                
+                // 清除引用
+                this.renderer = null;
+            } catch (e) {
+                console.error('清理渲染器资源失败:', e);
+                // 确保引用被清除，即使过程出错
+                this.renderer = null;
+            }
+        }
 
         console.log('已清理Three.js资源');
+        
+        // 强制垃圾回收（如果支持）
+        if (window.gc) {
+            try {
+                window.gc();
+                console.log('已请求执行垃圾回收');
+            } catch (e) {
+                // gc可能不可用，忽略错误
+            }
+        }
     }
 
     // 重置函数，用于重新开始游戏时
@@ -917,18 +1111,82 @@ export class ThreeHelper {
 
     // 渲染场景
     render() {
-        if (!this.renderer) {
-            console.warn('渲染器未初始化');
+        // 如果未正确初始化，不执行渲染
+        if (!this.renderer || !this.scene || !this.camera) {
+            console.warn('渲染器、场景或相机未初始化');
+            return false;
+        }
+
+        // 检查渲染器状态
+        try {
+            // 尝试获取渲染器上下文
+            const gl = this.renderer.getContext();
+            if (!gl) {
+                console.error('无法获取WebGL上下文');
+                
+                // 尝试重新创建渲染器
+                if (!this.rendererRecreateAttempts) {
+                    this.rendererRecreateAttempts = 0;
+                }
+                
+                if (this.rendererRecreateAttempts < 2) {
+                    console.log(`尝试重新创建渲染器 (${this.rendererRecreateAttempts + 1}/2)...`);
+                    this.rendererRecreateAttempts++;
+                    this.createRenderer();
+                    return false;
+                } else {
+                    console.error('多次尝试重建渲染器失败');
+                    return false;
+                }
+            }
+            
+            // 检查WebGL上下文是否丢失
+            if (gl.isContextLost && gl.isContextLost()) {
+                console.error('WebGL上下文已丢失，尝试恢复...');
+                
+                // 尝试恢复上下文
+                try {
+                    const loseContext = gl.getExtension('WEBGL_lose_context');
+                    if (loseContext) {
+                        // 先主动丢失，然后恢复
+                        loseContext.loseContext();
+                        setTimeout(() => {
+                            try {
+                                loseContext.restoreContext();
+                                console.log('WebGL上下文已恢复');
+                            } catch (e) {
+                                console.error('恢复上下文失败:', e);
+                            }
+                        }, 100);
+                    }
+                } catch (e) {
+                    console.error('尝试恢复上下文时出错:', e);
+                }
+                
+                return false;
+            }
+        } catch (e) {
+            console.error('检查渲染器状态时出错:', e);
             return false;
         }
 
         // 如果有成功加载的纹理，并且还没有创建过成功纹理地面，则创建一个
         if (this.successTexture && !this.successGroundCreated) {
-            this.createSuccessGround();
-            this.successGroundCreated = true;
+            try {
+                this.createSuccessGround();
+                this.successGroundCreated = true;
+            } catch (e) {
+                console.error('创建成功纹理地面时出错:', e);
+            }
         }
 
+        // 记录渲染开始时间（性能监控）
+        const renderStartTime = performance.now();
+
         try {
+            // 更新场景中的对象位置
+            this.updateSceneObjects();
+            
             // 更新场景中的动画对象
             this.animateObjects();
             
@@ -941,15 +1199,173 @@ export class ThreeHelper {
             // 更新相机位置
             this.updateCamera();
 
-            // 更新调试信息
-            this.renderDebugInfo();
-
-            // 渲染场景
+            // 执行渲染
             this.renderer.render(this.scene, this.camera);
+            
+            // 记录渲染耗时
+            const renderTime = performance.now() - renderStartTime;
+            
+            // 检测性能问题
+            if (renderTime > 100) { // 渲染时间超过100ms可能会导致明显卡顿
+                console.warn(`3D渲染耗时过长: ${renderTime.toFixed(2)}ms`);
+                
+                // 记录慢渲染次数
+                this.slowRenderCount = (this.slowRenderCount || 0) + 1;
+                
+                // 如果持续出现慢渲染，记录警告但不自动切换
+                if (this.slowRenderCount > 10) {
+                    console.warn('3D渲染性能较差，可能需要切换到2D模式');
+                    // 不再自动切换模式，而是在游戏中显示提示
+                    if (this.game && this.slowRenderCount === 11) {
+                        this.game.showWarning('3D渲染性能较差，可使用G键切换到2D模式', 180);
+                    }
+                }
+            } else {
+                // 重置慢渲染计数
+                this.slowRenderCount = 0;
+            }
+            
+            // 重置渲染错误计数
+            this.renderErrorCount = 0;
+            this.renderFailCount = 0;
+            this.rendererRecreateAttempts = 0;
+            
             return true;
         } catch (e) {
-            console.error('渲染场景时出错:', e);
+            // 分析错误类型
+            let errorMessage = e.message || '未知错误';
+            console.error('3D渲染错误:', errorMessage, e);
+            
+            // 记录错误细节以辅助调试
+            try {
+                const debugInfo = {
+                    message: errorMessage,
+                    stack: e.stack,
+                    objects: this.scene ? this.scene.children.length : 0,
+                    camera: this.camera ? '存在' : '不存在',
+                    renderer: this.renderer ? '存在' : '不存在',
+                    context: this.renderer && this.renderer.getContext() ? '存在' : '不存在'
+                };
+                console.log('3D渲染错误详情:', debugInfo);
+            } catch (debugError) {
+                console.error('无法记录错误详情:', debugError);
+            }
+            
+            // 如果渲染过程中出错，记录错误
+            this.renderErrorCount = (this.renderErrorCount || 0) + 1;
+            
+            if (this.renderErrorCount > 3) {
+                // 显示警告但不强制切换
+                console.error('3D渲染出错多次');
+                if (this.game && this.renderErrorCount === 4) {
+                    this.game.showWarning('3D渲染出现问题，可使用G键切换到2D模式', 180);
+                }
+            }
+            
             return false;
+        }
+    }
+    
+    // 更新场景中的所有对象位置
+    updateSceneObjects() {
+        try {
+            // 更新玩家位置
+            this.updateObjectPosition(
+                'player',
+                this.game.player.x,
+                this.game.player.y
+            );
+        } catch (e) {
+            console.warn('更新玩家位置时出错:', e);
+        }
+
+        try {
+            // 更新敌人位置
+            this.game.enemies.forEach((enemy) => {
+                const key = `enemy_${enemy.id}`;
+                if (!this.objects.has(key)) {
+                    this.createEnemyModel(enemy);
+                } else {
+                    this.updateObjectPosition(
+                        key,
+                        enemy.x,
+                        enemy.y
+                    );
+                }
+            });
+        } catch (e) {
+            console.warn('更新敌人位置时出错:', e);
+        }
+
+        try {
+            // 更新投射物位置
+            this.game.projectiles
+                .concat(this.game.enemyProjectiles)
+                .forEach((projectile) => {
+                    const key = `projectile_${projectile.id}`;
+                    if (!this.objects.has(key)) {
+                        this.createProjectileModel(projectile);
+                    } else {
+                        this.updateObjectPosition(
+                            key,
+                            projectile.x,
+                            projectile.y,
+                            10
+                        );
+                    }
+                });
+        } catch (e) {
+            console.warn('更新投射物位置时出错:', e);
+        }
+
+        try {
+            // 更新经验球位置
+            this.game.expOrbs.forEach((orb) => {
+                const key = `expOrb_${orb.id}`;
+                if (!this.objects.has(key)) {
+                    this.createExpOrbModel(orb);
+                } else {
+                    this.updateObjectPosition(
+                        key,
+                        orb.x,
+                        orb.y,
+                        5
+                    );
+                }
+            });
+        } catch (e) {
+            console.warn('更新经验球位置时出错:', e);
+        }
+
+        try {
+            // 清理已经不存在的对象
+            this.objects.forEach((_, key) => {
+                if (key.startsWith('enemy_')) {
+                    const id = key.replace('enemy_', '');
+                    if (!this.game.enemies.some((e) => e.id.toString() === id)) {
+                        this.removeObject(key);
+                    }
+                } else if (key.startsWith('projectile_')) {
+                    const id = key.replace('projectile_', '');
+                    if (
+                        !this.game.projectiles.some(
+                            (p) => p.id.toString() === id
+                        ) &&
+                        !this.game.enemyProjectiles.some(
+                            (p) => p.id.toString() === id
+                        )
+                    ) {
+                        this.removeObject(key);
+                    }
+                } else if (key.startsWith('expOrb_')) {
+                    const id = key.replace('expOrb_', '');
+                    if (!this.game.expOrbs.some((o) => o.id.toString() === id)) {
+                        this.removeObject(key);
+                    }
+                }
+            });
+        } catch (e) {
+            console.warn('清理对象时出错:', e);
         }
     }
 
@@ -1050,37 +1466,40 @@ export class ThreeHelper {
     // 创建灯光
     createLights() {
         // 环境光
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // 增加环境光强度
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // 增加环境光强度
         this.scene.add(ambientLight);
 
         // 主方向光 - 从相机方向照射
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight.position.set(0, 600, 600); // 与相机位置一致
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 700, 500); // 与相机位置一致
         directionalLight.lookAt(0, 0, 0);
         directionalLight.castShadow = true;
 
-        // 设置阴影属性
-        directionalLight.shadow.mapSize.width = 2048; // 增加阴影贴图分辨率
-        directionalLight.shadow.mapSize.height = 2048; // 增加阴影贴图分辨率
+        // 调整阴影相机参数，避免锯齿
         directionalLight.shadow.camera.near = 1;
         directionalLight.shadow.camera.far = 2000;
         directionalLight.shadow.camera.left = -500;
         directionalLight.shadow.camera.right = 500;
         directionalLight.shadow.camera.top = 500;
         directionalLight.shadow.camera.bottom = -500;
-
+        
+        // 增加阴影贴图分辨率和质量
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.bias = -0.0005; // 减少阴影痤疮
+        
         this.scene.add(directionalLight);
 
-        // 添加辅助照明 - 半球光提供更均匀的环境光照
+        // 添加辅助照明 - 柔和的半球光提供更自然的环境光照
         const hemisphereLight = new THREE.HemisphereLight(
-            0xffffbb,
-            0x080820,
-            0.5
+            0xffffbb, // 天空颜色
+            0x080820, // 地面颜色
+            0.6       // 强度
         );
         this.scene.add(hemisphereLight);
 
         // 添加额外的辅助照明 - 背面光源，确保物体背面也有照明
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
         backLight.position.set(0, 100, -600); // 从相机对面方向照射
         backLight.lookAt(0, 0, 0);
         this.scene.add(backLight);

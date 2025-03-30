@@ -37,7 +37,8 @@ export class Game {
         }
 
         // 3D支持
-        this.is3D = true; // 默认从3D模式开始
+        this.is3D = false; // 默认从2D模式开始，会在initGame中设置为3D
+        this.threeHelperLoaded = false; // 标记ThreeHelper是否已加载
 
         this.frameCount = 0;
         this.gameTime = 0;
@@ -53,9 +54,6 @@ export class Game {
 
         // 初始化2D上下文
         this.ctx = this.canvas2d.getContext('2d', { willReadFrequently: true });
-
-        // 显示正确的Canvas
-        this.updateCanvasVisibility();
 
         // 帧率控制
         this.fps = 60;
@@ -84,6 +82,10 @@ export class Game {
         this.mouseX = 0;
         this.mouseY = 0;
         this.isDragging = false;
+        this.dragStartX = null;
+        this.dragStartY = null;
+        this.dragStartPlayerX = null;
+        this.dragStartPlayerY = null;
 
         // 游戏元素
         this.player = new Player(this);
@@ -124,9 +126,13 @@ export class Game {
 
         // 初始化
         this.init();
-
-        // 为3D画布设置事件监听器
-        this.setupCanvas3dEvents();
+        
+        // 初始化事件监听器引用
+        this._eventHandlers = {};
+        this._handleKeyDown = null;
+        this._handleKeyUp = null;
+        
+        // 注意：键盘事件不在这里设置，而是由setupAllEventListeners设置
     }
 
     // 更新Canvas显示状态
@@ -135,25 +141,76 @@ export class Game {
         let canvas2d = document.getElementById('game-canvas');
         let canvas3d = document.getElementById('game-canvas-3d');
 
+        console.log('更新Canvas可见性:', {
+            is3D: this.is3D,
+            canvas2d: canvas2d ? '存在' : '不存在',
+            canvas3d: canvas3d ? '存在' : '不存在',
+            threeHelper: this.threeHelper ? '已加载' : '未加载'
+        });
+
         if (canvas2d && canvas3d) {
             if (this.is3D) {
                 // 3D模式：3D canvas活跃，2D canvas不活跃
+                console.log('设置为3D模式显示');
+                
+                // 设置2D Canvas为不可见
+                canvas2d.style.display = 'none';
+                canvas2d.style.visibility = 'hidden';
                 canvas2d.classList.remove('active');
                 canvas2d.classList.add('inactive');
+                
+                // 设置3D Canvas为可见
+                canvas3d.style.display = 'block';
+                canvas3d.style.visibility = 'visible';
                 canvas3d.classList.remove('inactive');
                 canvas3d.classList.add('active');
+                
+                // 强制重绘
+                setTimeout(() => {
+                    if (this.threeHelper && this.threeHelper.renderer) {
+                        this.threeHelper.render();
+                    }
+                }, 50);
             } else {
                 // 2D模式：2D canvas活跃，3D canvas不活跃
+                console.log('设置为2D模式显示');
+                
+                // 设置3D Canvas为不可见
+                canvas3d.style.display = 'none';
+                canvas3d.style.visibility = 'hidden';
                 canvas3d.classList.remove('active');
                 canvas3d.classList.add('inactive');
+                
+                // 设置2D Canvas为可见
+                canvas2d.style.display = 'block';
+                canvas2d.style.visibility = 'visible';
                 canvas2d.classList.remove('inactive');
                 canvas2d.classList.add('active');
+                
+                // 强制重绘
+                setTimeout(() => {
+                    if (this.ctx) {
+                        this.draw2D();
+                    }
+                }, 50);
             }
-            console.log(
-                `Canvas可见性更新: 2D ${this.is3D ? '隐藏' : '显示'}, 3D ${this.is3D ? '显示' : '隐藏'}`
-            );
+            
+            // 更新后再次检查状态
+            setTimeout(() => {
+                console.log('更新后Canvas状态:', {
+                    canvas2dClass: canvas2d.className,
+                    canvas3dClass: canvas3d.className,
+                    canvas2dStyle: canvas2d.style.display,
+                    canvas3dStyle: canvas3d.style.display,
+                    canvas2dVisible: canvas2d.style.visibility,
+                    canvas3dVisible: canvas3d.style.visibility
+                });
+            }, 100);
         } else {
-            console.warn('无法更新Canvas可见性，Canvas元素不存在');
+            console.warn('无法更新Canvas可见性，Canvas元素不存在', {
+                canvas2d: canvas2d,
+                canvas3d: canvas3d
+            });
         }
     }
 
@@ -164,38 +221,307 @@ export class Game {
             this.showWarning('图像资源尚未加载完成，请稍后再试', 180);
             return;
         }
-
-        // 如果当前是3D模式，先清理3D资源
-        if (this.is3D && this.threeHelper) {
-            this.threeHelper.dispose();
-            this.threeHelper = null;
+        
+        // 获取模式指示器
+        const modeIndicator = document.getElementById('mode-indicator');
+        
+        // 防止快速连续切换导致的问题
+        if (this._modeChanging) {
+            this.showWarning('模式切换中，请稍候...', 120);
+            return;
         }
-
-        // 切换模式标志
-        this.is3D = !this.is3D;
-
-        // 更新Canvas引用和可见性
-        this.canvas2d = document.getElementById('game-canvas');
-        this.canvas3d = document.getElementById('game-canvas-3d');
-
-        // 确保两个Canvas都存在
-        this.updateCanvasVisibility();
-
-        // 如果切换到3D模式，需要重新创建3D渲染器
-        if (this.is3D && !this.threeHelper) {
-            // 动态导入ThreeHelper
+        
+        this._modeChanging = true;
+        setTimeout(() => this._modeChanging = false, 1000); // 1秒后允许再次切换
+        
+        // 如果要切换到3D模式
+        if (!this.is3D) {
+            // 检查ThreeHelper是否加载就绪
+            if (!this.threeHelperLoaded) {
+                this.showWarning('3D模式正在加载中，请稍后再试', 180);
+                this._modeChanging = false;
+                return;
+            }
+            
+            // 显示加载状态
+            if (modeIndicator) {
+                modeIndicator.textContent = '正在切换到3D模式...';
+            }
+            
+            this.showWarning('正在切换到3D模式...', 120);
+            
+            // 从DOM中移除旧Canvas并重新创建，彻底清除WebGL上下文
+            const container = document.getElementById('game-container');
+            const oldCanvas = document.getElementById('game-canvas-3d');
+            
+            if (container && oldCanvas) {
+                container.removeChild(oldCanvas);
+                
+                // 创建新的Canvas
+                const newCanvas = document.createElement('canvas');
+                newCanvas.id = 'game-canvas-3d';
+                newCanvas.width = 800;
+                newCanvas.height = 600;
+                container.appendChild(newCanvas);
+                
+                // 更新Canvas引用
+                this.canvas3d = newCanvas;
+                console.log('3D Canvas重建完成');
+            }
+            
+            // 异步加载ThreeHelper
             import('./three-helper.js').then(module => {
-                console.log('重新创建3D渲染器...');
-                this.threeHelper = new module.ThreeHelper(this);
-                // 显式加载背景图像并创建对象
-                if (this.threeHelper.loadBackgroundImages) {
-                    this.threeHelper.loadBackgroundImages(true);
+                // 清理旧的ThreeHelper
+                if (this.threeHelper) {
+                    try {
+                        this.threeHelper.dispose();
+                    } catch (e) {
+                        console.error('清理ThreeHelper失败:', e);
+                    }
                 }
+                
+                try {
+                    // 创建新的ThreeHelper
+                    this.threeHelper = new module.ThreeHelper(this);
+                    
+                    // 切换到3D模式
+                    this.is3D = true;
+                    
+                    // 设置事件监听
+                    this.setupMouseEvents();
+                    
+                    // 更新模式指示器
+                    if (modeIndicator) {
+                        modeIndicator.textContent = '3D模式';
+                    }
+                    
+                    // 更新Canvas可见性
+                    this.updateCanvasVisibility();
+                    
+                    // 加载纹理和背景
+                    if (this.threeHelper.loadBackgroundImages) {
+                        this.threeHelper.loadBackgroundImages(true);
+                    }
+                    
+                    // 显示切换完成的提示
+                    this.showWarning('已切换到3D模式', 120);
+                } catch (error) {
+                    console.error('3D初始化失败:', error);
+                    this.showWarning('3D模式初始化失败，请稍后再试', 180);
+                    
+                    if (modeIndicator) {
+                        modeIndicator.textContent = '2D模式 (3D切换失败)';
+                    }
+                    
+                    this._modeChanging = false;
+                }
+            }).catch(error => {
+                console.error('切换到3D模式失败:', error);
+                this.showWarning('切换到3D模式失败，请稍后再试', 180);
+                
+                if (modeIndicator) {
+                    modeIndicator.textContent = '2D模式 (3D切换失败)';
+                }
+                
+                this._modeChanging = false;
             });
+        } 
+        // 从3D切换到2D
+        else {
+            // 清理3D资源
+            if (this.threeHelper) {
+                try {
+                    this.threeHelper.dispose();
+                } catch (e) {
+                    console.error('清理ThreeHelper失败:', e);
+                }
+                this.threeHelper = null;
+            }
+            
+            // 切换到2D模式
+            this.is3D = false;
+            
+            // 设置事件监听
+            this.setupMouseEvents();
+            
+            // 更新模式指示器
+            if (modeIndicator) {
+                modeIndicator.textContent = '2D模式';
+            }
+            
+            // 更新Canvas可见性
+            this.updateCanvasVisibility();
+            
+            // 显示切换完成的提示
+            this.showWarning('已切换到2D模式', 120);
+            
+            // 放弃模式切换锁
+            this._modeChanging = false;
         }
+    }
+    
+    // 设置鼠标事件监听
+    setupMouseEvents() {
+        console.log('设置鼠标事件监听器');
+        
+        // 获取当前活动的canvas
+        const canvas2d = document.getElementById('game-canvas');
+        const canvas3d = document.getElementById('game-canvas-3d');
+        
+        if (!canvas2d || !canvas3d) {
+            console.error('找不到Canvas元素，无法设置鼠标事件');
+            return;
+        }
+        
+        // 清除所有现有事件监听器
+        this.removeEventListeners(this.canvas2d);
+        this.removeEventListeners(this.canvas3d);
+        
+        // 使用现有的canvas，不替换它们
+        this.canvas2d = canvas2d;
+        this.canvas3d = canvas3d;
+        
+        // 确定当前活动的canvas
+        const activeCanvas = this.is3D ? this.canvas3d : this.canvas2d;
+        
+        // 统一的事件处理函数
+        const handleMouseDown = (e) => {
+            if (e.button === 0) { // 左键
+                this.isDragging = true;
+                
+                // 记录鼠标按下时的位置（用于计算移动方向）
+                const rect = activeCanvas.getBoundingClientRect();
+                this.dragStartX = e.clientX - rect.left;
+                this.dragStartY = e.clientY - rect.top;
+                this.mouseX = this.dragStartX;
+                this.mouseY = this.dragStartY;
+                
+                console.log('鼠标按下:', {
+                    dragStartX: this.dragStartX,
+                    dragStartY: this.dragStartY
+                });
+            }
+        };
+        
+        const handleMouseMove = (e) => {
+            // 获取鼠标相对于canvas的位置
+            const rect = activeCanvas.getBoundingClientRect();
+            this.mouseX = e.clientX - rect.left;
+            this.mouseY = e.clientY - rect.top;
+            
+            if (this.isDragging) {
+                // 在游戏主循环中处理移动逻辑，这里只更新鼠标位置
+                // console.log('鼠标移动:', { mouseX: this.mouseX, mouseY: this.mouseY });
+            }
+        };
+        
+        const handleMouseUp = (e) => {
+            if (e.button === 0) { // 左键
+                this.isDragging = false;
+                
+                // 清除拖动的起始位置
+                this.dragStartX = null;
+                this.dragStartY = null;
+                console.log('鼠标释放');
+            }
+        };
+        
+        const handleMouseLeave = (e) => {
+            // 鼠标离开canvas时停止拖拽
+            if (this.isDragging) {
+                this.isDragging = false;
+                this.dragStartX = null;
+                this.dragStartY = null;
+                console.log('鼠标离开canvas');
+            }
+        };
+        
+        const handleContextMenu = (e) => {
+            e.preventDefault();
+        };
+        
+        const handleTouchStart = (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                this.isDragging = true;
+                
+                const rect = activeCanvas.getBoundingClientRect();
+                this.mouseX = e.touches[0].clientX - rect.left;
+                this.mouseY = e.touches[0].clientY - rect.top;
+                
+                this.dragStartX = this.mouseX;
+                this.dragStartY = this.mouseY;
+            }
+        };
+        
+        const handleTouchMove = (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0 && this.isDragging) {
+                const rect = activeCanvas.getBoundingClientRect();
+                this.mouseX = e.touches[0].clientX - rect.left;
+                this.mouseY = e.touches[0].clientY - rect.top;
+            }
+        };
+        
+        const handleTouchEnd = (e) => {
+            e.preventDefault();
+            this.isDragging = false;
+        };
+        
+        // 保存事件处理函数引用，方便以后移除
+        this._eventHandlers = {
+            mousedown: handleMouseDown,
+            mousemove: handleMouseMove,
+            mouseup: handleMouseUp,
+            mouseleave: handleMouseLeave,
+            contextmenu: handleContextMenu,
+            touchstart: handleTouchStart,
+            touchmove: handleTouchMove,
+            touchend: handleTouchEnd
+        };
+        
+        // 添加事件监听器到当前活动画布
+        activeCanvas.addEventListener('mousedown', handleMouseDown);
+        activeCanvas.addEventListener('mousemove', handleMouseMove);
+        activeCanvas.addEventListener('mouseup', handleMouseUp);
+        activeCanvas.addEventListener('mouseleave', handleMouseLeave);
+        activeCanvas.addEventListener('contextmenu', handleContextMenu);
+        activeCanvas.addEventListener('touchstart', handleTouchStart);
+        activeCanvas.addEventListener('touchmove', handleTouchMove);
+        activeCanvas.addEventListener('touchend', handleTouchEnd);
+        
+        console.log(`鼠标事件监听器已设置到${this.is3D ? '3D' : '2D'}画布`);
+    }
 
-        // 显示提示
-        this.showWarning(this.is3D ? '已切换到3D模式' : '已切换到2D模式', 120);
+    // 辅助函数：移除之前添加的事件监听器
+    removeEventListeners(element) {
+        if (!element || !this._eventHandlers) return;
+        
+        // 移除所有事件监听器
+        if (this._eventHandlers.mousedown) {
+            element.removeEventListener('mousedown', this._eventHandlers.mousedown);
+        }
+        if (this._eventHandlers.mousemove) {
+            element.removeEventListener('mousemove', this._eventHandlers.mousemove);
+        }
+        if (this._eventHandlers.mouseup) {
+            element.removeEventListener('mouseup', this._eventHandlers.mouseup);
+        }
+        if (this._eventHandlers.mouseleave) {
+            element.removeEventListener('mouseleave', this._eventHandlers.mouseleave);
+        }
+        if (this._eventHandlers.contextmenu) {
+            element.removeEventListener('contextmenu', this._eventHandlers.contextmenu);
+        }
+        if (this._eventHandlers.touchstart) {
+            element.removeEventListener('touchstart', this._eventHandlers.touchstart);
+        }
+        if (this._eventHandlers.touchmove) {
+            element.removeEventListener('touchmove', this._eventHandlers.touchmove);
+        }
+        if (this._eventHandlers.touchend) {
+            element.removeEventListener('touchend', this._eventHandlers.touchend);
+        }
     }
 
     init() {
@@ -369,119 +695,61 @@ export class Game {
             );
         }
 
+        // 3D模式渲染处理
         if (this.is3D) {
-            // 3D渲染逻辑
+            // 1. 检查ThreeHelper是否存在
             if (!this.threeHelper) {
-                console.warn('3D渲染器未创建，暂时回退到2D渲染');
-                this.draw2D();
-                // 无论如何都绘制UI
-                this.draw2DUI();
+                console.warn('3D模式已启用但ThreeHelper未创建，回退到2D渲染');
+                // 记录失败并切回2D模式
+                this.renderFallbackTo2D('ThreeHelper未创建');
                 return;
             }
 
-            // 确保渲染器可用
+            // 2. 检查渲染器是否存在
             if (!this.threeHelper.renderer) {
-                console.warn('3D渲染器不可用，回退到2D渲染');
-                // 防止循环报错，如果连续5次失败，自动切换回2D模式
-                this.renderFailCount = (this.renderFailCount || 0) + 1;
-                if (this.renderFailCount > 5) {
-                    console.error('3D渲染连续失败多次，自动切换回2D模式');
-                    this.is3D = false;
-                    this.renderFailCount = 0;
-                    this.updateCanvasVisibility();
+                console.warn('3D渲染器未初始化，回退到2D渲染');
+                // 尝试重新创建渲染器
+                if (!this.rendererCreateAttempts) {
+                    this.rendererCreateAttempts = 0;
                 }
-                this.draw2D();
-                // 无论如何都绘制UI
-                this.draw2DUI();
-                return;
+                
+                if (this.rendererCreateAttempts < 2) {
+                    console.log(`尝试重新创建3D渲染器 (${this.rendererCreateAttempts + 1}/2)...`);
+                    this.rendererCreateAttempts++;
+                    const success = this.threeHelper.createRenderer();
+                    if (!success) {
+                        this.renderFallbackTo2D('无法创建3D渲染器');
+                    } else {
+                        this.draw(); // 重新尝试渲染
+                    }
+                    return;
+                } else {
+                    this.renderFallbackTo2D('多次尝试创建3D渲染器失败');
+                    return;
+                }
             }
 
-            // 成功渲染时重置失败计数
-            this.renderFailCount = 0;
-
+            // 3. 尝试3D渲染
             try {
-                // 更新玩家位置
-                this.threeHelper.updateObjectPosition(
-                    'player',
-                    this.player.x,
-                    this.player.y
-                );
-
-                // 更新敌人位置
-                this.enemies.forEach((enemy) => {
-                    const key = `enemy_${enemy.id}`;
-                    if (!this.threeHelper.objects.has(key)) {
-                        this.threeHelper.createEnemyModel(enemy);
-                    } else {
-                        this.threeHelper.updateObjectPosition(
-                            key,
-                            enemy.x,
-                            enemy.y
-                        );
+                // 执行渲染
+                const renderSuccess = this.threeHelper.render();
+                
+                // 如果渲染失败，记录失败次数
+                if (!renderSuccess) {
+                    this.renderFailCount = (this.renderFailCount || 0) + 1;
+                    console.warn(`3D渲染失败 (${this.renderFailCount}/5)`);
+                    
+                    if (this.renderFailCount > 5) {
+                        this.renderFallbackTo2D('3D渲染连续失败多次');
+                        return;
                     }
-                });
-
-                // 更新投射物位置
-                this.projectiles
-                    .concat(this.enemyProjectiles)
-                    .forEach((projectile) => {
-                        const key = `projectile_${projectile.id}`;
-                        if (!this.threeHelper.objects.has(key)) {
-                            this.threeHelper.createProjectileModel(projectile);
-                        } else {
-                            this.threeHelper.updateObjectPosition(
-                                key,
-                                projectile.x,
-                                projectile.y,
-                                10
-                            );
-                        }
-                    });
-
-                // 更新经验球位置
-                this.expOrbs.forEach((orb) => {
-                    const key = `expOrb_${orb.id}`;
-                    if (!this.threeHelper.objects.has(key)) {
-                        this.threeHelper.createExpOrbModel(orb);
-                    } else {
-                        this.threeHelper.updateObjectPosition(
-                            key,
-                            orb.x,
-                            orb.y,
-                            5
-                        );
-                    }
-                });
-
-                // 清理已经不存在的对象
-                this.threeHelper.objects.forEach((_, key) => {
-                    if (key.startsWith('enemy_')) {
-                        const id = key.replace('enemy_', '');
-                        if (!this.enemies.some((e) => e.id.toString() === id)) {
-                            this.threeHelper.removeObject(key);
-                        }
-                    } else if (key.startsWith('projectile_')) {
-                        const id = key.replace('projectile_', '');
-                        if (
-                            !this.projectiles.some(
-                                (p) => p.id.toString() === id
-                            ) &&
-                            !this.enemyProjectiles.some(
-                                (p) => p.id.toString() === id
-                            )
-                        ) {
-                            this.threeHelper.removeObject(key);
-                        }
-                    } else if (key.startsWith('expOrb_')) {
-                        const id = key.replace('expOrb_', '');
-                        if (!this.expOrbs.some((o) => o.id.toString() === id)) {
-                            this.threeHelper.removeObject(key);
-                        }
-                    }
-                });
-
-                // 渲染3D场景
-                this.threeHelper.render();
+                    
+                    // 渲染失败但不需要切换模式时，使用2D模式渲染一帧
+                    this.draw2D();
+                } else {
+                    // 渲染成功，重置失败计数
+                    this.renderFailCount = 0;
+                }
 
                 // 在3D场景上绘制UI
                 this.draw2DUI();
@@ -491,28 +759,26 @@ export class Game {
                 } else if (this.isPaused) {
                     this.drawPaused();
                 }
+                
+                return;
             } catch (e) {
-                console.error('3D渲染错误，回退到2D渲染', e);
-                // 如果渲染过程中出错，记录错误
+                console.error('3D渲染过程中发生错误:', e);
                 this.renderErrorCount = (this.renderErrorCount || 0) + 1;
+                
                 if (this.renderErrorCount > 3) {
-                    console.error('3D渲染出错多次，自动切换回2D模式');
-                    this.is3D = false;
-                    this.renderErrorCount = 0;
-                    this.updateCanvasVisibility();
+                    this.renderFallbackTo2D('3D渲染出错多次');
+                    return;
                 }
+                
+                // 出错时使用2D模式渲染
                 this.draw2D();
-                // 无论如何都绘制UI
                 this.draw2DUI();
+                return;
             }
-
-            return;
         }
 
         // 2D渲染逻辑
         this.draw2D();
-
-        // 无论在哪种模式下，都绘制UI
         this.draw2DUI();
         
         // 检查游戏是否结束或暂停，并绘制对应的UI
@@ -521,6 +787,25 @@ export class Game {
         } else if (this.isPaused) {
             this.drawPaused();
         }
+    }
+
+    // 从3D模式回退到2D模式的辅助方法
+    renderFallbackTo2D(reason) {
+        console.error(`切换回2D模式: ${reason}`);
+        this.is3D = false;
+        this.renderFailCount = 0;
+        this.renderErrorCount = 0;
+        this.rendererCreateAttempts = 0;
+        
+        // 更新Canvas可见性
+        this.updateCanvasVisibility();
+        
+        // 显示警告提示
+        this.showWarning('3D模式不可用，已切换到2D模式', 180);
+        
+        // 使用2D模式渲染
+        this.draw2D();
+        this.draw2DUI();
     }
 
     // 2D渲染逻辑
@@ -1295,144 +1580,173 @@ export class Game {
         document.body.appendChild(buttonContainer);
     }
 
-    // 为canvas3d设置事件监听器
-    setupCanvas3dEvents() {
-        if (!this.canvas3d) return;
-
-        // 移除所有现有事件监听器（如果有的话）
-        // 注意：这里使用新函数是因为无法移除匿名函数
-        this.canvas3d.onmousedown = null;
-        this.canvas3d.onmousemove = null;
-        this.canvas3d.oncontextmenu = null;
-        this.canvas3d.ontouchstart = null;
-        this.canvas3d.ontouchmove = null;
-        this.canvas3d.ontouchend = null;
-
-        console.log('为canvas3d设置事件监听器');
-
-        // 鼠标按下事件
-        this.canvas3d.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                // 左键
-                this.isDragging = true;
-                // 记录拖动开始的位置
-                const rect = this.canvas3d.getBoundingClientRect();
-                this.dragStartX = e.clientX - rect.left;
-                this.dragStartY = e.clientY - rect.top;
-                this.dragStartPlayerX = this.player.x;
-                this.dragStartPlayerY = this.player.y;
-                console.log(
-                    '3D canvas mousedown',
-                    this.dragStartX,
-                    this.dragStartY
-                );
+    // 设置所有事件监听器
+    setupAllEventListeners() {
+        console.log('设置所有事件监听器');
+        
+        // 清除之前的键盘事件监听器
+        document.removeEventListener('keydown', this._handleKeyDown);
+        document.removeEventListener('keyup', this._handleKeyUp);
+        
+        // 初始化键盘映射
+        this.keys = {
+            'ArrowUp': false,
+            'ArrowDown': false,
+            'ArrowLeft': false,
+            'ArrowRight': false,
+            'w': false,
+            'a': false,
+            's': false,
+            'd': false,
+            'W': false,
+            'A': false,
+            'S': false,
+            'D': false,
+            'up': false,
+            'down': false,
+            'left': false,
+            'right': false,
+            ' ': false, // 空格键
+            'shift': false,
+            'Shift': false
+        };
+        
+        // 设置键盘事件
+        this._handleKeyDown = (e) => {
+            // 直接用键名作为索引
+            this.keys[e.key] = true;
+            
+            // 方向键和WASD特殊处理，同时更新方向别名
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                this.keys.up = true;
+                this.keys.ArrowUp = true;
+                this.keys.w = true;
+                this.keys.W = true;
             }
-        });
-
-        // 鼠标移动事件
-        this.canvas3d.addEventListener('mousemove', (e) => {
-            // 获取鼠标相对于canvas的位置
-            const rect = this.canvas3d.getBoundingClientRect();
-            this.mouseX = e.clientX - rect.left;
-            this.mouseY = e.clientY - rect.top;
-        });
-
-        // 阻止右键菜单
-        this.canvas3d.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-
-        // 触摸开始事件
-        this.canvas3d.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                this.isDragging = true;
-
-                const rect = this.canvas3d.getBoundingClientRect();
-                this.mouseX = e.touches[0].clientX - rect.left;
-                this.mouseY = e.touches[0].clientY - rect.top;
-
-                // 记录拖动开始的位置
-                this.dragStartX = this.mouseX;
-                this.dragStartY = this.mouseY;
-                this.dragStartPlayerX = this.player.x;
-                this.dragStartPlayerY = this.player.y;
-                console.log(
-                    '3D canvas touchstart',
-                    this.dragStartX,
-                    this.dragStartY
-                );
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                this.keys.down = true;
+                this.keys.ArrowDown = true;
+                this.keys.s = true;
+                this.keys.S = true;
             }
-        });
-
-        // 触摸移动事件
-        this.canvas3d.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                const rect = this.canvas3d.getBoundingClientRect();
-                this.mouseX = e.touches[0].clientX - rect.left;
-                this.mouseY = e.touches[0].clientY - rect.top;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                this.keys.left = true;
+                this.keys.ArrowLeft = true;
+                this.keys.a = true;
+                this.keys.A = true;
             }
-        });
-
-        // 触摸结束事件
-        this.canvas3d.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.isDragging = false;
-            // 清除拖动的起始位置
-            this.dragStartX = null;
-            this.dragStartY = null;
-            this.dragStartPlayerX = null;
-            this.dragStartPlayerY = null;
-        });
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                this.keys.right = true;
+                this.keys.ArrowRight = true;
+                this.keys.d = true;
+                this.keys.D = true;
+            }
+            if (e.key === 'Shift') {
+                this.keys.shift = true;
+                this.keys.Shift = true;
+            }
+            
+            // 控制暂停
+            if (e.key === 'p' || e.key === 'P') {
+                this.isPaused = !this.isPaused;
+                console.log('暂停状态:', this.isPaused);
+            }
+            
+            // 用G键切换3D/2D模式
+            if ((e.key === 'g' || e.key === 'G') && this.imagesReady) {
+                console.log('按下G键，切换模式');
+                this.toggleMode();
+            }
+            
+            // 在游戏结束状态，按空格键重新开始游戏
+            if (e.key === ' ' && this.isGameOver) {
+                this.restart();
+            }
+            
+            // 输出当前按键状态（用于调试）
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+                e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+                e.key === 'w' || e.key === 'a' || e.key === 's' || e.key === 'd') {
+                console.log(`按下方向键: ${e.key}, 当前状态:`, {
+                    up: this.keys.up,
+                    down: this.keys.down,
+                    left: this.keys.left,
+                    right: this.keys.right
+                });
+            }
+        };
+        
+        this._handleKeyUp = (e) => {
+            // 直接用键名作为索引
+            this.keys[e.key] = false;
+            
+            // 方向键和WASD特殊处理，同时更新方向别名
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                this.keys.up = false;
+                this.keys.ArrowUp = false;
+                this.keys.w = false;
+                this.keys.W = false;
+            }
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                this.keys.down = false;
+                this.keys.ArrowDown = false;
+                this.keys.s = false;
+                this.keys.S = false;
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                this.keys.left = false;
+                this.keys.ArrowLeft = false;
+                this.keys.a = false;
+                this.keys.A = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                this.keys.right = false;
+                this.keys.ArrowRight = false;
+                this.keys.d = false;
+                this.keys.D = false;
+            }
+            if (e.key === 'Shift') {
+                this.keys.shift = false;
+                this.keys.Shift = false;
+            }
+        };
+        
+        document.addEventListener('keydown', this._handleKeyDown);
+        document.addEventListener('keyup', this._handleKeyUp);
+        
+        // 设置鼠标事件
+        this.setupMouseEvents();
     }
+}
 
-    drawGameOver() {
-        // 确保UI画布上下文存在
-        if (!this.ctxUI) {
-            console.warn('UI上下文不存在');
-            return;
+// 初始化游戏函数
+function initGame() {
+    console.log('初始化游戏...');
+    
+    // 创建游戏实例（默认以2D模式启动）
+    game = new Game();
+    const modeIndicator = document.getElementById('mode-indicator');
+
+    // 更新模式指示器
+    function updateModeIndicator() {
+        if (game.is3D) {
+            modeIndicator.textContent = '3D模式';
+        } else {
+            modeIndicator.textContent = '2D模式';
         }
-
-        // 半透明黑色覆盖
-        this.ctxUI.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctxUI.fillRect(0, 0, this.canvasUI.width, this.canvasUI.height);
-
-        // 游戏结束文本
-        this.ctxUI.fillStyle = '#fff';
-        this.ctxUI.font = '48px Arial';
-        this.ctxUI.textAlign = 'center';
-        this.ctxUI.fillText(
-            '游戏结束',
-            this.canvasUI.width / 2,
-            this.canvasUI.height / 2 - 50
-        );
-
-        // 显示存活时间
-        this.ctxUI.font = '24px Arial';
-        const minutes = Math.floor(this.gameTime / 60);
-        const seconds = this.gameTime % 60;
-        this.ctxUI.fillText(
-            `存活时间: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
-            this.canvasUI.width / 2,
-            this.canvasUI.height / 2
-        );
-
-        // 显示等级
-        this.ctxUI.fillText(
-            `最终等级: ${this.player.level}`,
-            this.canvasUI.width / 2,
-            this.canvasUI.height / 2 + 40
-        );
-
-        // 重新开始提示
-        this.ctxUI.font = '20px Arial';
-        this.ctxUI.fillText(
-            '按空格键重新开始',
-            this.canvasUI.width / 2,
-            this.canvasUI.height / 2 + 100
-        );
-
-        this.ctxUI.textAlign = 'left';
+    }
+    
+    // 初始显示2D模式加载中状态
+    modeIndicator.textContent = '2D模式 (3D功能加载中...)';
+    
+    // 先启动游戏（2D模式）
+    game.start();
+    
+    // 确保所有事件监听器都被设置
+    game.setupAllEventListeners();
+    
+    // 添加一些初始敌人
+    for (let i = 0; i < 5; i++) {
+        game.spawnEnemy();
     }
 }

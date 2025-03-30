@@ -41,408 +41,263 @@ window.addEventListener('load', function() {
     console.log('启动界面强制显示已设置');
 });
 
-// 游戏主程序
+// 在页面加载完成后，初始化启动界面
 document.addEventListener('DOMContentLoaded', () => {
     console.log('页面加载完成，初始化启动界面...');
-    
-    // DOM元素引用
+
+    // 确保启动界面显示
     const startScreen = document.getElementById('start-screen');
-    const optionsMenu = document.getElementById('options-menu');
-    const helpMenu = document.getElementById('help-menu');
-    const gameContainer = document.getElementById('game-container');
-    
-    // 按钮引用
-    const startGameBtn = document.getElementById('start-game-btn');
-    const optionsBtn = document.getElementById('options-btn');
-    const helpBtn = document.getElementById('help-btn');
-    const backToMenuBtn = document.getElementById('back-to-menu');
-    const backFromHelpBtn = document.getElementById('back-from-help');
-    
-    // 游戏实例
-    let game = null;
-    let canToggle3D = true;
-    
-    // 菜单导航函数
-    function showStartMenu() {
-        startScreen.classList.remove('hidden');
+    if (startScreen) {
         startScreen.classList.add('active');
-        optionsMenu.classList.add('hidden');
-        helpMenu.classList.add('hidden');
-        gameContainer.classList.add('hidden');
+        console.log('启动界面强制显示已设置');
     }
+
+    // 3秒后显示调试信息
+    setTimeout(() => {
+        console.log('==== 调试信息 ====');
+        const startScreenElement = document.getElementById('start-screen');
+        console.log(
+            'start-screen:',
+            startScreenElement
+        );
+        console.log('start-screen类名:', startScreenElement?.className);
+
+        const helpMenu = document.getElementById('help-menu');
+        console.log('help-menu:', helpMenu);
+        console.log('help-menu类名:', helpMenu?.className);
+
+        const optionsMenu = document.getElementById('options-menu');
+        console.log('options-menu:', optionsMenu);
+        console.log('options-menu类名:', optionsMenu?.className);
+
+        const gameContainer = document.getElementById('game-container');
+        console.log('game-container:', gameContainer);
+        console.log('game-container类名:', gameContainer?.className);
+
+        const gameLogo = document.getElementById('game-logo');
+        console.log('game-logo:', gameLogo);
+        console.log('game-logo src:', gameLogo?.src);
+
+        // 检查按钮状态
+        console.log('按钮状态:');
+        const startGameBtn = document.getElementById('start-game-btn');
+        console.log('start-game-btn:', startGameBtn);
+        const optionsBtn = document.getElementById('options-btn');
+        console.log('options-btn:', optionsBtn);
+        const helpBtn = document.getElementById('help-btn');
+        console.log('help-btn:', helpBtn);
+        const backToMenuBtn = document.getElementById('back-to-menu');
+        console.log('back-to-menu:', backToMenuBtn);
+        const backFromHelpBtn = document.getElementById('back-from-help');
+        console.log('back-from-help:', backFromHelpBtn);
+    }, 1000);
+
+    setupEventListeners();
+
+    // 延迟预加载ThreeJS以避免影响页面加载性能
+    setTimeout(() => {
+        preloadThreeJS();
+    }, 2000);
+});
+
+// 提前预加载ThreeJS而不初始化
+function preloadThreeJS() {
+    console.log('预加载Three.js模块...');
     
-    function showOptionsMenu() {
-        startScreen.classList.add('hidden');
-        optionsMenu.classList.remove('hidden');
-        helpMenu.classList.add('hidden');
-        gameContainer.classList.add('hidden');
-    }
-    
-    function showHelpMenu() {
-        startScreen.classList.add('hidden');
-        optionsMenu.classList.add('hidden');
-        helpMenu.classList.remove('hidden');
-        gameContainer.classList.add('hidden');
-    }
-    
-    function startGame() {
-        startScreen.classList.add('hidden');
-        optionsMenu.classList.add('hidden');
-        helpMenu.classList.add('hidden');
-        
-        // 显示加载画面
-        const loadingScreen = document.createElement('div');
-        loadingScreen.className = 'loading-screen';
-        loadingScreen.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div class="loading-text">正在加载游戏资源...</div>
-        `;
-        document.body.appendChild(loadingScreen);
-        
-        // 延迟一点时间以显示加载画面
-        setTimeout(() => {
+    import('./three-helper.js').then(() => {
+        console.log('Three.js模块预加载成功');
+    }).catch(error => {
+        console.error('Three.js模块预加载失败:', error);
+    });
+}
+
+// 设置各按钮事件监听
+function setupEventListeners() {
+    // "开始游戏"按钮
+    const startGameBtn = document.getElementById('start-game-btn');
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', () => {
+            // 隐藏启动界面
+            const startScreen = document.getElementById('start-screen');
+            if (startScreen) {
+                startScreen.classList.remove('active');
+                startScreen.classList.add('hidden');
+            }
+
+            // 显示游戏容器
+            const gameContainer = document.getElementById('game-container');
+            if (gameContainer) {
+                gameContainer.classList.remove('hidden');
+            }
+
             // 初始化游戏
             initGame();
-            
-            // 游戏初始化完成后，移除加载画面并显示游戏容器
-            setTimeout(() => {
-                document.body.removeChild(loadingScreen);
-                gameContainer.classList.remove('hidden');
-            }, 1000);
-        }, 500);
+        });
+    }
+
+    // "设置"按钮
+    const optionsBtn = document.getElementById('options-btn');
+    if (optionsBtn) {
+        optionsBtn.addEventListener('click', () => {
+            // 隐藏启动界面，显示设置界面
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('options-menu').classList.remove('hidden');
+        });
+    }
+
+    // "帮助"按钮
+    const helpBtn = document.getElementById('help-btn');
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => {
+            // 隐藏启动界面，显示帮助界面
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('help-menu').classList.remove('hidden');
+        });
+    }
+
+    // "返回菜单"按钮（从设置界面）
+    const backToMenu = document.getElementById('back-to-menu');
+    if (backToMenu) {
+        backToMenu.addEventListener('click', () => {
+            // 隐藏设置界面，显示启动界面
+            document.getElementById('options-menu').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        });
+    }
+
+    // "返回菜单"按钮（从帮助界面）
+    const backFromHelp = document.getElementById('back-from-help');
+    if (backFromHelp) {
+        backFromHelp.addEventListener('click', () => {
+            // 隐藏帮助界面，显示启动界面
+            document.getElementById('help-menu').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        });
+    }
+}
+
+// 声明全局游戏对象
+let game;
+
+// 声明全局测试函数
+window.testImageVisibility = function () {
+    // 显示所有已加载的图像信息
+    if (game && game.images) {
+        console.log('===== 测试图像加载状态 =====');
+        Object.keys(game.images).forEach((key) => {
+            const img = game.images[key];
+            console.log(`图像 ${key}:`, {
+                loaded: img.complete,
+                width: img.width,
+                height: img.height,
+                state: img.complete ? '成功' : '失败',
+                src: img.src,
+            });
+        });
+    } else {
+        console.log('游戏尚未初始化或图像尚未加载');
+    }
+};
+
+// 初始化游戏函数
+function initGame() {
+    console.log('初始化游戏...');
+    
+    // 创建游戏实例（直接以3D模式启动）
+    game = new Game();
+    
+    // 设置所有事件监听器
+    console.log('初始化所有事件监听器');
+    game.setupAllEventListeners();
+    
+    // 强制从3D模式启动
+    game.is3D = true;
+    
+    const modeIndicator = document.getElementById('mode-indicator');
+    // 初始显示3D模式
+    if (modeIndicator) {
+        modeIndicator.textContent = '3D模式加载中...';
     }
     
-    // 初始化菜单事件监听
-    startGameBtn.addEventListener('click', startGame);
-    optionsBtn.addEventListener('click', showOptionsMenu);
-    helpBtn.addEventListener('click', showHelpMenu);
-    backToMenuBtn.addEventListener('click', showStartMenu);
-    backFromHelpBtn.addEventListener('click', showStartMenu);
+    // 启动游戏
+    game.start();
     
-    // 初始化游戏函数
-    function initGame() {
-        console.log('初始化游戏...');
+    // 添加一些初始敌人
+    for (let i = 0; i < 5; i++) {
+        game.spawnEnemy();
+    }
+    
+    // 立即加载3D模式
+    loadThreeJS();
+}
+
+// 加载Three.js
+function loadThreeJS() {
+    console.log('加载3D模块...');
+    
+    // 异步加载Three.js模块并立即初始化
+    import('./three-helper.js').then(module => {
+        console.log('3D模块加载成功，正在初始化...');
         
-        // 创建游戏实例
-        game = new Game();
-        const modeIndicator = document.getElementById('mode-indicator');
-
-        // 更新模式指示器
-        function updateModeIndicator() {
-            modeIndicator.textContent = game.is3D
-                ? '3D模式'
-                : canToggle3D
-                ? '2D模式'
-                : '2D模式 (3D功能加载中...)';
-        }
-
-        // 初始显示3D模式指示器
-        modeIndicator.textContent = '3D模式';
-
-        // 键盘事件监听
-        document.addEventListener('keydown', (e) => {
-            // ESC键返回主菜单
-            if (e.key === 'Escape') {
-                if (!game.isGameOver && !game.isPaused) {
-                    game.isPaused = true;
-                    
-                    // 显示暂停菜单确认
-                    if (confirm('是否返回主菜单？\n当前游戏进度将丢失。')) {
-                        // 清理游戏资源
-                        if (game.is3D && game.threeHelper) {
-                            game.threeHelper.dispose();
-                        }
-                        game.isRunning = false;
-                        game = null;
-                        
-                        // 返回主菜单
-                        showStartMenu();
-                    } else {
-                        game.isPaused = false;
-                    }
-                    return;
-                }
-            }
-            
-            // 设置按键状态
-            if (!game) return;
-            
-            game.keys[e.key.toLowerCase()] = true;
-
-            // 方向键
-            if (e.key === 'ArrowUp') game.keys.up = true;
-            if (e.key === 'ArrowDown') game.keys.down = true;
-            if (e.key === 'ArrowLeft') game.keys.left = true;
-            if (e.key === 'ArrowRight') game.keys.right = true;
-
-            // 游戏结束时按空格重新开始
-            if (e.key === ' ' && game.isGameOver) {
-                game.restart();
-            }
-
-            // 按P键暂停/继续游戏
-            if (e.key.toLowerCase() === 'p' && !game.isGameOver) {
-                game.isPaused = !game.isPaused;
-            }
-
-            // 按G键切换2D/3D模式
-            if (e.key.toLowerCase() === 'g' && canToggle3D) {
-                console.log('切换3D/2D模式');
-                // 确保使用import动态加载ThreeHelper
-                if (!game.is3D) {
-                    // 如果当前是2D模式要切换到3D，需要确保ThreeHelper已加载
-                    import('./three-helper.js').then(module => {
-                        if (!game.threeHelper) {
-                            console.log('创建3D渲染器...');
-                            game.threeHelper = new module.ThreeHelper(game);
-                            // 加载纹理和创建背景对象
-                            if (game.threeHelper.loadBackgroundImages) {
-                                game.threeHelper.loadBackgroundImages(true);
-                            }
-                        }
-                        // 切换模式
-                        game.toggleMode();
-                        updateModeIndicator();
-                    });
-                } else {
-                    // 从3D切换到2D
-                    game.toggleMode();
-                    updateModeIndicator();
-                }
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            // 清除按键状态
-            if (!game) return;
-            
-            game.keys[e.key.toLowerCase()] = false;
-
-            // 方向键
-            if (e.key === 'ArrowUp') game.keys.up = false;
-            if (e.key === 'ArrowDown') game.keys.down = false;
-            if (e.key === 'ArrowLeft') game.keys.left = false;
-            if (e.key === 'ArrowRight') game.keys.right = false;
-        });
-
-        // 鼠标事件监听
-        game.canvas2d.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                // 左键
-                game.isDragging = true;
-                // 记录拖动开始的位置
-                const rect = game.canvas2d.getBoundingClientRect();
-                game.dragStartX = e.clientX - rect.left;
-                game.dragStartY = e.clientY - rect.top;
-                game.dragStartPlayerX = game.player.x;
-                game.dragStartPlayerY = game.player.y;
-            }
-        });
-
-        game.canvas3d.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                // 左键
-                game.isDragging = true;
-                // 记录拖动开始的位置
-                const rect = game.canvas3d.getBoundingClientRect();
-                game.dragStartX = e.clientX - rect.left;
-                game.dragStartY = e.clientY - rect.top;
-                game.dragStartPlayerX = game.player.x;
-                game.dragStartPlayerY = game.player.y;
-            }
-        });
-
-        document.addEventListener('mouseup', (e) => {
-            if (e.button === 0 && game) {
-                // 左键
-                game.isDragging = false;
-                // 清除拖动的起始位置
-                game.dragStartX = null;
-                game.dragStartY = null;
-                game.dragStartPlayerX = null;
-                game.dragStartPlayerY = null;
-            }
-        });
-
-        game.canvas2d.addEventListener('mousemove', (e) => {
-            // 获取鼠标相对于canvas的位置
-            const rect = game.canvas2d.getBoundingClientRect();
-            game.mouseX = e.clientX - rect.left;
-            game.mouseY = e.clientY - rect.top;
-        });
-
-        game.canvas3d.addEventListener('mousemove', (e) => {
-            // 获取鼠标相对于canvas的位置
-            const rect = game.canvas3d.getBoundingClientRect();
-            game.mouseX = e.clientX - rect.left;
-            game.mouseY = e.clientY - rect.top;
-        });
-
-        // 阻止右键菜单
-        game.canvas2d.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-
-        game.canvas3d.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-
-        // 手机/平板触摸支持
-        game.canvas2d.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                game.isDragging = true;
-
-                const rect = game.canvas2d.getBoundingClientRect();
-                game.mouseX = e.touches[0].clientX - rect.left;
-                game.mouseY = e.touches[0].clientY - rect.top;
-
-                // 记录拖动开始的位置
-                game.dragStartX = game.mouseX;
-                game.dragStartY = game.mouseY;
-                game.dragStartPlayerX = game.player.x;
-                game.dragStartPlayerY = game.player.y;
-            }
-        });
-
-        game.canvas3d.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                game.isDragging = true;
-
-                const rect = game.canvas3d.getBoundingClientRect();
-                game.mouseX = e.touches[0].clientX - rect.left;
-                game.mouseY = e.touches[0].clientY - rect.top;
-
-                // 记录拖动开始的位置
-                game.dragStartX = game.mouseX;
-                game.dragStartY = game.mouseY;
-                game.dragStartPlayerX = game.player.x;
-                game.dragStartPlayerY = game.player.y;
-            }
-        });
-
-        game.canvas2d.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                const rect = game.canvas2d.getBoundingClientRect();
-                game.mouseX = e.touches[0].clientX - rect.left;
-                game.mouseY = e.touches[0].clientY - rect.top;
-            }
-        });
-
-        game.canvas3d.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                const rect = game.canvas3d.getBoundingClientRect();
-                game.mouseX = e.touches[0].clientX - rect.left;
-                game.mouseY = e.touches[0].clientY - rect.top;
-            }
-        });
-
-        game.canvas2d.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            game.isDragging = false;
-            // 清除拖动的起始位置
-            game.dragStartX = null;
-            game.dragStartY = null;
-            game.dragStartPlayerX = null;
-            game.dragStartPlayerY = null;
-        });
-
-        game.canvas3d.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            game.isDragging = false;
-            // 清除拖动的起始位置
-            game.dragStartX = null;
-            game.dragStartY = null;
-            game.dragStartPlayerX = null;
-            game.dragStartPlayerY = null;
-        });
-
-        // 页面可见性变化处理（切换标签页时暂停游戏）
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && game) {
-                if (game.isRunning && !game.isPaused && !game.isGameOver) {
-                    game.isPaused = true;
-                }
-            }
-        });
-
-        // 窗口调整大小事件
-        window.addEventListener('resize', () => {
-            if (!game) return;
-            
-            // 调整canvas大小
-            const width = game.canvas2d.offsetWidth;
-            const height = game.canvas2d.offsetHeight;
-
-            game.canvas2d.width = width;
-            game.canvas2d.height = height;
-            game.canvas3d.width = width;
-            game.canvas3d.height = height;
-
-            // 同时调整3D渲染器大小
-            if (game.is3D && game.threeHelper) {
-                game.threeHelper.resize(width, height);
-            }
-        });
-
-        // 确保canvas大小正确
-        const width = game.canvas2d.offsetWidth;
-        const height = game.canvas2d.offsetHeight;
-
-        game.canvas2d.width = width;
-        game.canvas2d.height = height;
-        game.canvas3d.width = width;
-        game.canvas3d.height = height;
-
-        // 初始化模式指示器
-        updateModeIndicator();
-
-        // 预加载Three.js所需的纹理
-        preloadTextures();
-        
-        // 初始化3D渲染器并直接开始3D模式
-        import('./three-helper.js').then(module => {
-            // 创建3D渲染器
-            console.log('初始化3D渲染器...');
+        try {
+            // 创建ThreeHelper实例
             game.threeHelper = new module.ThreeHelper(game);
+            game.threeHelperLoaded = true;
             
-            // 更新Canvas可见性，确保3D模式可见
+            // 更新模式指示器
+            const modeIndicator = document.getElementById('mode-indicator');
+            if (modeIndicator) {
+                modeIndicator.textContent = '3D模式';
+            }
+            
+            // 设置3D事件监听器
+            game.setupMouseEvents();
+            
+            // 更新Canvas可见性
             game.updateCanvasVisibility();
             
-            // 等待纹理加载
-            console.log('等待纹理加载...');
-            
-            // 显式调用同步版本的loadBackgroundImages
+            // 加载纹理
             if (game.threeHelper.loadBackgroundImages) {
-                console.log('手动调用同步版本的loadBackgroundImages...');
-                game.threeHelper.loadBackgroundImages(true);  // 传入true表示使用同步模式
+                game.threeHelper.loadBackgroundImages(true);
             }
             
-            // 延长等待时间，确保纹理和背景对象都已创建完成
-            setTimeout(() => {
-                // 启动游戏
-                console.log('启动游戏...');
-                game.start();
-                
-                // 添加一些初始敌人
-                for (let i = 0; i < 5; i++) {
-                    game.spawnEnemy();
-                }
-                
-                // 提示用户游戏已在3D模式下启动
-                game.showWarning('游戏已在3D模式下启动！按G键可切换到2D', 180);
-            }, 500);  // 等待500ms确保初始化完成
-        });
+            // 显示提示
+            game.showWarning('3D模式已加载', 60);
+        } catch (error) {
+            console.error('3D模块初始化失败:', error);
+            fallbackTo2D();
+        }
+    }).catch(error => {
+        console.error('3D模块加载失败:', error);
+        fallbackTo2D();
+    });
+}
+
+// 回退到2D模式的辅助函数
+function fallbackTo2D() {
+    // 加载失败时回退到2D模式
+    game.is3D = false;
+    
+    // 更新模式指示器
+    const modeIndicator = document.getElementById('mode-indicator');
+    if (modeIndicator) {
+        modeIndicator.textContent = '2D模式 (3D加载失败)';
     }
-});
+    
+    // 设置2D事件监听器
+    game.setupMouseEvents();
+    
+    // 更新Canvas可见性
+    game.updateCanvasVisibility();
+    
+    game.showWarning('3D模式加载失败，已切换到2D模式', 180);
+}
 
 // 预加载Three.js纹理
 function preloadTextures() {
+    // 确保使用正确的路径
     const textureUrls = [
-        '/grass_texture.png',
+        '/grass_texture.png',  // 使用绝对路径
         '/castle_tower.png',
         '/broken_pillar.png',
         '/gravestone.png',
@@ -451,6 +306,8 @@ function preloadTextures() {
     ];
 
     console.log('预加载3D纹理...');
+    console.log('当前路径:', window.location.href);
+    console.log('纹理路径:', textureUrls);
 
     // 不再自动执行测试，将testImageVisibility作为全局函数导出
     window.testImageVisibility = function () {
@@ -541,7 +398,9 @@ function preloadTextures() {
                     console.log(`预加载纹理成功: ${url}`);
                     resolve(texture);
                 },
-                undefined,
+                (progress) => {
+                    console.log(`纹理加载进度 ${url}:`, progress);
+                },
                 (error) => {
                     console.warn(`预加载纹理失败: ${url}`, error);
                     resolve(null); // 即使失败也继续

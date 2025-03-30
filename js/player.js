@@ -68,73 +68,56 @@ export class Player {
         let dy = 0;
 
         // 键盘控制
-        if (this.game.keys.up || this.game.keys.w) {
+        if (this.game.keys.up || this.game.keys.w || this.game.keys.ArrowUp || this.game.keys.W) {
             dy -= this.speed;
-            // 移除上下移动对facingDirection的影响
         }
-        if (this.game.keys.down || this.game.keys.s) {
+        if (this.game.keys.down || this.game.keys.s || this.game.keys.ArrowDown || this.game.keys.S) {
             dy += this.speed;
-            // 移除上下移动对facingDirection的影响
         }
-        if (this.game.keys.left || this.game.keys.a) {
+        if (this.game.keys.left || this.game.keys.a || this.game.keys.ArrowLeft || this.game.keys.A) {
             dx -= this.speed;
             this.facingDirection = 'left';
         }
-        if (this.game.keys.right || this.game.keys.d) {
+        if (this.game.keys.right || this.game.keys.d || this.game.keys.ArrowRight || this.game.keys.D) {
             dx += this.speed;
             this.facingDirection = 'right';
         }
 
-        // 鼠标拖拽控制
+        // 鼠标控制（按下后根据移动方向操控角色）
         if (this.game.isDragging) {
-            // 使用保存的鼠标初始位置作为锚点，而不是屏幕中心
-            // 首先检查我们是否有保存的初始点击位置
-            if (!this.game.dragStartX || !this.game.dragStartY) {
-                // 如果没有保存的初始位置，则使用当前鼠标位置作为起始点
-                this.game.dragStartX = this.game.mouseX;
-                this.game.dragStartY = this.game.mouseY;
-                this.game.dragStartPlayerX = this.x;
-                this.game.dragStartPlayerY = this.y;
+            // 只有当有有效的起始点时才处理
+            if (this.game.dragStartX !== null && this.game.dragStartY !== null) {
+                // 计算鼠标与起始点的差值
+                const deltaX = this.game.mouseX - this.game.dragStartX;
+                const deltaY = this.game.mouseY - this.game.dragStartY;
+                
+                // 设定一个阈值，只有超过这个阈值才算有效移动
+                const threshold = 5;
+                const moveSpeed = this.speed * 1.2; // 鼠标控制稍微快一点
+                
+                // 根据鼠标移动方向决定角色移动方向
+                if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
+                    // 水平方向控制
+                    if (deltaX > threshold) {
+                        dx = moveSpeed; // 向右移动
+                        this.facingDirection = 'right';
+                    } else if (deltaX < -threshold) {
+                        dx = -moveSpeed; // 向左移动
+                        this.facingDirection = 'left';
+                    }
+                    
+                    // 垂直方向控制
+                    if (deltaY > threshold) {
+                        dy = moveSpeed; // 向下移动
+                    } else if (deltaY < -threshold) {
+                        dy = -moveSpeed; // 向上移动
+                    }
+                }
             }
-
-            // 计算鼠标当前位置与开始位置的差值
-            const deltaX = this.game.mouseX - this.game.dragStartX;
-            const deltaY = this.game.mouseY - this.game.dragStartY;
-
-            // 根据拖动方向确定玩家面向，但只考虑左右方向
-            if (Math.abs(deltaX) > 5) {
-                // 只有水平拖动才改变方向
-                this.facingDirection = deltaX > 0 ? 'right' : 'left';
-            }
-
-            // 计算拖动方向和力度
-            const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            if (length > 0) {
-                // 标准化方向矢量
-                const normalizedX = deltaX / length;
-                const normalizedY = deltaY / length;
-
-                // 根据拖动距离调整速度(有一个最大值限制)
-                const speedMultiplier = Math.min(length / 50, 1.5); // 拖动50像素达到最大速度
-
-                // 应用移动
-                dx = normalizedX * this.speed * speedMultiplier;
-                dy = normalizedY * this.speed * speedMultiplier;
-            }
-        } else {
-            // 如果不再拖动，清除保存的起始位置
-            this.game.dragStartX = null;
-            this.game.dragStartY = null;
-            this.game.dragStartPlayerX = null;
-            this.game.dragStartPlayerY = null;
         }
 
-        // 冲刺（按住Shift键）
-        if (
-            (this.game.keys.shift || this.game.keys[' ']) &&
-            this.dashCooldown <= 0
-        ) {
+        // 冲刺（按住Shift键或空格键）
+        if ((this.game.keys.shift || this.game.keys.Shift || this.game.keys[' ']) && this.dashCooldown <= 0 && (dx !== 0 || dy !== 0)) {
             this.dash(this.x + dx * 15, this.y + dy * 15);
             return;
         }
