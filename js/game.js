@@ -164,6 +164,18 @@ export class Game {
             } else {
                 // 2D模式：2D canvas活跃，3D canvas不活跃
                 
+                // 先确保2D上下文正常
+                if (!this.ctx || this.ctx.canvas !== canvas2d) {
+                    this.ctx = canvas2d.getContext('2d', {
+                        willReadFrequently: true,
+                        alpha: false
+                    });
+                    
+                    if (this.ctx) {
+                        this.ctx.imageSmoothingEnabled = false;
+                    }
+                }
+                
                 // 设置3D Canvas为不可见
                 canvas3d.style.display = 'none';
                 canvas3d.style.visibility = 'hidden';
@@ -175,6 +187,11 @@ export class Game {
                 canvas2d.style.visibility = 'visible';
                 canvas2d.classList.remove('inactive');
                 canvas2d.classList.add('active');
+                
+                // 如果从3D切换回2D，清空一次画布减少残影
+                if (this.ctx) {
+                    this.ctx.clearRect(0, 0, canvas2d.width, canvas2d.height);
+                }
             }
         } else {
             console.warn('无法更新Canvas可见性，Canvas元素不存在', {
@@ -278,6 +295,24 @@ export class Game {
             
             // 切换到2D模式
             this.is3D = false;
+            
+            // 重新初始化2D上下文，避免切换时的闪烁问题
+            this.canvas2d = document.getElementById('game-canvas');
+            if (this.canvas2d) {
+                // 在切换回2D模式时，重新获取上下文可以解决部分闪烁问题
+                this.ctx = this.canvas2d.getContext('2d', {
+                    willReadFrequently: true,
+                    alpha: false
+                });
+                
+                if (this.ctx) {
+                    // 设置或重置关键属性以确保稳定的渲染
+                    this.ctx.imageSmoothingEnabled = false;
+                    
+                    // 立即清除画布，避免显示旧内容
+                    this.ctx.clearRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+                }
+            }
             
             // 设置事件监听
             this.setupMouseEvents();
@@ -832,7 +867,7 @@ export class Game {
     draw2D() {
         try {
             // 确保2D上下文存在
-            if (!this.ctx) {
+            if (!this.ctx || this.ctx.canvas !== this.canvas2d) {
                 this.ctx = this.canvas2d.getContext('2d', {
                     willReadFrequently: true,
                     alpha: false // 禁用alpha通道，减少闪烁
@@ -848,6 +883,11 @@ export class Game {
 
             // 清除屏幕（使用完整尺寸，避免部分清除导致闪烁）
             this.ctx.clearRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+            
+            // 绘制前重置基本状态
+            this.ctx.globalAlpha = 1.0;
+            this.ctx.globalCompositeOperation = 'source-over';
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0); // 重置变换矩阵
 
             // 计算相机偏移（使玩家居中）
             const cameraOffsetX = this.canvas2d.width / 2 - this.player.x;
