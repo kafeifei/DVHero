@@ -141,44 +141,19 @@ export class ThreeHelper {
                 console.log('清理现有渲染器...');
                 try {
                     this.renderer.dispose();
-                    this.renderer.forceContextLoss();
+                    try {
+                        this.renderer.forceContextLoss();
+                    } catch (e) {
+                        console.warn('强制丢失WebGL上下文失败，这是正常现象:', e);
+                    }
                     this.renderer = null;
                 } catch (e) {
                     console.error('清理渲染器时出错:', e);
                 }
             }
             
-            // 确保Canvas干净，强制释放可能存在的任何现有上下文
-            try {
-                // 获取任何现有上下文
-                const existingContext2d = this.canvas3d.getContext('2d');
-                const existingContextWebGL = 
-                    this.canvas3d.getContext('webgl') || 
-                    this.canvas3d.getContext('experimental-webgl');
-                    
-                if (existingContext2d || existingContextWebGL) {
-                    console.log('Canvas已有上下文，尝试重置...');
-                    
-                    // 尝试重置上下文
-                    if (existingContextWebGL) {
-                        console.log('Canvas已有上下文，尝试重置...');
-                        
-                        // 尝试重置上下文
-                        try {
-                            const loseContext = existingContextWebGL.getExtension('WEBGL_lose_context');
-                            if (loseContext) {
-                                loseContext.loseContext();
-                            } else {
-                                console.warn('浏览器不支持WEBGL_lose_context扩展，这是正常现象');
-                            }
-                        } catch (e) {
-                            console.warn('WEBGL_lose_context扩展调用失败，这是正常现象', e);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('重置Canvas上下文失败:', e);
-            }
+            // 确保Canvas完全干净，不获取旧的上下文
+            console.log('确保Canvas干净...');
 
             console.log('Canvas 3D信息:', {
                 width: this.canvas3d.width,
@@ -202,9 +177,8 @@ export class ThreeHelper {
                 return false;
             }
 
-            // 尝试获取WebGL上下文前，确认上下文类型
+            // 检查WebGL2支持
             try {
-                // 检查是否支持webgl2
                 const canWebGL2 = !!window.WebGL2RenderingContext;
                 if (canWebGL2) {
                     console.log('浏览器支持WebGL2');
@@ -218,10 +192,10 @@ export class ThreeHelper {
             // 使用更安全的选项创建WebGL渲染器
             this.renderer = new THREE.WebGLRenderer({
                 canvas: this.canvas3d,
-                antialias: true, // 启用抗锯齿
+                antialias: true,
                 alpha: true,
                 powerPreference: 'high-performance',
-                preserveDrawingBuffer: true, // 防止闪烁
+                preserveDrawingBuffer: true,
                 failIfMajorPerformanceCaveat: false,
                 depth: true,
                 stencil: false,
@@ -230,16 +204,14 @@ export class ThreeHelper {
 
             // 设置渲染器基本参数
             this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, false);
-            this.renderer.setPixelRatio(window.devicePixelRatio || 1); // 使用设备像素比
+            this.renderer.setPixelRatio(window.devicePixelRatio || 1);
             this.renderer.setClearColor(0x222222, 1);
 
-            // 仅在确认renderer创建成功后才尝试启用阴影
+            // 设置阴影
             if (this.renderer.capabilities && this.renderer.capabilities.isWebGL2) {
-                // WebGL 2.0 支持更好的阴影
                 this.renderer.shadowMap.enabled = true;
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             } else if (this.renderer.capabilities) {
-                // WebGL 1.0 使用基础阴影
                 this.renderer.shadowMap.enabled = true;
                 this.renderer.shadowMap.type = THREE.BasicShadowMap;
             }
@@ -257,41 +229,24 @@ export class ThreeHelper {
             try {
                 console.log('尝试使用极简选项创建渲染器...');
                 
-                // 确保canvas干净
-                const parent = this.canvas3d.parentNode;
-                const oldCanvas = this.canvas3d;
-                
-                // 创建新的canvas元素
-                this.canvas3d = document.createElement('canvas');
-                this.canvas3d.width = 800;
-                this.canvas3d.height = 600;
-                this.canvas3d.id = 'game-canvas-3d';
-                
-                // 替换原有canvas
-                if (parent) {
-                    parent.replaceChild(this.canvas3d, oldCanvas);
-                } else {
-                    document.getElementById('game-container').appendChild(this.canvas3d);
-                }
-                
                 // 使用最低配置
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: this.canvas3d,
-                    antialias: true, // 启用抗锯齿
+                    antialias: false,
                     alpha: true,
-                    precision: 'mediump', // 使用中等精度
+                    precision: 'lowp',
                     powerPreference: 'default',
-                    preserveDrawingBuffer: true, // 防止闪烁
+                    preserveDrawingBuffer: false,
                     depth: true,
                     stencil: false,
                     failIfMajorPerformanceCaveat: false
                 });
 
                 this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, false);
-                this.renderer.setPixelRatio(window.devicePixelRatio || 1); // 使用设备像素比
+                this.renderer.setPixelRatio(1);
                 this.renderer.setClearColor(0x222222, 1);
                 
-                // 关闭阴影以提高性能
+                // 关闭阴影
                 this.renderer.shadowMap.enabled = false;
 
                 console.log('备用渲染器创建成功');
@@ -300,7 +255,9 @@ export class ThreeHelper {
                 console.error('备用渲染器创建失败:', e);
                 
                 // 通知游戏引擎3D模式不可用
-                this.game.showWarning('3D模式不可用，将使用2D模式', 180);
+                if (this.game) {
+                    this.game.showWarning('3D模式不可用，将使用2D模式', 180);
+                }
                 return false;
             }
         }

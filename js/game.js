@@ -250,80 +250,64 @@ export class Game {
             
             this.showWarning('正在切换到3D模式...', 120);
             
-            // 从DOM中移除旧Canvas并重新创建，彻底清除WebGL上下文
-            const container = document.getElementById('game-container');
-            const oldCanvas = document.getElementById('game-canvas-3d');
-            
-            if (container && oldCanvas) {
-                container.removeChild(oldCanvas);
-                
-                // 创建新的Canvas
-                const newCanvas = document.createElement('canvas');
-                newCanvas.id = 'game-canvas-3d';
-                newCanvas.width = 800;
-                newCanvas.height = 600;
-                container.appendChild(newCanvas);
-                
-                // 更新Canvas引用
-                this.canvas3d = newCanvas;
-                console.log('3D Canvas重建完成');
-            }
-            
-            // 异步加载ThreeHelper
-            import('./three-helper.js').then(module => {
-                // 清理旧的ThreeHelper
-                if (this.threeHelper) {
+            // 重建3D Canvas，避免WebGL上下文冲突
+            this.recreate3DCanvas(() => {
+                // Canvas重建成功后，加载Three.js
+                import('./three-helper.js').then(module => {
+                    // 清理旧的ThreeHelper
+                    if (this.threeHelper) {
+                        try {
+                            this.threeHelper.dispose();
+                        } catch (e) {
+                            console.error('清理ThreeHelper失败:', e);
+                        }
+                    }
+                    
                     try {
-                        this.threeHelper.dispose();
-                    } catch (e) {
-                        console.error('清理ThreeHelper失败:', e);
+                        // 创建新的ThreeHelper
+                        this.threeHelper = new module.ThreeHelper(this);
+                        
+                        // 切换到3D模式
+                        this.is3D = true;
+                        
+                        // 设置事件监听
+                        this.setupMouseEvents();
+                        
+                        // 更新模式指示器
+                        if (modeIndicator) {
+                            modeIndicator.textContent = '3D模式';
+                        }
+                        
+                        // 更新Canvas可见性
+                        this.updateCanvasVisibility();
+                        
+                        // 加载纹理和背景
+                        if (this.threeHelper.loadBackgroundImages) {
+                            this.threeHelper.loadBackgroundImages(true);
+                        }
+                        
+                        // 显示切换完成的提示
+                        this.showWarning('已切换到3D模式', 120);
+                    } catch (error) {
+                        console.error('3D初始化失败:', error);
+                        this.showWarning('3D模式初始化失败，请稍后再试', 180);
+                        
+                        if (modeIndicator) {
+                            modeIndicator.textContent = '2D模式 (3D切换失败)';
+                        }
+                        
+                        this._modeChanging = false;
                     }
-                }
-                
-                try {
-                    // 创建新的ThreeHelper
-                    this.threeHelper = new module.ThreeHelper(this);
-                    
-                    // 切换到3D模式
-                    this.is3D = true;
-                    
-                    // 设置事件监听
-                    this.setupMouseEvents();
-                    
-                    // 更新模式指示器
-                    if (modeIndicator) {
-                        modeIndicator.textContent = '3D模式';
-                    }
-                    
-                    // 更新Canvas可见性
-                    this.updateCanvasVisibility();
-                    
-                    // 加载纹理和背景
-                    if (this.threeHelper.loadBackgroundImages) {
-                        this.threeHelper.loadBackgroundImages(true);
-                    }
-                    
-                    // 显示切换完成的提示
-                    this.showWarning('已切换到3D模式', 120);
-                } catch (error) {
-                    console.error('3D初始化失败:', error);
-                    this.showWarning('3D模式初始化失败，请稍后再试', 180);
+                }).catch(error => {
+                    console.error('切换到3D模式失败:', error);
+                    this.showWarning('切换到3D模式失败，请稍后再试', 180);
                     
                     if (modeIndicator) {
                         modeIndicator.textContent = '2D模式 (3D切换失败)';
                     }
                     
                     this._modeChanging = false;
-                }
-            }).catch(error => {
-                console.error('切换到3D模式失败:', error);
-                this.showWarning('切换到3D模式失败，请稍后再试', 180);
-                
-                if (modeIndicator) {
-                    modeIndicator.textContent = '2D模式 (3D切换失败)';
-                }
-                
-                this._modeChanging = false;
+                });
             });
         } 
         // 从3D切换到2D
@@ -360,6 +344,47 @@ export class Game {
         }
     }
     
+    // 辅助方法：重建3D Canvas
+    recreate3DCanvas(callback) {
+        const container = document.getElementById('game-container');
+        const oldCanvas = document.getElementById('game-canvas-3d');
+        
+        if (!container || !oldCanvas) {
+            console.error('找不到容器或Canvas元素');
+            callback && callback();
+            return;
+        }
+        
+        // 保存原始位置和尺寸信息
+        const width = oldCanvas.width;
+        const height = oldCanvas.height;
+        const classes = oldCanvas.className;
+        
+        // 按照以下顺序操作:
+        // 1. 移除现有的canvas
+        container.removeChild(oldCanvas);
+        
+        // 2. 进行一次浏览器的渲染循环，确保DOM更新和内存释放
+        setTimeout(() => {
+            // 3. 创建新的canvas
+            const newCanvas = document.createElement('canvas');
+            newCanvas.id = 'game-canvas-3d';
+            newCanvas.width = width;
+            newCanvas.height = height;
+            newCanvas.className = classes;
+            
+            // 4. 添加新canvas到DOM
+            container.appendChild(newCanvas);
+            
+            // 5. 更新引用
+            this.canvas3d = newCanvas;
+            console.log('3D Canvas重建完成，尺寸:', width, 'x', height);
+            
+            // 6. 调用回调函数
+            callback && callback();
+        }, 50); // 给浏览器一些时间来处理DOM更新
+    }
+
     // 设置鼠标事件监听
     setupMouseEvents() {
         console.log('设置鼠标事件监听器');
@@ -729,6 +754,7 @@ export class Game {
                 if (!renderSuccess) {
                     this.renderFailCount = (this.renderFailCount || 0) + 1;
                     console.warn(`3D渲染失败 (${this.renderFailCount}/5)`);
+                    
                     
                     if (this.renderFailCount > 5) {
                         this.renderFallbackTo2D('3D渲染连续失败多次');
