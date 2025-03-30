@@ -161,18 +161,6 @@ export class Game {
                 canvas3d.style.visibility = 'visible';
                 canvas3d.classList.remove('inactive');
                 canvas3d.classList.add('active');
-                
-                // 强制重绘 - 只使用一个渲染请求
-                if (this._pendingRender) {
-                    cancelAnimationFrame(this._pendingRender);
-                }
-                
-                this._pendingRender = requestAnimationFrame(() => {
-                    if (this.threeHelper && this.threeHelper.renderer) {
-                        this.threeHelper.render();
-                    }
-                    this._pendingRender = null;
-                });
             } else {
                 // 2D模式：2D canvas活跃，3D canvas不活跃
                 
@@ -187,18 +175,6 @@ export class Game {
                 canvas2d.style.visibility = 'visible';
                 canvas2d.classList.remove('inactive');
                 canvas2d.classList.add('active');
-                
-                // 强制重绘 - 只使用一个渲染请求
-                if (this._pendingRender) {
-                    cancelAnimationFrame(this._pendingRender);
-                }
-                
-                this._pendingRender = requestAnimationFrame(() => {
-                    if (this.ctx) {
-                        this.draw2D();
-                    }
-                    this._pendingRender = null;
-                });
             }
         } else {
             console.warn('无法更新Canvas可见性，Canvas元素不存在', {
@@ -588,21 +564,8 @@ export class Game {
                 this.update();
             }
 
-            // 在2D模式下使用requestAnimationFrame绘制，避免过多重绘
-            if (!this.is3D) {
-                // 避免多个绘制请求排队
-                if (this._pendingRender) {
-                    cancelAnimationFrame(this._pendingRender);
-                }
-                
-                this._pendingRender = requestAnimationFrame(() => {
-                    this.draw();
-                    this._pendingRender = null;
-                });
-            } else {
-                // 3D模式直接调用draw
-                this.draw();
-            }
+            // 直接调用draw方法，不再使用额外的requestAnimationFrame
+            this.draw();
             
             this.frameCount++;
 
