@@ -174,6 +174,39 @@ body {
     border-radius: 5px;
 }
 
+.github-container {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.menu-github-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.menu-github-link:hover {
+    background-color: rgba(40, 40, 40, 0.5);
+    transform: scale(1.05);
+}
+
+.menu-github-link img {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+}
+
+.menu-github-link span {
+    font-size: 16px;
+}
+
 /* 游戏容器样式 */
 #game-container {
     position: relative;
@@ -286,40 +319,6 @@ body {
     font-size: 12px;
 }
 
-#github-link {
-    position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    padding: 5px;
-    z-index: 1000;
-    transition: all 0.3s ease;
-    width: 30px;
-    height: 30px;
-    background-color: transparent;
-    border: none;
-}
-
-#github-link:hover {
-    transform: translateX(-50%) scale(1.1);
-}
-
-#github-link img {
-    width: 24px;
-    height: 24px;
-    margin: 0;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
-}
-
-#github-link:hover img {
-    opacity: 1;
-}
-
 /* 3D模式提示 */
 #mode-indicator {
     position: absolute;
@@ -348,6 +347,10 @@ body {
     
     .menu-container {
         width: 90%;
+    }
+    
+    .menu-github-link span {
+        font-size: 14px;
     }
 }
 
