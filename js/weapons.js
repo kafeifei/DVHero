@@ -44,6 +44,27 @@ class Weapon {
             return 0; // 右（默认）
         }
     }
+
+    // 获取攻击角度，上下方向攻击时保持最后的水平方向
+    getAttackAngle(player) {
+        // 只使用左右方向，忽略上下方向
+        if (player.facingDirection === 'left') {
+            return Math.PI; // 左
+        } else if (player.facingDirection === 'right') {
+            return 0; // 右
+        } else {
+            // 如果是上下方向，保持上一次的水平方向
+            // 这里通过player上一个已知的水平方向来确定
+            return this.lastHorizontalDirection || 0;
+        }
+    }
+
+    // 在攻击前更新最后的水平方向
+    updateLastDirection(player) {
+        if (player.facingDirection === 'left' || player.facingDirection === 'right') {
+            this.lastHorizontalDirection = player.facingDirection === 'left' ? Math.PI : 0;
+        }
+    }
 }
 
 // 真空刃
@@ -364,15 +385,11 @@ class HolySword extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        const direction = player.facingDirection;
-        const angle =
-            direction === 'right'
-                ? 0
-                : direction === 'left'
-                  ? Math.PI
-                  : direction === 'up'
-                    ? -Math.PI / 2
-                    : Math.PI / 2;
+        // 更新最后的水平方向
+        this.updateLastDirection(player);
+        
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 普通攻击
         game.createProjectile({
@@ -450,15 +467,11 @@ class RuneSword extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        const direction = player.facingDirection;
-        const angle =
-            direction === 'right'
-                ? 0
-                : direction === 'left'
-                  ? Math.PI
-                  : direction === 'up'
-                    ? -Math.PI / 2
-                    : Math.PI / 2;
+        // 更新最后的水平方向
+        this.updateLastDirection(player);
+        
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 创建符文剑刃
         game.createProjectile({
@@ -500,15 +513,11 @@ class Badelaire extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        const direction = player.facingDirection;
-        const angle =
-            direction === 'right'
-                ? 0
-                : direction === 'left'
-                  ? Math.PI
-                  : direction === 'up'
-                    ? -Math.PI / 2
-                    : Math.PI / 2;
+        // 更新最后的水平方向
+        this.updateLastDirection(player);
+        
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 普通斩击
         game.createProjectile({
@@ -562,15 +571,11 @@ class SwordOfDawn extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        const direction = player.facingDirection;
-        const angle =
-            direction === 'right'
-                ? 0
-                : direction === 'left'
-                  ? Math.PI
-                  : direction === 'up'
-                    ? -Math.PI / 2
-                    : Math.PI / 2;
+        // 更新最后的水平方向
+        this.updateLastDirection(player);
+        
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 普通攻击
         game.createProjectile({
@@ -647,15 +652,11 @@ class FistOfTulkas extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        const direction = player.facingDirection;
-        const angle =
-            direction === 'right'
-                ? 0
-                : direction === 'left'
-                  ? Math.PI
-                  : direction === 'up'
-                    ? -Math.PI / 2
-                    : Math.PI / 2;
+        // 更新最后的水平方向
+        this.updateLastDirection(player);
+        
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 更新连击计数
         if (this.comboTimer > 0) {

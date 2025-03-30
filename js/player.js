@@ -70,11 +70,11 @@ export class Player {
         // 键盘控制
         if (this.game.keys.up || this.game.keys.w) {
             dy -= this.speed;
-            this.facingDirection = 'up';
+            // 移除上下移动对facingDirection的影响
         }
         if (this.game.keys.down || this.game.keys.s) {
             dy += this.speed;
-            this.facingDirection = 'down';
+            // 移除上下移动对facingDirection的影响
         }
         if (this.game.keys.left || this.game.keys.a) {
             dx -= this.speed;
@@ -101,14 +101,10 @@ export class Player {
             const deltaX = this.game.mouseX - this.game.dragStartX;
             const deltaY = this.game.mouseY - this.game.dragStartY;
 
-            // 根据拖动方向确定玩家面向
-            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-                // 添加一个小阈值避免轻微抖动改变方向
-                if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                    this.facingDirection = deltaX > 0 ? 'right' : 'left';
-                } else {
-                    this.facingDirection = deltaY > 0 ? 'down' : 'up';
-                }
+            // 根据拖动方向确定玩家面向，但只考虑左右方向
+            if (Math.abs(deltaX) > 5) {
+                // 只有水平拖动才改变方向
+                this.facingDirection = deltaX > 0 ? 'right' : 'left';
             }
 
             // 计算拖动方向和力度

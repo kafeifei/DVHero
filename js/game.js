@@ -682,6 +682,13 @@ export class Game {
 
         // 无论在哪种模式下，都绘制UI
         this.draw2DUI();
+        
+        // 检查游戏是否结束或暂停，并绘制对应的UI
+        if (this.isGameOver) {
+            this.drawGameOver();
+        } else if (this.isPaused) {
+            this.drawPaused();
+        }
     }
 
     // 2D渲染逻辑
