@@ -58,6 +58,9 @@ export class ThreeHelper {
 
         // 创建简化版地面
         this.createSimpleGround();
+        
+        // 创建游戏边界
+        this.createBoundary();
 
         // 添加窗口大小变化的事件监听器
         this.resizeHandler = () => {
@@ -462,6 +465,9 @@ export class ThreeHelper {
 
         // 重新初始化玩家模型
         this.initPlayerModel();
+        
+        // 重新创建边界
+        this.createBoundary();
     }
 
     // 创建背景对象
@@ -2316,5 +2322,54 @@ export class ThreeHelper {
         ctx.fill();
         
         return new THREE.CanvasTexture(canvas);
+    }
+
+    // 初始化核心组件和资源
+    initialize() {
+        // 删除整个方法
+    }
+
+    // 创建游戏边界
+    createBoundary() {
+        // 此方法保留
+        // 获取与2D模式相同的边界大小
+        const boundary = 1000;
+        
+        // 创建边界材质 - 半透明红色
+        const material = new THREE.LineBasicMaterial({
+            color: 0xff6464, // 与2D模式类似的红色
+            transparent: true,
+            opacity: 0.3,
+        });
+        
+        // 创建虚线材质
+        const dashMaterial = new THREE.LineDashedMaterial({
+            color: 0xff6464,
+            dashSize: 10,
+            gapSize: 10,
+            transparent: true,
+            opacity: 0.3
+        });
+        
+        // 创建边界几何体 - 一个矩形
+        const geometry = new THREE.BufferGeometry();
+        const points = [
+            new THREE.Vector3(-boundary, 0, -boundary),
+            new THREE.Vector3(boundary, 0, -boundary),
+            new THREE.Vector3(boundary, 0, boundary),
+            new THREE.Vector3(-boundary, 0, boundary),
+            new THREE.Vector3(-boundary, 0, -boundary) // 闭合矩形
+        ];
+        geometry.setFromPoints(points);
+        
+        // 创建边界线
+        const line = new THREE.Line(geometry, dashMaterial);
+        line.computeLineDistances(); // 需要计算线条距离以显示虚线效果
+        line.position.y = 1; // 略高于地面
+        
+        this.scene.add(line);
+        this.objects.set('boundary', line);
+        
+        return line;
     }
 }
