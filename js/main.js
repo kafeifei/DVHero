@@ -244,12 +244,6 @@ function loadThreeJS() {
             game.threeHelper = new module.ThreeHelper(game);
             game.threeHelperLoaded = true;
             
-            // 更新模式指示器
-            const modeIndicator = document.getElementById('mode-indicator');
-            if (modeIndicator) {
-                modeIndicator.textContent = '3D模式';
-            }
-            
             // 设置3D事件监听器
             game.setupMouseEvents();
             
@@ -277,12 +271,6 @@ function loadThreeJS() {
 function fallbackTo2D() {
     // 加载失败时回退到2D模式
     game.is3D = false;
-    
-    // 更新模式指示器
-    const modeIndicator = document.getElementById('mode-indicator');
-    if (modeIndicator) {
-        modeIndicator.textContent = '2D模式 (3D加载失败)';
-    }
     
     // 设置2D事件监听器
     game.setupMouseEvents();

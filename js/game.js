@@ -217,9 +217,6 @@ export class Game {
             return;
         }
         
-        // 获取模式指示器
-        const modeIndicator = document.getElementById('mode-indicator');
-        
         // 防止快速连续切换导致的问题
         if (this._modeChanging) {
             this.showWarning('模式切换中，请稍候...', 120);
@@ -236,11 +233,6 @@ export class Game {
                 this.showWarning('3D模式正在加载中，请稍后再试', 180);
                 this._modeChanging = false;
                 return;
-            }
-            
-            // 显示加载状态
-            if (modeIndicator) {
-                modeIndicator.textContent = '正在切换到3D模式...';
             }
             
             this.showWarning('正在切换到3D模式...', 120);
@@ -268,11 +260,6 @@ export class Game {
                         // 设置事件监听
                         this.setupMouseEvents();
                         
-                        // 更新模式指示器
-                        if (modeIndicator) {
-                            modeIndicator.textContent = '3D模式';
-                        }
-                        
                         // 更新Canvas可见性
                         this.updateCanvasVisibility();
                         
@@ -292,19 +279,11 @@ export class Game {
                         console.error('3D初始化失败:', error);
                         this.showWarning('3D模式初始化失败，请稍后再试', 180);
                         
-                        if (modeIndicator) {
-                            modeIndicator.textContent = '2D模式 (3D切换失败)';
-                        }
-                        
                         this._modeChanging = false;
                     }
                 }).catch(error => {
                     console.error('切换到3D模式失败:', error);
                     this.showWarning('切换到3D模式失败，请稍后再试', 180);
-                    
-                    if (modeIndicator) {
-                        modeIndicator.textContent = '2D模式 (3D切换失败)';
-                    }
                     
                     this._modeChanging = false;
                 });
@@ -327,11 +306,6 @@ export class Game {
             
             // 设置事件监听
             this.setupMouseEvents();
-            
-            // 更新模式指示器
-            if (modeIndicator) {
-                modeIndicator.textContent = '2D模式';
-            }
             
             // 更新Canvas可见性
             this.updateCanvasVisibility();
@@ -1897,19 +1871,6 @@ function initGame() {
     
     // 创建游戏实例（默认以2D模式启动）
     game = new Game();
-    const modeIndicator = document.getElementById('mode-indicator');
-
-    // 更新模式指示器
-    function updateModeIndicator() {
-        if (game.is3D) {
-            modeIndicator.textContent = '3D模式';
-        } else {
-            modeIndicator.textContent = '2D模式';
-        }
-    }
-    
-    // 初始显示2D模式加载中状态
-    modeIndicator.textContent = '2D模式 (3D功能加载中...)';
     
     // 先启动游戏（2D模式）
     game.start();
