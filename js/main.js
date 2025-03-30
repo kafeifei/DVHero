@@ -188,8 +188,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // 按G键切换2D/3D模式
             if (e.key.toLowerCase() === 'g' && canToggle3D) {
                 console.log('切换3D/2D模式');
-                game.toggleMode();
-                updateModeIndicator();
+                // 确保使用import动态加载ThreeHelper
+                if (!game.is3D) {
+                    // 如果当前是2D模式要切换到3D，需要确保ThreeHelper已加载
+                    import('./three-helper.js').then(module => {
+                        if (!game.threeHelper) {
+                            console.log('创建3D渲染器...');
+                            game.threeHelper = new module.ThreeHelper(game);
+                            // 加载纹理和创建背景对象
+                            if (game.threeHelper.loadBackgroundImages) {
+                                game.threeHelper.loadBackgroundImages(true);
+                            }
+                        }
+                        // 切换模式
+                        game.toggleMode();
+                        updateModeIndicator();
+                    });
+                } else {
+                    // 从3D切换到2D
+                    game.toggleMode();
+                    updateModeIndicator();
+                }
             }
         });
 

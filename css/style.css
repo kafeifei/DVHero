@@ -204,16 +204,19 @@ body {
     z-index: 0;
 }
 
+/* 活跃状态的canvas显示，不活跃的隐藏 */
 #game-canvas.active,
 #game-canvas-3d.active {
     z-index: 10;
     visibility: visible;
+    display: block;
 }
 
 #game-canvas.inactive,
 #game-canvas-3d.inactive {
-    z-index: 0;
+    z-index: 1;
     visibility: hidden;
+    display: none;
 }
 
 #level-up {

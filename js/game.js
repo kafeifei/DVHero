@@ -135,67 +135,15 @@ export class Game {
         let canvas2d = document.getElementById('game-canvas');
         let canvas3d = document.getElementById('game-canvas-3d');
 
-        // 如果2D canvas不存在，则创建一个
-        if (!canvas2d) {
-            console.log('创建新的2D Canvas元素');
-            canvas2d = document.createElement('canvas');
-            canvas2d.id = 'game-canvas';
-            canvas2d.width = 800;
-            canvas2d.height = 600;
-            canvas2d.className = this.is3D ? 'inactive' : 'active';
-
-            // 将新canvas添加到game-container中
-            const container = document.getElementById('game-container');
-            if (container) {
-                container.appendChild(canvas2d);
-                // 保存引用
-                this.canvas2d = canvas2d;
-                // 重新获取2D上下文
-                this.ctx = canvas2d.getContext('2d', {
-                    willReadFrequently: true,
-                });
-            } else {
-                // 如果找不到container，则添加到body
-                document.body.appendChild(canvas2d);
-                this.canvas2d = canvas2d;
-                this.ctx = canvas2d.getContext('2d', {
-                    willReadFrequently: true,
-                });
-            }
-        }
-
-        // 如果3D canvas不存在且处于3D模式，则创建一个
-        if (!canvas3d && this.is3D) {
-            console.log('创建新的3D Canvas元素');
-            canvas3d = document.createElement('canvas');
-            canvas3d.id = 'game-canvas-3d';
-            canvas3d.width = this.canvas2d.width;
-            canvas3d.height = this.canvas2d.height;
-            canvas3d.className = this.is3D ? 'active' : 'inactive';
-
-            // 将新canvas添加到game-container中
-            const container = document.getElementById('game-container');
-            if (container) {
-                container.appendChild(canvas3d);
-                // 更新引用
-                this.canvas3d = canvas3d;
-
-                // 重新添加鼠标事件监听器到新创建的canvas3d
-                this.setupCanvas3dEvents();
-            } else {
-                // 如果找不到container，则添加到body
-                document.body.appendChild(canvas3d);
-                this.canvas3d = canvas3d;
-            }
-        }
-
         if (canvas2d && canvas3d) {
             if (this.is3D) {
+                // 3D模式：3D canvas活跃，2D canvas不活跃
                 canvas2d.classList.remove('active');
                 canvas2d.classList.add('inactive');
                 canvas3d.classList.remove('inactive');
                 canvas3d.classList.add('active');
             } else {
+                // 2D模式：2D canvas活跃，3D canvas不活跃
                 canvas3d.classList.remove('active');
                 canvas3d.classList.add('inactive');
                 canvas2d.classList.remove('inactive');
@@ -233,136 +181,20 @@ export class Game {
         // 确保两个Canvas都存在
         this.updateCanvasVisibility();
 
-        // 重置某些可能导致问题的游戏对象
-        if (!this.is3D) {
-            // 从3D切换到2D时，需要完全重置游戏对象，确保它们有正确的属性和坐标
-            // 重置玩家位置
-            const playerX = this.player.x;
-            const playerY = this.player.y;
-
-            // 保存玩家重要状态
-            const playerHealth = this.player.health;
-            const playerMaxHealth = this.player.maxHealth;
-            const playerLevel = this.player.level;
-            const playerExperience = this.player.experience;
-            // 保存武器类和等级，而不是直接保存实例
-            const playerWeaponsInfo = this.player.weapons.map((weapon) => {
-                // 遍历WeaponsLibrary找到对应的武器类
-                const weaponClass = WeaponsLibrary.find(
-                    (wc) => weapon instanceof wc
-                );
-                return {
-                    WeaponClass: weaponClass,
-                    level: weapon.level,
-                };
+        // 如果切换到3D模式，需要重新创建3D渲染器
+        if (this.is3D && !this.threeHelper) {
+            // 动态导入ThreeHelper
+            import('./three-helper.js').then(module => {
+                console.log('重新创建3D渲染器...');
+                this.threeHelper = new module.ThreeHelper(this);
+                // 显式加载背景图像并创建对象
+                if (this.threeHelper.loadBackgroundImages) {
+                    this.threeHelper.loadBackgroundImages(true);
+                }
             });
-
-            // 重新初始化玩家（使用备份的坐标）
-            this.player = new Player(this);
-            this.player.x = playerX;
-            this.player.y = playerY;
-            this.player.health = playerHealth;
-            this.player.maxHealth = playerMaxHealth;
-            this.player.level = playerLevel;
-            this.player.experience = playerExperience;
-
-            // 恢复武器
-            this.player.weapons = [];
-            for (const weaponInfo of playerWeaponsInfo) {
-                if (weaponInfo.WeaponClass) {
-                    this.player.addWeapon(weaponInfo.WeaponClass);
-                    // 升级到保存的等级
-                    const weapon =
-                        this.player.weapons[this.player.weapons.length - 1];
-                    // 武器初始为1级，所以减1
-                    for (let i = 1; i < weaponInfo.level; i++) {
-                        weapon.levelUp();
-                    }
-                }
-            }
-
-            // 重新创建经验球
-            const tempExpOrbs = [];
-            for (const orb of this.expOrbs) {
-                tempExpOrbs.push(new ExperienceOrb(orb.x, orb.y, orb.value));
-            }
-            this.expOrbs = tempExpOrbs;
-
-            // 重置相机和其他可能受影响的元素
-            this.cameraOffsetX = 0;
-            this.cameraOffsetY = 0;
         }
 
-        // 如果切换到3D模式，在Canvas准备好后创建3D帮助器
-        if (this.is3D) {
-            // 重新创建canvas3d元素，避免使用可能有问题的旧元素
-            const container = document.getElementById('game-container');
-            if (container) {
-                // 移除已有的canvas3d元素（如果存在）
-                const oldCanvas = document.getElementById('game-canvas-3d');
-                if (oldCanvas) {
-                    container.removeChild(oldCanvas);
-                }
-
-                // 创建新的canvas3d元素
-                this.canvas3d = document.createElement('canvas');
-                this.canvas3d.id = 'game-canvas-3d';
-                this.canvas3d.className = 'active';
-                this.canvas3d.width = this.canvas2d.width;
-                this.canvas3d.height = this.canvas2d.height;
-                container.appendChild(this.canvas3d);
-
-                console.log(
-                    `创建新的canvas3d元素: ${this.canvas3d.width}x${this.canvas3d.height}`
-                );
-
-                // 重新添加鼠标事件监听器到新创建的canvas3d
-                this.setupCanvas3dEvents();
-            }
-
-            // 重置渲染错误计数
-            this.renderFailCount = 0;
-            this.renderErrorCount = 0;
-
-            // 使用setTimeout确保DOM更新后再创建WebGL上下文
-            setTimeout(() => {
-                try {
-                    if (!this.threeHelper) {
-                        console.log('创建3D渲染器...');
-                        this.threeHelper = new ThreeHelper(this);
-
-                        // 检查渲染器是否创建成功
-                        if (!this.threeHelper.renderer) {
-                            console.error('创建3D渲染器失败，自动切换回2D模式');
-                            this.is3D = false;
-                            this.updateCanvasVisibility();
-                            this.showWarning(
-                                '无法创建3D渲染器，已切换回2D模式',
-                                180
-                            );
-                        } else {
-                            // 显式调用刷新纹理对象函数，确保地面和其他对象正确显示
-                            console.log('3D渲染器创建成功，刷新纹理对象...');
-                            this.threeHelper.refreshTexturedObjects();
-                        }
-                    }
-                } catch (e) {
-                    console.error('创建3D渲染器出错:', e);
-                    this.is3D = false;
-                    this.updateCanvasVisibility();
-                    this.showWarning('创建3D渲染器时出错，已切换回2D模式', 180);
-                }
-            }, 200); // 增加延迟时间
-        } else {
-            // 确保2D上下文存在
-            if (!this.ctx && this.canvas2d) {
-                this.ctx = this.canvas2d.getContext('2d', {
-                    willReadFrequently: true,
-                });
-            }
-        }
-
-        // 显示模式切换提示
+        // 显示提示
         this.showWarning(this.is3D ? '已切换到3D模式' : '已切换到2D模式', 120);
     }
 
