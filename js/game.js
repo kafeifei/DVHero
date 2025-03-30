@@ -1882,13 +1882,4 @@ function initGame() {
     for (let i = 0; i < 5; i++) {
         game.spawnEnemy();
     }
-    
-    // 添加调试日志
-    console.log('游戏初始化完成，检查玩家武器状态:');
-    console.log('玩家武器数组长度:', game.player.weapons.length);
-    if (game.player.weapons.length > 0) {
-        console.log('玩家第一把武器:', game.player.weapons[0].name);
-    } else {
-        console.log('警告: 玩家没有武器!');
-    }
 }
