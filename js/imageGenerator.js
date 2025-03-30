@@ -10,7 +10,7 @@ export function generateGrassTexture() {
     const size = 128;
 
     // 背景色 - 更深的绿色
-    ctx.fillStyle = '#0f3f0f';
+    ctx.fillStyle = '#164f16';
     ctx.fillRect(0, 0, size, size);
 
     // 添加暗色变化

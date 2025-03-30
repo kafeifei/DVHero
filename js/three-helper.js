@@ -20,7 +20,7 @@ export class ThreeHelper {
 
         // 初始化Three.js
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x111111); // 设置更暗的场景背景色
+        this.scene.background = new THREE.Color(0x222222); // 设置更亮的场景背景色
 
         // 使用正交相机，更适合于俯视角游戏
         // 计算视口参数
@@ -99,9 +99,9 @@ export class ThreeHelper {
         grassTexture.wrapS = THREE.RepeatWrapping;
         grassTexture.wrapT = THREE.RepeatWrapping;
 
-        // 设置重复次数，增加3倍以保持相同的纹理密度
-        const repeatX = 2000 / 30 * 3; 
-        const repeatY = 2000 / 30 * 3;
+        // 设置重复次数，减少重复次数使格子变大
+        const repeatX = 2000 / 90 * 3; 
+        const repeatY = 2000 / 90 * 3;
         grassTexture.repeat.set(repeatX, repeatY);
 
         // 纹理过滤 - 使用NearestFilter避免边缘模糊
@@ -114,7 +114,7 @@ export class ThreeHelper {
         const groundMaterial = new THREE.MeshBasicMaterial({
             map: grassTexture, // Apply the generated texture
             side: THREE.DoubleSide,
-            color: 0x224422  // 添加深绿色调，使整体更暗
+            color: 0x668866  // 添加较亮的绿色调
         });
 
         // 创建地面网格
@@ -127,9 +127,9 @@ export class ThreeHelper {
         // 添加暗色叠加，匹配2D模式中的深色调
         const overlayGeometry = new THREE.PlaneGeometry(9000, 9000);
         const overlayMaterial = new THREE.MeshBasicMaterial({
-            color: 0x101020, // 更深的蓝黑色调
+            color: 0x202040, // 更深的蓝黑色调
             transparent: true,
-            opacity: 0.5,    // 增加不透明度
+            opacity: 0.2,    // 增加不透明度
             side: THREE.DoubleSide,
             depthWrite: false,
         });
@@ -1470,11 +1470,11 @@ export class ThreeHelper {
     // 创建灯光
     createLights() {
         // 环境光
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // 增加环境光强度
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // 增加环境光强度
         this.scene.add(ambientLight);
 
         // 主方向光 - 从相机方向照射
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
         directionalLight.position.set(0, 700, 500); // 与相机位置一致
         directionalLight.lookAt(0, 0, 0);
         directionalLight.castShadow = true;
