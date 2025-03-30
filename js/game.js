@@ -28,9 +28,6 @@ export class Game {
         const container = document.getElementById('game-container');
         if (container) {
             container.appendChild(this.canvasUI);
-            this.ctxUI = this.canvasUI.getContext('2d', {
-                willReadFrequently: true,
-            });
         }
 
         // 3D支持
@@ -43,11 +40,12 @@ export class Game {
         this.isGameOver = false;
         this.isPaused = false;
 
-        // 设置Canvas尺寸
-        this.canvas2d.width = 800;
-        this.canvas2d.height = 600;
-        this.canvas3d.width = 800;
-        this.canvas3d.height = 600;
+        // 设置Canvas尺寸 - 改为自适应
+        this.canvas2d.width = this.canvas2d.parentElement ? this.canvas2d.parentElement.clientWidth : window.innerWidth;
+        this.canvas2d.height = this.canvas2d.parentElement ? this.canvas2d.parentElement.clientHeight : window.innerHeight;
+        // 3D画布也使用相同的尺寸
+        this.canvas3d.width = this.canvas2d.width;
+        this.canvas3d.height = this.canvas2d.height;
 
         // 初始化2D上下文
         this.ctx = this.canvas2d.getContext('2d', { willReadFrequently: true });
@@ -283,6 +281,11 @@ export class Game {
                             this.threeHelper.loadBackgroundImages(true);
                         }
                         
+                        // 调用resize方法确保3D模式画布尺寸正确
+                        setTimeout(() => {
+                            this.resize();
+                        }, 100);
+                        
                         // 显示切换完成的提示
                         this.showWarning('已切换到3D模式', 120);
                     } catch (error) {
@@ -332,6 +335,11 @@ export class Game {
             
             // 更新Canvas可见性
             this.updateCanvasVisibility();
+            
+            // 调用resize方法确保2D模式画布尺寸正确
+            setTimeout(() => {
+                this.resize();
+            }, 100);
             
             // 显示切换完成的提示
             this.showWarning('已切换到2D模式', 120);
@@ -559,12 +567,34 @@ export class Game {
         setTimeout(() => {
             this.showWarning('按1生成敌人，按2重载纹理', 180);
         }, 2000);
+        
+        this.start();
+        
+        // 添加窗口大小变化的事件监听器
+        this.resizeHandler = () => {
+            this.resize();
+        };
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', this.resizeHandler);
+        
+        // 初始化时调用一次resize以确保正确的初始布局
+        setTimeout(() => {
+            this.resize();
+        }, 100);
     }
 
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
             this.lastFrameTime = performance.now();
+            
+            // 确保玩家有至少一把武器
+            if (this.player && this.player.weapons.length === 0) {
+                console.log('发现玩家没有武器，添加初始武器');
+                this.player.addWeapon(WeaponsLibrary[0]);
+            }
+            
             this.gameLoop(this.lastFrameTime);
         }
     }
@@ -1237,12 +1267,42 @@ export class Game {
     drawPaused() {
         // 确保UI画布上下文存在
         if (!this.ctxUI) {
-            console.warn('UI上下文不存在');
-            return;
+            // 尝试初始化或获取UI上下文
+            try {
+                const canvasUI = document.getElementById('game-canvas-ui');
+                if (canvasUI) {
+                    this.canvasUI = canvasUI;
+                    this.ctxUI = canvasUI.getContext('2d');
+                    console.log('已重新获取UI上下文');
+                }
+            } catch (e) {
+                console.warn('无法获取或初始化UI上下文:', e);
+            }
+            
+            // 如果仍然无法获取UI上下文，尝试使用当前活动的Canvas
+            if (!this.ctxUI) {
+                if (this.is3D) {
+                    const canvas3d = document.getElementById('game-canvas-3d');
+                    if (canvas3d) {
+                        this.ctxUI = this.ctx; // 使用2D上下文作为备用
+                        this.canvasUI = this.canvas2d;
+                        console.warn('使用2D上下文作为UI上下文的备用');
+                    }
+                } else {
+                    this.ctxUI = this.ctx;
+                    this.canvasUI = this.canvas2d;
+                }
+            }
+            
+            // 如果仍然无法获取UI上下文，退出
+            if (!this.ctxUI) {
+                console.warn('UI上下文不存在且无法初始化');
+                return;
+            }
         }
 
-        // 仅在非武器选择屏幕时显示暂停信息
-        if (this.levelUpElement.classList.contains('hidden')) {
+        // 只有在游戏真正暂停且不在升级界面时显示暂停信息
+        if (this.isPaused && this.levelUpElement.classList.contains('hidden')) {
             // 半透明黑色覆盖
             this.ctxUI.fillStyle = 'rgba(0, 0, 0, 0.5)';
             this.ctxUI.fillRect(
@@ -1446,16 +1506,17 @@ export class Game {
     }
 
     restart() {
-        // 重置游戏状态
+        console.log('重新开始游戏');
+        
+        // 清理资源
+        this.dispose();
+        
+        // 重新初始化游戏
         this.isGameOver = false;
         this.isPaused = false;
-        this.gameTime = 0;
         this.frameCount = 0;
-        this.difficultyMultiplier = 1;
-        this.attackMultiplier = 1;
-        this.enemySpawnRate = 60;
-        this.maxEnemies = 100;
-
+        this.gameTime = 0;
+        
         // 清空游戏元素
         this.enemies = [];
         this.projectiles = [];
@@ -1463,30 +1524,82 @@ export class Game {
         this.particles = [];
         this.effects = [];
         this.expOrbs = [];
-
-        // 重新生成背景对象（保持一致的背景）
-        // 保持backgroundObjects不变，只需在3D模式下重新创建对应的3D对象
-
+        
+        // 重置难度
+        this.gameLevel = 1;
+        this.difficultyMultiplier = 1;
+        this.attackMultiplier = 1;
+        this.enemySpawnRate = 60;
+        this.maxEnemies = 100;
+        
         // 重置玩家
         this.player = new Player(this);
-        this.player.x = 0;
-        this.player.y = 0;
+        
+        // 初始化时添加基础武器
         this.player.addWeapon(WeaponsLibrary[0]);
-
-        // 重置3D场景
+        
+        // 重新加载背景对象
+        this.generateBackgroundObjects();
+        
+        // 重新初始化3D模式（如果当前是3D模式）
         if (this.is3D && this.threeHelper) {
             this.threeHelper.reset();
         }
-
-        // 添加初始敌人
+        
+        // 重新设置事件
+        this.setupAllEventListeners();
+        
+        // 开始游戏
+        this.start();
+        
+        // 添加一些初始敌人
         for (let i = 0; i < 5; i++) {
             this.spawnEnemy();
         }
 
-        // 重新开始
-        if (!this.isRunning) {
-            this.start();
+        // 游戏重启后重新设置resize事件监听器
+        this.resizeHandler = () => {
+            this.resize();
+        };
+        
+        window.addEventListener('resize', this.resizeHandler);
+        
+        // 调用一次resize确保正确尺寸
+        setTimeout(() => {
+            this.resize();
+        }, 100);
+    }
+    
+    // 清理游戏资源
+    dispose() {
+        console.log('清理游戏资源...');
+        
+        // 停止游戏循环
+        this.isRunning = false;
+        
+        // 移除窗口大小变化的事件监听器
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
         }
+        
+        // 移除键盘和鼠标事件监听器
+        document.removeEventListener('keydown', this._handleKeyDown);
+        document.removeEventListener('keyup', this._handleKeyUp);
+        this.removeEventListeners(this.canvas2d);
+        this.removeEventListeners(this.canvas3d);
+        
+        // 清理3D资源
+        if (this.threeHelper) {
+            try {
+                this.threeHelper.dispose();
+            } catch (e) {
+                console.error('清理ThreeHelper失败:', e);
+            }
+            this.threeHelper = null;
+        }
+        
+        console.log('游戏资源清理完成');
     }
 
     // 生成恶魔城风格的背景元素
@@ -1551,20 +1664,11 @@ export class Game {
 
     // 添加测试按钮生成敌人
     addTestButton() {
-        // 创建按钮容器
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.position = 'absolute';
-        buttonContainer.style.top = '10px';
-        buttonContainer.style.right = '10px';
-        buttonContainer.style.zIndex = '1000';
-        buttonContainer.style.display = 'flex';
-        buttonContainer.style.gap = '10px';
-
-        // 创建生成敌人测试按钮
-        const enemyButton = document.createElement('button');
-        enemyButton.textContent = '生成测试敌人';
-
-        enemyButton.addEventListener('click', () => {
+        // 不再创建按钮，通过键盘快捷键来测试
+        console.log('注册测试功能快捷键');
+        
+        // 添加全局快捷键测试函数
+        window.testEnemySpawn = () => {
             // 在玩家前方生成一个敌人
             const angle = Math.random() * Math.PI * 2;
             const distance = 150;
@@ -1586,27 +1690,28 @@ export class Game {
             // 同时生成一些经验球（测试用）
             this.createExp(x - 50, y, 1);
             this.createExp(x + 50, y, 1);
-        });
-
-        // 创建纹理测试按钮
-        const textureButton = document.createElement('button');
-        textureButton.textContent = '测试纹理加载';
-
-        textureButton.addEventListener('click', () => {
-            // 调用全局的testImageVisibility函数
-            if (window.testImageVisibility) {
-                window.testImageVisibility();
-            } else {
-                console.error('testImageVisibility函数不存在');
-            }
-        });
-
-        // 添加按钮到容器
-        buttonContainer.appendChild(enemyButton);
-        buttonContainer.appendChild(textureButton);
-
-        // 添加容器到文档
-        document.body.appendChild(buttonContainer);
+            
+            this.showWarning('已生成测试敌人', 60);
+        };
+        
+        // 添加测试纹理加载功能
+        window.testTextureLoading = () => {
+            // 重新加载纹理
+            this.images = {};
+            console.log('重新开始生成图片...');
+            this.images.grassTexture = generateGrassTexture();
+            this.images.castleTower = generateCastleTowerTexture();
+            this.images.brokenPillar = generateBrokenPillarTexture();
+            this.images.gravestone = generateGravestoneTexture();
+            this.images.deadTree = generateDeadTreeTexture();
+            this.images.torch = generateTorchTexture();
+            console.log('所有图片重新生成完毕。');
+            
+            // 重新生成背景对象
+            this.generateBackgroundObjects();
+            
+            this.showWarning('纹理已重新加载', 60);
+        };
     }
 
     // 设置所有事件监听器
@@ -1691,6 +1796,15 @@ export class Game {
             if (e.key === ' ' && this.isGameOver) {
                 this.restart();
             }
+            
+            // 测试功能快捷键
+            if (e.key === '1' && window.testEnemySpawn) {
+                window.testEnemySpawn();
+            }
+            
+            if (e.key === '2' && window.testTextureLoading) {
+                window.testTextureLoading();
+            }
         };
         
         this._handleKeyUp = (e) => {
@@ -1734,6 +1848,47 @@ export class Game {
         // 设置鼠标事件
         this.setupMouseEvents();
     }
+
+    // 调整画布大小的方法
+    resize() {
+        // 只在游戏正在运行时才进行调整
+        if (!this.isRunning) return;
+        
+        console.log('调整画布大小...');
+        
+        // 获取父元素或窗口的尺寸
+        const newWidth = this.canvas2d.parentElement ? this.canvas2d.parentElement.clientWidth : window.innerWidth;
+        const newHeight = this.canvas2d.parentElement ? this.canvas2d.parentElement.clientHeight : window.innerHeight;
+        
+        // 调整2D画布尺寸
+        this.canvas2d.width = newWidth;
+        this.canvas2d.height = newHeight;
+        
+        // 同步调整UI Canvas尺寸
+        if (this.canvasUI) {
+            this.canvasUI.width = newWidth;
+            this.canvasUI.height = newHeight;
+            // 尝试重新获取UI上下文
+            if (!this.ctxUI) {
+                this.ctxUI = this.canvasUI.getContext('2d', { willReadFrequently: true });
+            }
+        }
+        
+        // 调整3D画布尺寸（如果不在3D模式下，ThreeHelper会在切换到3D模式时自动调整）
+        if (this.is3D && this.threeHelper) {
+            // 使用ThreeHelper的resize方法
+            this.threeHelper.resize(newWidth, newHeight);
+        }
+        
+        // 触发重绘
+        if (this.is3D) {
+            if (this.threeHelper && this.threeHelper.renderer) {
+                this.threeHelper.render();
+            }
+        } else {
+            this.draw2D();
+        }
+    }
 }
 
 // 初始化游戏函数
@@ -1765,5 +1920,14 @@ function initGame() {
     // 添加一些初始敌人
     for (let i = 0; i < 5; i++) {
         game.spawnEnemy();
+    }
+    
+    // 添加调试日志
+    console.log('游戏初始化完成，检查玩家武器状态:');
+    console.log('玩家武器数组长度:', game.player.weapons.length);
+    if (game.player.weapons.length > 0) {
+        console.log('玩家第一把武器:', game.player.weapons[0].name);
+    } else {
+        console.log('警告: 玩家没有武器!');
     }
 }

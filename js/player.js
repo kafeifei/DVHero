@@ -3,16 +3,22 @@ export class Player {
         this.game = game;
         this.x = 0;
         this.y = 0;
+        
+        console.log('Player构造函数被调用');
+        
         this.radius = 20;
-        this.speed = 3;
         this.color = '#5588ff';
+        this.speed = 3;
         this.health = 100;
         this.maxHealth = 100;
         this.defense = 0;
         this.level = 1;
         this.experience = 0;
         this.experienceToNextLevel = 10;
-        this.weapons = [];
+        this.weapons = []; // 武器数组
+        
+        console.log('初始武器数组长度:', this.weapons.length);
+
         this.facingDirection = 'right'; // 'right', 'left', 'up', 'down'
         this.isDashing = false;
         this.dashCooldown = 0;
@@ -176,9 +182,13 @@ export class Player {
     }
 
     attack() {
+        console.log('Player.attack() 被调用，武器数组长度:', this.weapons.length);
+        
         // 使用当前装备的所有武器攻击
         for (const weapon of this.weapons) {
+            console.log('尝试使用武器攻击:', weapon.name, '冷却状态:', weapon.cooldown);
             if (weapon.canAttack()) {
+                console.log('武器可以攻击:', weapon.name);
                 weapon.attack(this.game, this);
             }
         }

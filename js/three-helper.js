@@ -9,8 +9,9 @@ export class ThreeHelper {
 
         // 确保canvas尺寸正确
         if (this.canvas3d.width === 0 || this.canvas3d.height === 0) {
-            this.canvas3d.width = 800;
-            this.canvas3d.height = 600;
+            // 移除强制设置的固定尺寸，使用父元素尺寸或窗口尺寸
+            this.canvas3d.width = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientWidth : window.innerWidth;
+            this.canvas3d.height = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientHeight : window.innerHeight;
             console.log(
                 `设置canvas3d尺寸: ${this.canvas3d.width}x${this.canvas3d.height}`
             );
@@ -25,9 +26,11 @@ export class ThreeHelper {
         );
 
         // 使用正交相机，更适合于俯视角游戏
-        // 固定视口尺寸，避免多次切换导致放大
-        this.viewSize = 800; // 固定视口高度
+        // 计算视口参数
+        this.viewSize = Math.max(this.canvas3d.height, 600); // 基于画布高度，但不小于600
         const aspectRatio = this.canvas3d.width / this.canvas3d.height;
+        
+        // 使用OrthographicCamera创建相机
         this.camera = new THREE.OrthographicCamera(
             (-this.viewSize * aspectRatio) / 2,
             (this.viewSize * aspectRatio) / 2,
@@ -67,6 +70,20 @@ export class ThreeHelper {
         // 立即开始加载纹理
         console.log('ThreeHelper构造函数中开始加载纹理...');
         this.loadBackgroundImages();
+        
+        // 添加窗口大小变化的事件监听器
+        this.resizeHandler = () => {
+            const newWidth = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientWidth : window.innerWidth;
+            const newHeight = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientHeight : window.innerHeight;
+            this.resize(newWidth, newHeight);
+        };
+        
+        window.addEventListener('resize', this.resizeHandler);
+        
+        // 游戏开始时主动调用一次resize，确保与窗口调整时有相同的处理方法
+        setTimeout(() => {
+            this.resizeHandler();
+        }, 100);
     }
 
     // 创建默认3D对象
@@ -166,9 +183,9 @@ export class ThreeHelper {
 
             // 确保canvas尺寸合法
             if (this.canvas3d.width < 1 || this.canvas3d.height < 1) {
-                console.warn('Canvas尺寸无效，使用默认值');
-                this.canvas3d.width = 800;
-                this.canvas3d.height = 600;
+                console.warn('Canvas尺寸无效，使用窗口尺寸');
+                this.canvas3d.width = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientWidth : window.innerWidth;
+                this.canvas3d.height = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientHeight : window.innerHeight;
             }
 
             // 检查WebGL支持
@@ -203,7 +220,7 @@ export class ThreeHelper {
             });
 
             // 设置渲染器基本参数
-            this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, false);
+            this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, true); // 改为true，让渲染器自动调整CSS尺寸
             this.renderer.setPixelRatio(window.devicePixelRatio || 1);
             this.renderer.setClearColor(0x222222, 1);
 
@@ -242,7 +259,7 @@ export class ThreeHelper {
                     failIfMajorPerformanceCaveat: false
                 });
 
-                this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, false);
+                this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, true); // 改为true，让渲染器自动调整CSS尺寸
                 this.renderer.setPixelRatio(1);
                 this.renderer.setClearColor(0x222222, 1);
                 
@@ -266,6 +283,12 @@ export class ThreeHelper {
     // 清理Three.js资源
     dispose() {
         console.log('开始清理Three.js资源...');
+        
+        // 移除窗口大小变化的事件监听器
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
         
         // 首先尝试解除所有纹理的引用
         if (this.textures) {
@@ -1426,9 +1449,17 @@ export class ThreeHelper {
     resize(width, height) {
         if (!this.renderer) return;
 
+        // 如果未提供尺寸，使用窗口尺寸
+        if (!width || !height) {
+            width = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientWidth : window.innerWidth;
+            height = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientHeight : window.innerHeight;
+        }
+
         // 确保宽高比例正确
         const aspectRatio = width / height;
-        // 使用相同的viewSize，避免缩放问题
+        
+        // 根据新尺寸更新viewSize
+        this.viewSize = Math.max(height, 600);
 
         // 更新相机参数
         this.camera.left = (-this.viewSize * aspectRatio) / 2;
@@ -1440,7 +1471,7 @@ export class ThreeHelper {
         console.log(`调整渲染器尺寸: ${width}x${height}`);
         this.canvas3d.width = width;
         this.canvas3d.height = height;
-        this.renderer.setSize(width, height);
+        this.renderer.setSize(width, height, true); // 添加true参数使其更新CSS样式
     }
 
     // 创建灯光
