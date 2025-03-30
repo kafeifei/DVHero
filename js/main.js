@@ -39,6 +39,11 @@ window.addEventListener('load', function() {
     if (gameContainer) gameContainer.classList.add('hidden');
     
     console.log('启动界面强制显示已设置');
+
+    // 立即开始预加载Three.js模块，但不初始化
+    preloadThreeJS();
+    
+    setupEventListeners();
 });
 
 // 在页面加载完成后，初始化启动界面
@@ -93,21 +98,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 
     setupEventListeners();
-
-    // 延迟预加载ThreeJS以避免影响页面加载性能
-    setTimeout(() => {
-        preloadThreeJS();
-    }, 2000);
 });
 
 // 提前预加载ThreeJS而不初始化
 function preloadThreeJS() {
-    console.log('预加载Three.js模块...');
+    console.log('正在预加载Three.js模块...');
     
     import('./three-helper.js').then(() => {
         console.log('Three.js模块预加载成功');
+        window._threeJSPreloaded = true;
     }).catch(error => {
         console.error('Three.js模块预加载失败:', error);
+        window._threeJSPreloaded = false;
     });
 }
 
@@ -234,6 +236,11 @@ function initGame() {
 // 加载Three.js
 function loadThreeJS() {
     console.log('加载3D模块...');
+    
+    // 检查是否已预加载
+    if (window._threeJSPreloaded) {
+        console.log('使用已预加载的Three.js模块');
+    }
     
     // 异步加载Three.js模块并立即初始化
     import('./three-helper.js').then(module => {

@@ -4,6 +4,7 @@ import { generateGrassTexture } from './imageGenerator.js'; // Import the textur
 // Three.js辅助类
 export class ThreeHelper {
     constructor(game) {
+        console.log('ThreeHelper构造函数开始执行');
         this.game = game;
         this.canvas3d = game.canvas3d;
 
@@ -20,10 +21,6 @@ export class ThreeHelper {
         // 初始化Three.js
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x222222); // 设置场景背景色
-
-        console.log(
-            `初始化相机，canvas尺寸: ${this.canvas3d.width}x${this.canvas3d.height}`
-        );
 
         // 使用正交相机，更适合于俯视角游戏
         // 计算视口参数
@@ -62,15 +59,6 @@ export class ThreeHelper {
         // 创建简化版地面
         this.createSimpleGround();
 
-        // 创建默认对象
-        this.createDefaultObjects();
-
-        console.log('ThreeHelper初始化完成');
-        
-        // 立即开始加载纹理
-        console.log('ThreeHelper构造函数中开始加载纹理...');
-        this.loadBackgroundImages();
-        
         // 添加窗口大小变化的事件监听器
         this.resizeHandler = () => {
             const newWidth = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientWidth : window.innerWidth;
@@ -84,6 +72,10 @@ export class ThreeHelper {
         setTimeout(() => {
             this.resizeHandler();
         }, 100);
+        
+        // 立即开始加载纹理
+        console.log('ThreeHelper构造函数完成，开始加载纹理...');
+        this.loadBackgroundImages();
     }
 
     // 创建默认3D对象
@@ -1727,8 +1719,6 @@ export class ThreeHelper {
 
         // 如果是同步模式，使用Promise.all确保所有纹理加载完成
         if (sync) {
-            console.log('使用同步模式加载纹理...');
-            
             // 创建加载Promise数组
             const loadPromises = imagesToLoad.map(img => {
                 return new Promise((resolve) => {
@@ -1765,7 +1755,6 @@ export class ThreeHelper {
                                 }
                                 
                                 if (texture) {
-                                    console.log(`使用生成的纹理替代: ${img.key}`);
                                     this.textures[img.key] = texture;
                                 }
                             } catch (e) {
@@ -1778,18 +1767,15 @@ export class ThreeHelper {
                         }
                         
                         const currentPath = possiblePaths[pathIndex];
-                        console.log(`尝试路径[${pathIndex+1}/${possiblePaths.length}]: ${currentPath} for ${img.key}`);
                         
                         textureLoader.load(
                             currentPath,
                             (texture) => {
-                                console.log(`加载背景图像成功: ${img.key} (with path: ${currentPath})`);
                                 this.textures[img.key] = texture;
                                 resolve();
                             },
                             undefined,
                             (error) => {
-                                console.warn(`路径加载失败: ${currentPath} for ${img.key}`, error);
                                 // 尝试下一个路径
                                 tryLoadSync(pathIndex + 1);
                             }
@@ -1803,7 +1789,6 @@ export class ThreeHelper {
             
             // 等待所有纹理加载完成，然后创建背景对象
             Promise.all(loadPromises).then(() => {
-                console.log('所有纹理加载完成，立即创建背景对象');
                 this.createBackgroundObjects();
             });
             
@@ -1826,7 +1811,6 @@ export class ThreeHelper {
                 
                 if (pathIndex >= possiblePaths.length) {
                     // 所有路径都尝试过了，仍然失败
-                    console.error(`所有路径都无法加载图像: ${img.key}`);
                     loadedCount++;
                     
                     // 尝试生成纹理
@@ -1851,7 +1835,6 @@ export class ThreeHelper {
                         }
                         
                         if (texture) {
-                            console.log(`使用生成的纹理替代: ${img.key}`);
                             this.textures[img.key] = texture;
                         }
                     } catch (e) {
@@ -1866,12 +1849,10 @@ export class ThreeHelper {
                 }
                 
                 const currentPath = possiblePaths[pathIndex];
-                console.log(`尝试路径[${pathIndex+1}/${possiblePaths.length}]: ${currentPath} for ${img.key}`);
                 
                 textureLoader.load(
                     currentPath,
                     (texture) => {
-                        console.log(`加载背景图像成功: ${img.key} (with path: ${currentPath})`);
                         this.textures[img.key] = texture;
                         loadedCount++;
 
@@ -1882,7 +1863,6 @@ export class ThreeHelper {
                     },
                     undefined,
                     (error) => {
-                        console.warn(`路径加载失败: ${currentPath} for ${img.key}`, error);
                         // 尝试下一个路径
                         tryLoad(pathIndex + 1);
                     }
