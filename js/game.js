@@ -395,11 +395,6 @@ export class Game {
                 this.dragStartY = e.clientY - rect.top;
                 this.mouseX = this.dragStartX;
                 this.mouseY = this.dragStartY;
-                
-                console.log('鼠标按下:', {
-                    dragStartX: this.dragStartX,
-                    dragStartY: this.dragStartY
-                });
             }
         };
         
@@ -422,7 +417,6 @@ export class Game {
                 // 清除拖动的起始位置
                 this.dragStartX = null;
                 this.dragStartY = null;
-                console.log('鼠标释放');
             }
         };
         
@@ -432,7 +426,6 @@ export class Game {
                 this.isDragging = false;
                 this.dragStartX = null;
                 this.dragStartY = null;
-                console.log('鼠标离开canvas');
             }
         };
         
@@ -489,8 +482,6 @@ export class Game {
         activeCanvas.addEventListener('touchstart', handleTouchStart);
         activeCanvas.addEventListener('touchmove', handleTouchMove);
         activeCanvas.addEventListener('touchend', handleTouchEnd);
-        
-        console.log(`鼠标事件监听器已设置到${this.is3D ? '3D' : '2D'}画布`);
     }
 
     // 辅助函数：移除之前添加的事件监听器
@@ -1661,18 +1652,6 @@ export class Game {
             // 在游戏结束状态，按空格键重新开始游戏
             if (e.key === ' ' && this.isGameOver) {
                 this.restart();
-            }
-            
-            // 输出当前按键状态（用于调试）
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
-                e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
-                e.key === 'w' || e.key === 'a' || e.key === 's' || e.key === 'd') {
-                console.log(`按下方向键: ${e.key}, 当前状态:`, {
-                    up: this.keys.up,
-                    down: this.keys.down,
-                    left: this.keys.left,
-                    right: this.keys.right
-                });
             }
         };
         
