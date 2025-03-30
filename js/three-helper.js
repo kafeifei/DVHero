@@ -161,8 +161,18 @@ export class ThreeHelper {
                     
                     // 尝试重置上下文
                     if (existingContextWebGL) {
-                        if (existingContextWebGL.getExtension('WEBGL_lose_context')) {
-                            existingContextWebGL.getExtension('WEBGL_lose_context').loseContext();
+                        console.log('Canvas已有上下文，尝试重置...');
+                        
+                        // 尝试重置上下文
+                        try {
+                            const loseContext = existingContextWebGL.getExtension('WEBGL_lose_context');
+                            if (loseContext) {
+                                loseContext.loseContext();
+                            } else {
+                                console.warn('浏览器不支持WEBGL_lose_context扩展，这是正常现象');
+                            }
+                        } catch (e) {
+                            console.warn('WEBGL_lose_context扩展调用失败，这是正常现象', e);
                         }
                     }
                 }
@@ -414,10 +424,16 @@ export class ThreeHelper {
                 // 尝试使用WEBGL_lose_context扩展显式释放上下文
                 const gl = this.renderer.getContext();
                 if (gl) {
-                    const loseContextExt = gl.getExtension('WEBGL_lose_context');
-                    if (loseContextExt) {
-                        console.log('使用WEBGL_lose_context扩展释放WebGL上下文');
-                        loseContextExt.loseContext();
+                    try {
+                        const loseContextExt = gl.getExtension('WEBGL_lose_context');
+                        if (loseContextExt) {
+                            console.log('使用WEBGL_lose_context扩展释放WebGL上下文');
+                            loseContextExt.loseContext();
+                        } else {
+                            console.warn('浏览器不支持WEBGL_lose_context扩展，这是正常现象');
+                        }
+                    } catch (e) {
+                        console.warn('WEBGL_lose_context扩展调用失败，这是正常现象', e);
                     }
                 }
                 
@@ -1158,6 +1174,9 @@ export class ThreeHelper {
                                 console.error('恢复上下文失败:', e);
                             }
                         }, 100);
+                    } else {
+                        // 浏览器不支持WEBGL_lose_context扩展，这是正常的
+                        console.warn('浏览器不支持WEBGL_lose_context扩展，这是正常现象');
                     }
                 } catch (e) {
                     console.error('尝试恢复上下文时出错:', e);
