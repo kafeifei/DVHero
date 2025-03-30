@@ -37,8 +37,8 @@ export class ThreeHelper {
             2000 // 远裁剪面的距离
         );
 
-        // 将相机位置设置为纯俯视视角，避免45度角造成坐标系混淆
-        this.camera.position.set(0, 600, 0); // 使用纯俯视角度
+        // 将相机位置设置为略微向前倾斜的视角
+        this.camera.position.set(0, 600, 600); // 将z方向偏移从200增加到600，增强梯形效果
         this.camera.lookAt(0, 0, 0);
 
         // 创建WebGL渲染器
@@ -440,18 +440,69 @@ export class ThreeHelper {
                     });
                     const stick = new THREE.Mesh(stickGeo, stickMaterial);
 
-                    const flameGeo = new THREE.SphereGeometry(5, 8, 6);
-                    const flameMaterial = new THREE.MeshStandardMaterial({
-                        color: 0xff9900,
-                        emissive: 0xff9900,
-                        emissiveIntensity: 0.8,
+                    // 火把头部分（布包裹部分）
+                    const headGeo = new THREE.CylinderGeometry(
+                        5, // 顶部半径
+                        4, // 底部半径
+                        height * 0.15, // 高度
+                        8 // 分段数
+                    );
+                    const headMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xa52a2a, // 红褐色
+                        roughness: 0.8,
                     });
-                    const flame = new THREE.Mesh(flameGeo, flameMaterial);
-                    flame.position.y = height * 0.6;
+                    const head = new THREE.Mesh(headGeo, headMaterial);
+                    head.position.y = height * 0.45; // 放在柄的上部
 
+                    // 火焰核心 - 更明亮的内部
+                    const flameCoreGeo = new THREE.SphereGeometry(8, 12, 10);
+                    const flameCoreMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xffff80, // 明亮的黄色
+                        emissive: 0xffff80,
+                        emissiveIntensity: 1.2, // 更强的发光
+                        transparent: true,
+                        opacity: 0.9,
+                    });
+                    const flameCore = new THREE.Mesh(flameCoreGeo, flameCoreMaterial);
+                    flameCore.position.y = height * 0.55;
+                    flameCore.scale.y = 1.2; // 稍微拉长
+
+                    // 火焰外部 - 更大、更透明
+                    const flameOuterGeo = new THREE.SphereGeometry(12, 10, 8);
+                    const flameOuterMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xff6600, // 橙色
+                        emissive: 0xff4400,
+                        emissiveIntensity: 0.8,
+                        transparent: true,
+                        opacity: 0.6,
+                    });
+                    const flameOuter = new THREE.Mesh(flameOuterGeo, flameOuterMaterial);
+                    flameOuter.position.y = height * 0.55;
+                    flameOuter.scale.y = 1.4; // 更拉长的形状
+
+                    // 为火焰添加随机性
+                    flameOuter.rotation.x = Math.random() * 0.2;
+                    flameOuter.rotation.z = Math.random() * 0.2;
+                    
+                    // 记录火把的动画状态
+                    flameCore.userData.animationOffset = Math.random() * Math.PI * 2;
+                    flameOuter.userData.animationOffset = Math.random() * Math.PI * 2;
+                    
+                    // 组合所有部分
                     mesh = new THREE.Group();
                     mesh.add(stick);
-                    mesh.add(flame);
+                    mesh.add(head);
+                    mesh.add(flameCore);
+                    mesh.add(flameOuter);
+                    
+                    // 将火把加入到需要动画的对象列表中
+                    if (!this.animatedTorches) {
+                        this.animatedTorches = [];
+                    }
+                    this.animatedTorches.push({
+                        flameCore: flameCore,
+                        flameOuter: flameOuter
+                    });
                 } else {
                     // 其他对象使用简单的Box
                     const geometry = new THREE.BoxGeometry(30, height, 30);
@@ -481,10 +532,20 @@ export class ThreeHelper {
 
                 // 为火把添加点光源
                 if (obj.type === 'torch') {
-                    const pointLight = new THREE.PointLight(0xff9900, 2, 100); // 增强光照强度
-                    pointLight.position.set(obj.x, height * scale, obj.y);
+                    const pointLight = new THREE.PointLight(0xff7700, 3, 150); // 增强光照强度和范围
+                    pointLight.position.set(obj.x, height * scale * 0.6, obj.y); // 调整光源高度位于火焰位置
                     this.scene.add(pointLight);
                     this.objects.set(`torch_light_${index}`, pointLight);
+                    
+                    // 添加光照闪烁动画
+                    if (!this.animatedLights) {
+                        this.animatedLights = [];
+                    }
+                    pointLight.userData = {
+                        baseIntensity: 3,
+                        animationOffset: Math.random() * Math.PI * 2
+                    };
+                    this.animatedLights.push(pointLight);
                 }
             } catch (e) {
                 console.error(`创建背景对象时出错: ${e.message}`);
@@ -623,21 +684,17 @@ export class ThreeHelper {
             return;
         }
 
-        // 在xz平面跟随玩家，保持纯俯视角度
+        // 跟随玩家，保持从上方略微向前的视角
         const targetX = player.position.x;
         const targetZ = player.position.z;
-
-        // 直接在玩家上方，无偏移
+        
+        // 仅保持相对z方向的偏移，x方向与玩家一致
         this.camera.position.x = targetX;
-        this.camera.position.z = targetZ;
+        this.camera.position.y = 600; // 保持固定高度
+        this.camera.position.z = targetZ + 600; // 增加向前偏移，与初始化时一致
 
-        // 始终从上方正视玩家
+        // 始终看向玩家位置
         this.camera.lookAt(targetX, 0, targetZ);
-
-        // 更新相机辅助对象
-        // if (this.cameraHelper) {
-        //     this.cameraHelper.update();
-        // }
     }
 
     // 更新场景状态，添加调试信息
@@ -726,6 +783,51 @@ export class ThreeHelper {
             centerMarker.rotation.y += 0.01;
         }
 
+        // 更新火把动画
+        if (this.animatedTorches && this.animatedTorches.length > 0) {
+            const time = Date.now() * 0.003; // 控制火焰动画速度
+            
+            for (const torch of this.animatedTorches) {
+                if (torch.flameCore && torch.flameOuter) {
+                    // 火焰核心的脉动效果
+                    const coreScale = 0.9 + 0.2 * Math.sin(time + torch.flameCore.userData.animationOffset);
+                    torch.flameCore.scale.x = coreScale;
+                    torch.flameCore.scale.z = coreScale;
+                    
+                    // 火焰外部的摇曳效果
+                    const outerScaleX = 0.9 + 0.3 * Math.sin(time * 0.7 + torch.flameOuter.userData.animationOffset);
+                    const outerScaleZ = 0.9 + 0.3 * Math.sin(time * 0.8 + torch.flameOuter.userData.animationOffset + 1.0);
+                    torch.flameOuter.scale.x = outerScaleX;
+                    torch.flameOuter.scale.z = outerScaleZ;
+                    
+                    // 火焰的随机旋转
+                    torch.flameOuter.rotation.x = 0.1 * Math.sin(time * 0.5 + torch.flameOuter.userData.animationOffset);
+                    torch.flameOuter.rotation.z = 0.1 * Math.sin(time * 0.6 + torch.flameOuter.userData.animationOffset + 2.0);
+                }
+            }
+        }
+        
+        // 更新火把光源动画
+        if (this.animatedLights && this.animatedLights.length > 0) {
+            const time = Date.now() * 0.003;
+            
+            for (const light of this.animatedLights) {
+                if (light.userData && light.userData.baseIntensity) {
+                    // 光照强度的闪烁效果
+                    const intensityFactor = 0.85 + 0.3 * Math.sin(time * 1.5 + light.userData.animationOffset);
+                    light.intensity = light.userData.baseIntensity * intensityFactor;
+                    
+                    // 添加光照颜色的微小变化，模拟火焰颜色变化
+                    const hue = 0.05 + 0.02 * Math.sin(time * 0.8 + light.userData.animationOffset); // 在橙红色范围内变化
+                    const saturation = 0.9 + 0.1 * Math.sin(time * 0.7 + light.userData.animationOffset + 1.0);
+                    const lightness = 0.5 + 0.1 * Math.sin(time * 0.9 + light.userData.animationOffset + 2.0);
+                    
+                    // 使用HSL颜色模型创建火焰颜色
+                    light.color.setHSL(hue, saturation, lightness);
+                }
+            }
+        }
+
         // 更新其他动画对象
         for (let i = 0; i < 5; i++) {
             const landmark = this.objects.get(`landmark_${i}`);
@@ -773,9 +875,9 @@ export class ThreeHelper {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // 增加环境光强度
         this.scene.add(ambientLight);
 
-        // 主方向光 - 从上方直射
+        // 主方向光 - 从相机方向照射
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight.position.set(0, 600, 0); // 与相机位置一致，纯垂直方向
+        directionalLight.position.set(0, 600, 600); // 与相机位置一致
         directionalLight.lookAt(0, 0, 0);
         directionalLight.castShadow = true;
 
@@ -799,13 +901,9 @@ export class ThreeHelper {
         );
         this.scene.add(hemisphereLight);
 
-        // 添加灯光辅助对象 - 已禁用以提高性能
-        // const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 100);
-        // this.scene.add(directionalLightHelper);
-
         // 添加额外的辅助照明 - 背面光源，确保物体背面也有照明
         const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        backLight.position.set(0, 100, 300); // 从玩家后方照射
+        backLight.position.set(0, 100, -600); // 从相机对面方向照射
         backLight.lookAt(0, 0, 0);
         this.scene.add(backLight);
 
