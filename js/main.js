@@ -299,12 +299,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // 预加载Three.js纹理
 function preloadTextures() {
     const textureUrls = [
-        './images/grass_texture.png',
-        './images/castle_tower.png',
-        './images/broken_pillar.png',
-        './images/gravestone.png',
-        './images/dead_tree.png',
-        './images/torch.png',
+        '/grass_texture.png',
+        '/castle_tower.png',
+        '/broken_pillar.png',
+        '/gravestone.png',
+        '/dead_tree.png',
+        '/torch.png',
     ];
 
     console.log('预加载3D纹理...');
@@ -333,10 +333,10 @@ function preloadTextures() {
 
         // 尝试每个路径
         const paths = [
-            './images/grass_texture.png',
-            '/images/grass_texture.png',
-            'images/grass_texture.png',
-            window.location.origin + '/images/grass_texture.png',
+            '/grass_texture.png',
+            './grass_texture.png',
+            'grass_texture.png',
+            window.location.origin + '/grass_texture.png',
         ];
 
         paths.forEach((path, index) => {

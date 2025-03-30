@@ -1284,11 +1284,11 @@ export class ThreeHelper {
 
         // 加载背景对象所需的图像 - 修复路径问题
         const imagesToLoad = [
-            { key: 'castleTower', path: '../images/castle_tower.png' },
-            { key: 'brokenPillar', path: '../images/broken_pillar.png' },
-            { key: 'gravestone', path: '../images/gravestone.png' },
-            { key: 'deadTree', path: '../images/dead_tree.png' },
-            { key: 'torch', path: '../images/torch.png' },
+            { key: 'castleTower', path: '/castle_tower.png' },
+            { key: 'brokenPillar', path: '/broken_pillar.png' },
+            { key: 'gravestone', path: '/gravestone.png' },
+            { key: 'deadTree', path: '/dead_tree.png' },
+            { key: 'torch', path: '/torch.png' },
         ];
 
         // 开始加载图像
@@ -1296,12 +1296,12 @@ export class ThreeHelper {
         imagesToLoad.forEach((img) => {
             // 使用不同的备用路径尝试加载
             const tryLoad = (pathIndex = 0) => {
-                // 定义多个可能的路径
+                // 定义多个可能的路径，首先尝试以/开头的路径（适用于生产环境）
                 const possiblePaths = [
-                    img.path,                         // ../images/xxx.png
-                    img.path.replace('../', './'),    // ./images/xxx.png
-                    img.path.replace('../', '/'),     // /images/xxx.png
-                    'images/' + img.path.split('/').pop()  // images/xxx.png
+                    img.path,                         // /xxx.png
+                    '.' + img.path,                   // ./xxx.png
+                    img.path.substring(1),            // xxx.png
+                    window.location.origin + img.path  // 完整URL
                 ];
                 
                 if (pathIndex >= possiblePaths.length) {
