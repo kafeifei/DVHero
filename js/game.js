@@ -28,9 +28,6 @@ export class Game {
         const container = document.getElementById('game-container');
         if (container) {
             container.appendChild(this.canvasUI);
-            // 设置UI Canvas尺寸
-            this.canvasUI.width = 800;
-            this.canvasUI.height = 600;
             this.ctxUI = this.canvasUI.getContext('2d', {
                 willReadFrequently: true,
             });
@@ -541,12 +538,27 @@ export class Game {
     }
 
     init() {
+        console.log('游戏初始化完成');
+        
         // 初始化玩家位置
         this.player.x = 0;
         this.player.y = 0;
-
+        
         // 添加初始武器
         this.player.addWeapon(WeaponsLibrary[0]);
+        
+        // 设置UI Canvas尺寸和上下文
+        if (this.canvasUI) {
+            this.canvasUI.width = this.canvas2d.width;
+            this.canvasUI.height = this.canvas2d.height;
+            this.ctxUI = this.canvasUI.getContext('2d', { willReadFrequently: true });
+            console.log(`初始化UI Canvas: ${this.canvasUI.width}x${this.canvasUI.height}`);
+        }
+        
+        // 显示测试功能提示
+        setTimeout(() => {
+            this.showWarning('按1生成敌人，按2重载纹理', 180);
+        }, 2000);
     }
 
     start() {
