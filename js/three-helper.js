@@ -444,7 +444,11 @@ export class ThreeHelper {
                 this.renderer.dispose();
                 
                 // 清理WebGL上下文关联的资源
-                this.renderer.forceContextLoss();
+                try {
+                    this.renderer.forceContextLoss();
+                } catch (e) {
+                    console.warn('强制丢失WebGL上下文失败，这是正常现象:', e);
+                }
                 
                 // 帮助垃圾回收器清理
                 if (renderDomElement) {
