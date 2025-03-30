@@ -1192,6 +1192,24 @@ export class Game {
 
     createEffect(options) {
         this.effects.push(new Effect(options));
+        
+        // 在3D模式下，使用ThreeHelper创建对应的3D特效
+        if (this.is3D && this.threeHelper) {
+            // 根据效果类型创建不同的3D特效
+            if (options.color === '#80c0ff' || options.color === '#a0d0ff') {
+                // 这是冲刺效果
+                if (options.color === '#80c0ff') {
+                    // 初始冲刺特效
+                    this.threeHelper.createDashEffect(options.x, options.y, options.radius, options.color);
+                } else {
+                    // 冲刺残影
+                    this.threeHelper.createAfterImageEffect(options.x, options.y, options.radius, options.color);
+                }
+            } else if (options.color === '#ff0000') {
+                // 受伤效果
+                // TODO: 可以添加受伤特效的3D实现
+            }
+        }
     }
 
     createAlly(options) {

@@ -557,23 +557,79 @@ export class ThreeHelper {
 
     // 初始化玩家模型
     initPlayerModel() {
-        const geometry = new THREE.SphereGeometry(
+        // 创建玩家主体
+        const bodyGeometry = new THREE.SphereGeometry(
             this.game.player.radius,
             16,
             16
         );
-        const material = new THREE.MeshStandardMaterial({
+        const bodyMaterial = new THREE.MeshStandardMaterial({
             color: this.game.player.color,
             roughness: 0.5,
             metalness: 0.5,
         });
 
-        const playerMesh = new THREE.Mesh(geometry, material);
-        playerMesh.position.set(this.game.player.x, 0, this.game.player.y);
-        playerMesh.castShadow = true;
+        const playerBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        playerBody.castShadow = true;
 
-        this.scene.add(playerMesh);
-        this.objects.set('player', playerMesh);
+        // 创建面朝方向指示器（眼睛）
+        const eyeSize = this.game.player.radius * 0.2;
+        const eyeGeometry = new THREE.SphereGeometry(eyeSize, 8, 8);
+        const eyeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.5,
+        });
+
+        // 右眼（默认朝向右侧）
+        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        const eyeOffset = this.game.player.radius * 0.6;
+        rightEye.position.set(eyeOffset, 0, 0);
+        
+        // 左眼（始终存在，与2D模式不同）
+        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(-eyeOffset, 0, 0);
+
+        // 创建玩家组合对象
+        const playerGroup = new THREE.Group();
+        playerGroup.add(playerBody);
+        playerGroup.add(rightEye);
+        playerGroup.add(leftEye);
+        
+        // 保存对眼睛的引用，以便后续更新
+        playerGroup.userData.rightEye = rightEye;
+        playerGroup.userData.leftEye = leftEye;
+        playerGroup.userData.eyeOffset = eyeOffset;
+        
+        // 设置位置
+        playerGroup.position.set(this.game.player.x, 0, this.game.player.y);
+        
+        this.scene.add(playerGroup);
+        this.objects.set('player', playerGroup);
+        
+        // 创建玩家状态条（血条和冷却条）
+        this.createPlayerStatusBars();
+    }
+
+    // 更新玩家面朝方向
+    updatePlayerDirection() {
+        const player = this.objects.get('player');
+        if (!player) return;
+        
+        const facingDirection = this.game.player.facingDirection;
+        
+        // 根据方向调整眼睛位置
+        const rightEye = player.userData.rightEye;
+        const leftEye = player.userData.leftEye;
+        const offset = player.userData.eyeOffset;
+        
+        if (facingDirection === 'right') {
+            rightEye.position.set(offset, 0, 0);
+            leftEye.position.set(-offset, 0, 0);
+        } else if (facingDirection === 'left') {
+            rightEye.position.set(-offset, 0, 0);
+            leftEye.position.set(offset, 0, 0);
+        }
     }
 
     // 创建敌人模型
@@ -759,6 +815,12 @@ export class ThreeHelper {
         try {
             // 更新场景中的动画对象
             this.animateObjects();
+            
+            // 更新玩家面朝方向
+            this.updatePlayerDirection();
+            
+            // 更新玩家状态条（血条和技能冷却条）
+            this.updatePlayerStatusBars();
 
             // 更新相机位置
             this.updateCamera();
@@ -1138,5 +1200,242 @@ export class ThreeHelper {
                 }
             );
         });
+    }
+
+    // 创建玩家冲刺特效
+    createDashEffect(x, y, radius, color) {
+        // 创建冲刺特效（扁平圆盘）
+        const effectGeometry = new THREE.CylinderGeometry(radius * 1.5, radius * 1.5, 2, 16);
+        const effectMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(color),
+            transparent: true,
+            opacity: 0.6,
+            emissive: new THREE.Color(color),
+            emissiveIntensity: 0.5,
+        });
+
+        const effect = new THREE.Mesh(effectGeometry, effectMaterial);
+        effect.position.set(x, 1, y); // 略高于地面
+        effect.rotation.x = Math.PI / 2; // 使圆盘水平放置
+        
+        // 添加到场景
+        this.scene.add(effect);
+        
+        // 创建动画衰减
+        const duration = 20; // 匹配2D效果的持续时间
+        let frame = 0;
+        
+        const animate = () => {
+            frame++;
+            
+            if (frame < duration) {
+                // 缩放特效
+                const scale = 1 + frame * 0.05;
+                effect.scale.set(scale, 1, scale);
+                
+                // 降低不透明度
+                effect.material.opacity = 0.6 * (1 - frame / duration);
+                
+                requestAnimationFrame(animate);
+            } else {
+                // 动画结束，移除特效
+                this.scene.remove(effect);
+                effect.geometry.dispose();
+                effect.material.dispose();
+            }
+        };
+        
+        animate();
+    }
+    
+    // 创建残影特效
+    createAfterImageEffect(x, y, radius, color) {
+        // 创建残影特效（扁平球体）
+        const effectGeometry = new THREE.SphereGeometry(radius, 16, 8);
+        const effectMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(color),
+            transparent: true,
+            opacity: 0.4,
+            emissive: new THREE.Color(color),
+            emissiveIntensity: 0.3,
+        });
+
+        const effect = new THREE.Mesh(effectGeometry, effectMaterial);
+        effect.position.set(x, 0, y);
+        effect.scale.set(1, 0.2, 1); // 使其扁平
+        
+        // 添加到场景
+        this.scene.add(effect);
+        
+        // 创建动画衰减
+        const duration = 15; // 匹配2D效果的持续时间
+        let frame = 0;
+        
+        const animate = () => {
+            frame++;
+            
+            if (frame < duration) {
+                // 降低不透明度
+                effect.material.opacity = 0.4 * (1 - frame / duration);
+                
+                requestAnimationFrame(animate);
+            } else {
+                // 动画结束，移除特效
+                this.scene.remove(effect);
+                effect.geometry.dispose();
+                effect.material.dispose();
+            }
+        };
+        
+        animate();
+    }
+    
+    // 创建和更新玩家血条和冷却条
+    createPlayerStatusBars() {
+        // 删除已存在的状态条
+        this.objects.forEach((object, key) => {
+            if (key.startsWith('player_health_bar') || key.startsWith('player_dash_bar')) {
+                this.scene.remove(object);
+                this.objects.delete(key);
+            }
+        });
+        
+        // 创建血条容器
+        const healthBarWidth = this.game.player.radius * 2;
+        const healthBarHeight = 2;
+        const healthBarGeometry = new THREE.BoxGeometry(healthBarWidth, healthBarHeight, 1);
+        const healthBarBgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x333333,
+            transparent: true,
+            opacity: 0.7
+        });
+        
+        // 背景血条
+        const healthBarBg = new THREE.Mesh(healthBarGeometry, healthBarBgMaterial);
+        healthBarBg.position.set(0, this.game.player.radius + 15, 0);
+        
+        // 前景血条（实际血量）
+        const healthBarFgGeometry = new THREE.BoxGeometry(healthBarWidth, healthBarHeight, 1.5);
+        const healthBarFgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00
+        });
+        const healthBarFg = new THREE.Mesh(healthBarFgGeometry, healthBarFgMaterial);
+        
+        // 计算血条宽度和位置
+        const healthPercent = this.game.player.health / this.game.player.maxHealth;
+        const healthBarFgWidth = healthBarWidth * healthPercent;
+        const offsetX = (healthBarWidth - healthBarFgWidth) / 2;
+        
+        // 设置前景血条尺寸和位置
+        healthBarFg.scale.x = healthPercent;
+        healthBarFg.position.set(-offsetX, this.game.player.radius + 15, 0);
+        
+        // 创建冲刺冷却条（当有冷却时才显示）
+        if (this.game.player.dashCooldown > 0) {
+            const dashBarWidth = this.game.player.radius * 1.5;
+            const dashBarHeight = 1;
+            
+            // 冷却条背景
+            const dashBarGeometry = new THREE.BoxGeometry(dashBarWidth, dashBarHeight, 1);
+            const dashBarBgMaterial = new THREE.MeshBasicMaterial({
+                color: 0x777777,
+                transparent: true,
+                opacity: 0.7
+            });
+            const dashBarBg = new THREE.Mesh(dashBarGeometry, dashBarBgMaterial);
+            dashBarBg.position.set(0, this.game.player.radius + 8, 0);
+            
+            // 冷却条前景（显示剩余冷却时间）
+            const dashCooldownPercent = 1 - (this.game.player.dashCooldown / this.game.player.maxDashCooldown);
+            const dashBarFgGeometry = new THREE.BoxGeometry(dashBarWidth * dashCooldownPercent, dashBarHeight, 1.5);
+            const dashBarFgMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff
+            });
+            
+            const dashBarFg = new THREE.Mesh(dashBarFgGeometry, dashBarFgMaterial);
+            const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
+            dashBarFg.position.set(-dashOffsetX, this.game.player.radius + 8, 0);
+            
+            // 添加冲刺冷却条到场景
+            const dashBarGroup = new THREE.Group();
+            dashBarGroup.add(dashBarBg);
+            dashBarGroup.add(dashBarFg);
+            
+            // 把冲刺冷却条添加为玩家的子对象，使其跟随玩家移动
+            const player = this.objects.get('player');
+            if (player) {
+                player.add(dashBarGroup);
+                this.objects.set('player_dash_bar', dashBarGroup);
+            }
+        }
+        
+        // 创建血条组
+        const healthBarGroup = new THREE.Group();
+        healthBarGroup.add(healthBarBg);
+        healthBarGroup.add(healthBarFg);
+        
+        // 把血条添加为玩家的子对象，使其跟随玩家移动
+        const player = this.objects.get('player');
+        if (player) {
+            player.add(healthBarGroup);
+            this.objects.set('player_health_bar', healthBarGroup);
+        }
+    }
+    
+    // 更新玩家状态条
+    updatePlayerStatusBars() {
+        const player = this.objects.get('player');
+        if (!player) return;
+        
+        // 更新血条
+        const healthBar = this.objects.get('player_health_bar');
+        if (healthBar) {
+            const healthPercent = this.game.player.health / this.game.player.maxHealth;
+            const healthBarFg = healthBar.children[1]; // 前景血条是第二个子对象
+            
+            // 更新血条宽度
+            healthBarFg.scale.x = healthPercent;
+            
+            // 根据血量改变颜色
+            if (healthPercent > 0.5) {
+                healthBarFg.material.color.setHex(0x00ff00); // 绿色
+            } else if (healthPercent > 0.25) {
+                healthBarFg.material.color.setHex(0xffff00); // 黄色
+            } else {
+                healthBarFg.material.color.setHex(0xff0000); // 红色
+            }
+            
+            // 调整位置，以便血条从左向右减少
+            const healthBarWidth = this.game.player.radius * 2;
+            const offsetX = (healthBarWidth - (healthBarWidth * healthPercent)) / 2;
+            healthBarFg.position.x = -offsetX;
+        } else {
+            // 如果血条不存在，创建新的
+            this.createPlayerStatusBars();
+        }
+        
+        // 更新冲刺冷却条
+        const dashBar = this.objects.get('player_dash_bar');
+        if (this.game.player.dashCooldown > 0) {
+            if (dashBar) {
+                const dashCooldownPercent = 1 - (this.game.player.dashCooldown / this.game.player.maxDashCooldown);
+                const dashBarFg = dashBar.children[1]; // 前景是第二个子对象
+                
+                // 更新冷却条宽度
+                dashBarFg.scale.x = dashCooldownPercent;
+                
+                // 调整位置
+                const dashBarWidth = this.game.player.radius * 1.5;
+                const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
+                dashBarFg.position.x = -dashOffsetX;
+            } else {
+                // 如果冲刺冷却条不存在但应该显示，创建它
+                this.createPlayerStatusBars();
+            }
+        } else if (dashBar) {
+            // 如果冷却结束但条仍存在，移除它
+            player.remove(dashBar);
+            this.objects.delete('player_dash_bar');
+        }
     }
 }
