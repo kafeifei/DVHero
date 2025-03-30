@@ -15,6 +15,166 @@ body {
     color: #fff;
 }
 
+/* 启动界面和菜单样式 */
+#start-screen {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    background-image: radial-gradient(circle at center, #2a0a0a 0%, #000000 100%);
+    top: 0;
+    left: 0;
+}
+
+#start-screen.active {
+    display: flex !important;
+}
+
+#start-screen.hidden {
+    display: none !important;
+}
+
+.logo-container {
+    width: 80%;
+    max-width: 500px;
+    margin-bottom: 40px;
+    animation: pulse 2s infinite ease-in-out;
+    text-align: center;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+#game-logo {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.5));
+    display: block;
+    margin: 0 auto;
+}
+
+.menu-container {
+    background-color: rgba(40, 0, 0, 0.7);
+    padding: 30px;
+    border-radius: 10px;
+    border: 2px solid #6d1a1a;
+    text-align: center;
+    width: 80%;
+    max-width: 400px;
+    box-shadow: 0 0 20px rgba(109, 26, 26, 0.5);
+}
+
+.menu-container h1 {
+    font-size: 28px;
+    margin-bottom: 30px;
+    color: #fff;
+    text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+}
+
+.menu-container h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #fff;
+    text-shadow: 0 0 10px #ff0000;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.menu-button {
+    background-color: #6d1a1a;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.menu-button:hover {
+    background-color: #9e2626;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(158, 38, 38, 0.4);
+}
+
+.menu-button:active {
+    transform: translateY(1px);
+}
+
+.game-version {
+    font-size: 12px;
+    color: #999;
+    margin-top: 20px;
+}
+
+/* 选项菜单样式 */
+#options-menu, #help-menu {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 101;
+}
+
+.option-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+.option-row label {
+    flex: 1;
+    text-align: left;
+}
+
+.option-row input[type="range"], 
+.option-row select {
+    flex: 2;
+    margin-left: 10px;
+    background-color: #333;
+    color: white;
+    border: 1px solid #6d1a1a;
+    padding: 5px;
+    border-radius: 3px;
+}
+
+/* 帮助菜单样式 */
+.help-content {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.help-content p {
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+/* 游戏容器样式 */
 #game-container {
     position: relative;
     width: 800px;
@@ -22,6 +182,14 @@ body {
     border: 2px solid #444;
     overflow: hidden;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+#game-container.hidden {
+    display: none;
+}
+
+#game-container.active {
+    display: block;
 }
 
 #game-canvas,
@@ -160,6 +328,14 @@ body {
         height: 100vh;
         border: none;
     }
+    
+    .logo-container {
+        width: 90%;
+    }
+    
+    .menu-container {
+        width: 90%;
+    }
 }
 
 /* 游戏提示 */
@@ -190,4 +366,46 @@ body {
     height: 100%;
     z-index: 20; /* 确保UI层比游戏Canvas更高 */
     pointer-events: none; /* 允许点击事件穿透到下层Canvas */
+}
+
+/* 加载动画 */
+.loading-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 150;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(255, 0, 0, 0.3);
+    border-radius: 50%;
+    border-top-color: #ff0000;
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 18px;
+    color: #fff;
+    text-shadow: 0 0 10px #ff0000;
+}
+
+/* 确保其他菜单正确隐藏 */
+#help-menu.hidden,
+#options-menu.hidden,
+#game-container.hidden {
+    display: none !important;
 }

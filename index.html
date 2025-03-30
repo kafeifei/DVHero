@@ -5,6 +5,30 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>恶魔村英雄 3D</title>
         <link rel="stylesheet" href="/css/style.css" />
+        <!-- 添加调试脚本 -->
+        <script>
+            window.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    console.log('==== 调试信息 ====');
+                    console.log('start-screen:', document.getElementById('start-screen'));
+                    console.log('start-screen类名:', document.getElementById('start-screen').className);
+                    console.log('help-menu:', document.getElementById('help-menu'));
+                    console.log('help-menu类名:', document.getElementById('help-menu').className);
+                    console.log('options-menu:', document.getElementById('options-menu'));
+                    console.log('options-menu类名:', document.getElementById('options-menu').className);
+                    console.log('game-container:', document.getElementById('game-container'));
+                    console.log('game-container类名:', document.getElementById('game-container').className);
+                    console.log('game-logo:', document.getElementById('game-logo'));
+                    console.log('game-logo src:', document.getElementById('game-logo').src);
+                    console.log('按钮状态:');
+                    console.log('start-game-btn:', document.getElementById('start-game-btn'));
+                    console.log('options-btn:', document.getElementById('options-btn'));
+                    console.log('help-btn:', document.getElementById('help-btn'));
+                    console.log('back-to-menu:', document.getElementById('back-to-menu'));
+                    console.log('back-from-help:', document.getElementById('back-from-help'));
+                }, 1000);
+            });
+        </script>
     </head>
     <body>
         <a
@@ -19,7 +43,62 @@
             <span>GitHub</span>
         </a>
 
-        <div id="game-container">
+        <!-- 启动界面和游戏菜单 -->
+        <div id="start-screen" class="active">
+            <div class="logo-container">
+                <img src="images/logo.png" alt="恶魔村英雄" id="game-logo">
+            </div>
+            <div class="menu-container">
+                <h1>恶魔村英雄 3D</h1>
+                <div class="menu-buttons">
+                    <button id="start-game-btn" class="menu-button">开始游戏</button>
+                    <button id="options-btn" class="menu-button">选项</button>
+                    <button id="help-btn" class="menu-button">帮助</button>
+                </div>
+                <div class="game-version">版本 1.0.0</div>
+            </div>
+        </div>
+
+        <!-- 选项菜单 -->
+        <div id="options-menu" class="hidden">
+            <div class="menu-container">
+                <h2>游戏选项</h2>
+                <div class="option-row">
+                    <label for="music-volume">音乐音量</label>
+                    <input type="range" id="music-volume" min="0" max="100" value="50">
+                </div>
+                <div class="option-row">
+                    <label for="sfx-volume">音效音量</label>
+                    <input type="range" id="sfx-volume" min="0" max="100" value="80">
+                </div>
+                <div class="option-row">
+                    <label for="difficulty">难度</label>
+                    <select id="difficulty">
+                        <option value="easy">简单</option>
+                        <option value="normal" selected>普通</option>
+                        <option value="hard">困难</option>
+                    </select>
+                </div>
+                <button id="back-to-menu" class="menu-button">返回</button>
+            </div>
+        </div>
+
+        <!-- 帮助菜单 -->
+        <div id="help-menu" class="hidden">
+            <div class="menu-container">
+                <h2>游戏帮助</h2>
+                <div class="help-content">
+                    <p>WASD或方向键：移动角色</p>
+                    <p>空格键：冲刺/闪避</p>
+                    <p>P键：暂停游戏</p>
+                    <p>G键：切换3D/2D模式</p>
+                    <p>鼠标左键：拖动移动</p>
+                </div>
+                <button id="back-from-help" class="menu-button">返回</button>
+            </div>
+        </div>
+
+        <div id="game-container" class="hidden">
             <div id="mode-indicator">2D模式 (3D功能加载中...)</div>
             <canvas id="game-canvas" class="active"></canvas>
             <canvas id="game-canvas-3d" class="inactive"></canvas>
