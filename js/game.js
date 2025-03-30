@@ -4,6 +4,15 @@ import { WeaponsLibrary } from './weapons.js'; // Import WeaponsLibrary
 import { ExperienceOrb, Projectile, Particle, Effect } from './projectile.js'; // Import needed classes
 import { ThreeHelper } from './three-helper.js'; // Import ThreeHelper
 import { Utils } from './utils.js'; // Import Utils
+// Import image generation functions instead of image URLs
+import {
+    generateGrassTexture,
+    generateCastleTowerTexture,
+    generateBrokenPillarTexture,
+    generateGravestoneTexture,
+    generateDeadTreeTexture,
+    generateTorchTexture,
+} from './imageGenerator.js';
 
 export class Game {
     constructor() {
@@ -53,9 +62,18 @@ export class Game {
         this.fpsInterval = 1000 / this.fps;
         this.lastFrameTime = 0;
 
-        // 游戏资源
+        // 游戏资源 - Dynamically generate images
         this.images = {};
-        this.loadImages();
+        console.log('开始生成图片...');
+        this.images.grassTexture = generateGrassTexture();
+        this.images.castleTower = generateCastleTowerTexture();
+        this.images.brokenPillar = generateBrokenPillarTexture();
+        this.images.gravestone = generateGravestoneTexture();
+        this.images.deadTree = generateDeadTreeTexture();
+        this.images.torch = generateTorchTexture();
+        console.log('所有图片生成完毕。');
+        // Images are now generated synchronously, so they are ready immediately
+        this.imagesReady = true; 
 
         // 恶魔城背景元素
         this.backgroundObjects = [];
@@ -785,41 +803,52 @@ export class Game {
 
     drawBackground(cameraOffsetX, cameraOffsetY) {
         // 绘制草地纹理背景
-        if (this.images.grassTexture && this.images.grassTexture.complete) {
+        if (this.images.grassTexture) {
             const patternSize = 128;
             // const startX =
             //     Math.floor(this.player.x / patternSize) * patternSize;
             // const startY =
             //     Math.floor(this.player.y / patternSize) * patternSize;
 
-            // 创建草地纹理模式
-            const pattern = this.ctx.createPattern(
-                this.images.grassTexture,
-                'repeat'
-            );
-            this.ctx.fillStyle = pattern;
+            try {
+                // 创建草地纹理模式
+                const pattern = this.ctx.createPattern(
+                    this.images.grassTexture,
+                    'repeat'
+                );
+                this.ctx.fillStyle = pattern;
 
-            // 绘制足够覆盖整个画布的草地纹理
-            this.ctx.save();
-            this.ctx.translate(
-                cameraOffsetX % patternSize,
-                cameraOffsetY % patternSize
-            );
-            this.ctx.fillRect(
-                -patternSize,
-                -patternSize,
-                this.canvas2d.width + 2 * patternSize,
-                this.canvas2d.height + 2 * patternSize
-            );
-            this.ctx.restore();
+                // 尝试禁用图像平滑，可能改善拼接处的模糊问题
+                this.ctx.imageSmoothingEnabled = false;
 
-            // 添加暗色叠加，创造恶魔城般的阴暗氛围
-            this.ctx.fillStyle = 'rgba(20, 20, 40, 0.3)';
-            this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+                // 绘制足够覆盖整个画布的草地纹理
+                this.ctx.save();
+                this.ctx.translate(
+                    cameraOffsetX % patternSize,
+                    cameraOffsetY % patternSize
+                );
+                this.ctx.fillRect(
+                    -patternSize,
+                    -patternSize,
+                    this.canvas2d.width + 2 * patternSize,
+                    this.canvas2d.height + 2 * patternSize
+                );
+                this.ctx.restore();
+                
+                // 恢复图像平滑设置 (如果其他地方需要的话)
+                this.ctx.imageSmoothingEnabled = true; 
+
+                // 添加暗色叠加，创造恶魔城般的阴暗氛围
+                this.ctx.fillStyle = 'rgba(20, 20, 40, 0.3)';
+                this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+            } catch (e) {
+                console.error('创建或绘制草地纹理模式时出错:', e);
+                // Fallback if createPattern fails even with loaded image
+                this.drawFallbackBackground();
+            }
         } else {
             // 后备方案：绘制简单的颜色背景
-            this.ctx.fillStyle = '#1a5c1a'; // 深绿色草地
-            this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+            this.drawFallbackBackground();
         }
 
         // 绘制背景网格（淡化）
@@ -852,6 +881,11 @@ export class Game {
         this.drawBackgroundObjects(cameraOffsetX, cameraOffsetY);
     }
 
+    drawFallbackBackground() {
+        this.ctx.fillStyle = '#1a5c1a'; // 深绿色草地
+        this.ctx.fillRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+    }
+
     drawBackgroundObjects(cameraOffsetX, cameraOffsetY) {
         // 根据层级排序背景对象
         const sortedObjects = [...this.backgroundObjects].sort(
@@ -879,7 +913,7 @@ export class Game {
 
                     // 获取图像
                     const image = this.images.torch;
-                    if (image && image.complete) {
+                    if (image) {
                         // 计算缩放后的尺寸
                         const scale = obj.scale || 0.3;
                         const width = image.width * scale;
@@ -930,11 +964,7 @@ export class Game {
                     }
                 }
                 // 其他背景对象的渲染
-                else if (
-                    obj.image &&
-                    this.images[obj.image] &&
-                    this.images[obj.image].complete
-                ) {
+                else if (obj.image && this.images[obj.image]) {
                     const img = this.images[obj.image];
                     const width = obj.width || img.width;
                     const height = obj.height || img.height;
@@ -953,11 +983,7 @@ export class Game {
                     );
 
                     this.ctx.restore();
-                } else if (
-                    obj.type &&
-                    this.images[obj.type] &&
-                    this.images[obj.type].complete
-                ) {
+                } else if (obj.type && this.images[obj.type]) {
                     const img = this.images[obj.type];
                     const scale = obj.scale || 1;
                     const width = (obj.width || img.width) * scale;
@@ -1290,51 +1316,6 @@ export class Game {
         if (!this.isRunning) {
             this.start();
         }
-    }
-
-    // 加载游戏图像资源
-    loadImages() {
-        this.imagesLoaded = 0;
-        this.imagesTotal = 6;
-
-        const onLoad = () => {
-            this.imagesLoaded++;
-            console.log(
-                `图像加载进度: ${this.imagesLoaded}/${this.imagesTotal}`
-            );
-
-            // 当所有图像加载完成时
-            if (this.imagesLoaded === this.imagesTotal) {
-                console.log('所有图像加载完成');
-                this.imagesReady = true;
-            }
-        };
-
-        // 背景图像
-        this.images.grassTexture = new Image();
-        this.images.grassTexture.onload = onLoad;
-        this.images.grassTexture.src = 'images/grass_texture.png';
-
-        // 恶魔城元素
-        this.images.castleTower = new Image();
-        this.images.castleTower.onload = onLoad;
-        this.images.castleTower.src = 'images/castle_tower.png';
-
-        this.images.brokenPillar = new Image();
-        this.images.brokenPillar.onload = onLoad;
-        this.images.brokenPillar.src = 'images/broken_pillar.png';
-
-        this.images.gravestone = new Image();
-        this.images.gravestone.onload = onLoad;
-        this.images.gravestone.src = 'images/gravestone.png';
-
-        this.images.deadTree = new Image();
-        this.images.deadTree.onload = onLoad;
-        this.images.deadTree.src = 'images/dead_tree.png';
-
-        this.images.torch = new Image();
-        this.images.torch.onload = onLoad;
-        this.images.torch.src = 'images/torch.png';
     }
 
     // 生成恶魔城风格的背景元素
