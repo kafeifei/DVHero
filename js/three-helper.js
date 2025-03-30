@@ -2337,18 +2337,19 @@ export class ThreeHelper {
         
         // 创建边界材质 - 半透明红色
         const material = new THREE.LineBasicMaterial({
-            color: 0xff6464, // 与2D模式类似的红色
+            color: 0xff0000, // 更鲜艳的红色
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.7,
         });
         
         // 创建虚线材质
         const dashMaterial = new THREE.LineDashedMaterial({
-            color: 0xff6464,
+            color: 0xff0000, // 更鲜艳的红色
             dashSize: 10,
             gapSize: 10,
             transparent: true,
-            opacity: 0.3
+            opacity: 0.7, // 增加不透明度
+            linewidth: 3 // 增加线宽
         });
         
         // 创建边界几何体 - 一个矩形
