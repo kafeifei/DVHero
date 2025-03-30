@@ -247,12 +247,15 @@ export class Player {
     levelUp() {
         this.level++;
         this.experience -= this.experienceToNextLevel;
+        
+        // 经验需求增长更快，从1.2倍变为2.0倍
         this.experienceToNextLevel = Math.floor(
-            this.experienceToNextLevel * 1.2
+            this.experienceToNextLevel * 2.0
         );
 
-        // 升级时回满血
-        this.health = this.maxHealth;
+        // 升级时只恢复1/4的血量
+        const healAmount = this.maxHealth / 4;
+        this.health = Math.min(this.maxHealth, this.health + healAmount);
 
         // 显示武器选择界面
         this.game.showWeaponSelection();

@@ -72,8 +72,8 @@ export class ThreeHelper {
     createSimpleGround() {
         console.log('创建简化版地面');
 
-        // 创建几何体 - 大尺寸以确保覆盖视野
-        const groundGeometry = new THREE.PlaneGeometry(3000, 3000);
+        // 创建几何体 - 大尺寸以确保覆盖视野，增大3倍以匹配放大的背景对象
+        const groundGeometry = new THREE.PlaneGeometry(9000, 9000);
 
         // 使用程序化生成的草地纹理代替加载图片
         const grassCanvas = generateGrassTexture(); // Get the canvas element
@@ -83,9 +83,9 @@ export class ThreeHelper {
         grassTexture.wrapS = THREE.RepeatWrapping;
         grassTexture.wrapT = THREE.RepeatWrapping;
 
-        // 设置重复次数 (Approx 66x66 for a 128px texture on 2000 units, roughly 30 units per texture)
-        const repeatX = 2000 / 30; 
-        const repeatY = 2000 / 30;
+        // 设置重复次数，增加3倍以保持相同的纹理密度
+        const repeatX = 2000 / 30 * 3; 
+        const repeatY = 2000 / 30 * 3;
         grassTexture.repeat.set(repeatX, repeatY);
 
         // 纹理过滤 - 使用NearestFilter避免边缘模糊
@@ -108,7 +108,7 @@ export class ThreeHelper {
         this.objects.set('ground', ground);
 
         // 添加暗色叠加，匹配2D模式中的 rgba(20, 20, 40, 0.3)
-        const overlayGeometry = new THREE.PlaneGeometry(3000, 3000);
+        const overlayGeometry = new THREE.PlaneGeometry(9000, 9000);
         const overlayMaterial = new THREE.MeshBasicMaterial({
             color: 0x14142a, // RGB(20, 20, 40)
             transparent: true,
@@ -401,6 +401,118 @@ export class ThreeHelper {
                         metalness: 0.2,
                     });
                     mesh = new THREE.Mesh(geometry, material);
+                } else if (obj.type === 'brokenPillar') {
+                    // 创建断裂的柱子（上窄下宽的圆柱体）
+                    const baseHeight = height * 0.7;  // 主体高度
+                    const topHeight = height * 0.3;   // 断裂部分高度
+                    
+                    // 柱子主体 - 底部更宽
+                    const baseGeo = new THREE.CylinderGeometry(
+                        8,        // 顶部半径
+                        12,       // 底部半径
+                        baseHeight,
+                        8,        // 分段数
+                        1,
+                        false,
+                        0, 
+                        Math.PI * 2
+                    );
+                    
+                    // 断裂部分 - 不规则形状
+                    const topGeo = new THREE.CylinderGeometry(
+                        5,        // 顶部半径
+                        8,        // 底部半径 (与柱子主体顶部匹配)
+                        topHeight,
+                        8,        // 分段数
+                        1,
+                        false,
+                        0,
+                        Math.PI * 1.7  // 不是完整的圆柱体，表示断裂
+                    );
+                    
+                    const material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        roughness: 0.9,
+                        metalness: 0.1,
+                        color: 0xcccccc  // 灰白色石柱
+                    });
+                    
+                    // 创建两部分网格
+                    const baseMesh = new THREE.Mesh(baseGeo, material);
+                    const topMesh = new THREE.Mesh(topGeo, material);
+                    
+                    // 定位断裂部分在主体顶部
+                    topMesh.position.y = baseHeight / 2 + topHeight / 2;
+                    
+                    // 稍微旋转上部，增加破损感
+                    topMesh.rotation.y = Math.PI / 6;
+                    
+                    // 添加到组
+                    mesh = new THREE.Group();
+                    mesh.add(baseMesh);
+                    mesh.add(topMesh);
+                    
+                    // 为整个柱子偏移中心点，使其站立
+                    mesh.position.y = -baseHeight / 2;
+                } else if (obj.type === 'gravestone') {
+                    // 创建墓碑形状（底部圆柱加上部石碑）
+                    
+                    // 底座 - 圆柱形
+                    const baseGeo = new THREE.CylinderGeometry(
+                        8,       // 顶部半径
+                        10,      // 底部半径
+                        height * 0.2,  // 高度
+                        8        // 分段数
+                    );
+                    
+                    // 石碑主体 - 长方体
+                    const stoneGeo = new THREE.BoxGeometry(
+                        16,              // 宽度
+                        height * 0.7,    // 高度
+                        4                // 厚度
+                    );
+                    
+                    // 石碑顶部 - 半圆形
+                    const topGeo = new THREE.CylinderGeometry(
+                        8,               // 半径
+                        8,               
+                        4,               // 高度
+                        16,              // 分段数
+                        1,
+                        false,
+                        0,
+                        Math.PI          // 半圆
+                    );
+                    
+                    const material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        roughness: 0.8,
+                        metalness: 0.2,
+                        color: 0xaaaaaa  // 灰色石头
+                    });
+                    
+                    // 创建部件网格
+                    const baseMesh = new THREE.Mesh(baseGeo, material);
+                    const stoneMesh = new THREE.Mesh(stoneGeo, material);
+                    const topMesh = new THREE.Mesh(topGeo, material);
+                    
+                    // 定位各部分
+                    baseMesh.position.y = -height * 0.3; // 底座在底部
+                    stoneMesh.position.y = height * 0.15; // 主体居中
+                    topMesh.position.y = height * 0.5;   // 顶部
+                    topMesh.rotation.x = Math.PI / 2;    // 旋转半圆使其面向上方
+                    
+                    // 随机稍微倾斜整个墓碑
+                    const tiltAngle = (Math.random() - 0.5) * 0.15;
+                    
+                    // 组合为一个组
+                    mesh = new THREE.Group();
+                    mesh.add(baseMesh);
+                    mesh.add(stoneMesh);
+                    mesh.add(topMesh);
+                    
+                    // 应用随机倾斜
+                    mesh.rotation.z = tiltAngle;
                 } else if (obj.type === 'deadTree') {
                     // 使用高细长的圆柱体和球体组合作为树
                     const trunkGeo = new THREE.CylinderGeometry(
@@ -515,7 +627,7 @@ export class ThreeHelper {
                 }
 
                 // 设置位置和大小
-                const scale = obj.scale || 1;
+                const scale = (obj.scale || 1) * 3; // 将背景物体尺寸放大3倍
 
                 // 如果是组合对象，直接设置位置
                 if (mesh instanceof THREE.Group) {
@@ -532,7 +644,7 @@ export class ThreeHelper {
 
                 // 为火把添加点光源
                 if (obj.type === 'torch') {
-                    const pointLight = new THREE.PointLight(0xff7700, 3, 150); // 增强光照强度和范围
+                    const pointLight = new THREE.PointLight(0xff7700, 3, 150 * 3); // 光照范围也放大3倍
                     pointLight.position.set(obj.x, height * scale * 0.6, obj.y); // 调整光源高度位于火焰位置
                     this.scene.add(pointLight);
                     this.objects.set(`torch_light_${index}`, pointLight);
@@ -1057,18 +1169,19 @@ export class ThreeHelper {
         const textureHeight = texture.image.height;
         console.log(`纹理尺寸: ${textureWidth}x${textureHeight}`);
 
-        // 地面尺寸为2000x2000
+        // 地面尺寸为2000x2000，但3D模式下放大了3倍，为6000x6000
         // 对于128x128像素的草地纹理
         if (isGrass) {
             // 对于grass_texture.png (128x128)，1个纹理单元在现实世界中应该大概为1-2米
             // 在游戏中，假设角色直径约为30单位，约1.5米
             // 因此1米约等于20游戏单位
             // 所以一个草地纹理的理想尺寸应为20-40游戏单位
+            // 3D模式下物体放大了3倍，所以纹理密度保持不变需要更多的重复次数
 
-            // 地面尺寸为2000，希望每个纹理单元在30-40单位左右
-            // 重复次数应为: 2000 / 30 ≈ 66次
-            const repeatX = 66;
-            const repeatY = 66;
+            // 地面尺寸为6000，希望每个纹理单元在30-40单位左右
+            // 重复次数应为: 6000 / 30 ≈ 200次
+            const repeatX = 200; // 放大3倍后的重复次数
+            const repeatY = 200;
 
             console.log(`草地纹理使用固定重复次数: ${repeatX}x${repeatY}`);
             return { x: repeatX, y: repeatY };
@@ -1076,8 +1189,9 @@ export class ThreeHelper {
 
         // 对于其他纹理，使用动态计算
         // 地面尺寸/纹理尺寸*0.5=纹理应该重复的次数
-        const repeatX = (2000 / textureWidth) * 0.5;
-        const repeatY = (2000 / textureHeight) * 0.5;
+        // 3D模式下物体放大了3倍，地面尺寸变为6000
+        const repeatX = (6000 / textureWidth) * 0.5;
+        const repeatY = (6000 / textureHeight) * 0.5;
 
         console.log(
             `计算得到的重复次数: ${repeatX.toFixed(2)}x${repeatY.toFixed(2)}`
@@ -1104,14 +1218,18 @@ export class ThreeHelper {
             }
         });
 
-        // 创建新的地面几何体
-        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        // 创建新的地面几何体，放大3倍
+        const groundGeometry = new THREE.PlaneGeometry(6000, 6000);
 
         // 计算基于纹理实际尺寸的合适重复次数
-        const { x: repeatX, y: repeatY } = this.calculateTextureRepeat(
+        const { x: baseRepeatX, y: baseRepeatY } = this.calculateTextureRepeat(
             this.successTexture,
             true
         );
+        
+        // 放大3倍的重复次数
+        const repeatX = baseRepeatX * 3;
+        const repeatY = baseRepeatY * 3;
 
         // 配置纹理
         this.successTexture.wrapS = THREE.RepeatWrapping;
@@ -1300,6 +1418,9 @@ export class ThreeHelper {
             }
         });
         
+        const player = this.objects.get('player');
+        if (!player) return;
+        
         // 创建血条容器
         const healthBarWidth = this.game.player.radius * 2;
         const healthBarHeight = 2;
@@ -1330,56 +1451,59 @@ export class ThreeHelper {
         healthBarFg.scale.x = healthPercent;
         healthBarFg.position.set(-offsetX, this.game.player.radius + 15, 0);
         
-        // 创建冲刺冷却条（当有冷却时才显示）
-        if (this.game.player.dashCooldown > 0) {
-            const dashBarWidth = this.game.player.radius * 1.5;
-            const dashBarHeight = 1;
-            
-            // 冷却条背景
-            const dashBarGeometry = new THREE.BoxGeometry(dashBarWidth, dashBarHeight, 1);
-            const dashBarBgMaterial = new THREE.MeshBasicMaterial({
-                color: 0x777777,
-                transparent: true,
-                opacity: 0.7
-            });
-            const dashBarBg = new THREE.Mesh(dashBarGeometry, dashBarBgMaterial);
-            dashBarBg.position.set(0, this.game.player.radius + 8, 0);
-            
-            // 冷却条前景（显示剩余冷却时间）
-            const dashCooldownPercent = 1 - (this.game.player.dashCooldown / this.game.player.maxDashCooldown);
-            const dashBarFgGeometry = new THREE.BoxGeometry(dashBarWidth * dashCooldownPercent, dashBarHeight, 1.5);
-            const dashBarFgMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff
-            });
-            
-            const dashBarFg = new THREE.Mesh(dashBarFgGeometry, dashBarFgMaterial);
-            const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
-            dashBarFg.position.set(-dashOffsetX, this.game.player.radius + 8, 0);
-            
-            // 添加冲刺冷却条到场景
-            const dashBarGroup = new THREE.Group();
-            dashBarGroup.add(dashBarBg);
-            dashBarGroup.add(dashBarFg);
-            
-            // 把冲刺冷却条添加为玩家的子对象，使其跟随玩家移动
-            const player = this.objects.get('player');
-            if (player) {
-                player.add(dashBarGroup);
-                this.objects.set('player_dash_bar', dashBarGroup);
-            }
-        }
-        
         // 创建血条组
         const healthBarGroup = new THREE.Group();
         healthBarGroup.add(healthBarBg);
         healthBarGroup.add(healthBarFg);
         
         // 把血条添加为玩家的子对象，使其跟随玩家移动
-        const player = this.objects.get('player');
-        if (player) {
-            player.add(healthBarGroup);
-            this.objects.set('player_health_bar', healthBarGroup);
+        player.add(healthBarGroup);
+        this.objects.set('player_health_bar', healthBarGroup);
+        
+        // 创建冲刺冷却条
+        // 无论是否处于冷却状态都创建冷却条对象
+        // 如果当前没有冷却，则显示满格
+        const dashBarWidth = this.game.player.radius * 1.5;
+        const dashBarHeight = 1;
+        
+        // 冷却条背景
+        const dashBarGeometry = new THREE.BoxGeometry(dashBarWidth, dashBarHeight, 1);
+        const dashBarBgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x777777,
+            transparent: true,
+            opacity: 0.7
+        });
+        const dashBarBg = new THREE.Mesh(dashBarGeometry, dashBarBgMaterial);
+        dashBarBg.position.set(0, this.game.player.radius + 8, 0);
+        
+        // 计算冷却比例
+        const dashCooldownPercent = this.game.player.dashCooldown > 0 
+            ? 1 - (this.game.player.dashCooldown / this.game.player.maxDashCooldown)
+            : 1.0; // 无冷却时显示满格
+        
+        // 冷却条前景
+        const dashBarFgGeometry = new THREE.BoxGeometry(dashBarWidth * dashCooldownPercent, dashBarHeight, 1.5);
+        const dashBarFgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff
+        });
+        
+        const dashBarFg = new THREE.Mesh(dashBarFgGeometry, dashBarFgMaterial);
+        const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
+        dashBarFg.position.set(-dashOffsetX, this.game.player.radius + 8, 0);
+        
+        // 添加冲刺冷却条到场景
+        const dashBarGroup = new THREE.Group();
+        dashBarGroup.add(dashBarBg);
+        dashBarGroup.add(dashBarFg);
+        
+        // 让冷却条只在冷却时可见
+        if (this.game.player.dashCooldown <= 0) {
+            dashBarGroup.visible = false;
         }
+        
+        // 把冲刺冷却条添加为玩家的子对象，使其跟随玩家移动
+        player.add(dashBarGroup);
+        this.objects.set('player_dash_bar', dashBarGroup);
     }
     
     // 更新玩家状态条
@@ -1412,12 +1536,18 @@ export class ThreeHelper {
         } else {
             // 如果血条不存在，创建新的
             this.createPlayerStatusBars();
+            return; // 已经创建了所有状态条，不需要继续执行
         }
         
         // 更新冲刺冷却条
         const dashBar = this.objects.get('player_dash_bar');
-        if (this.game.player.dashCooldown > 0) {
-            if (dashBar) {
+        if (dashBar) {
+            // 冷却结束但条仍存在，隐藏它
+            if (this.game.player.dashCooldown <= 0) {
+                dashBar.visible = false;
+            } else {
+                // 有冷却时显示并更新
+                dashBar.visible = true;
                 const dashCooldownPercent = 1 - (this.game.player.dashCooldown / this.game.player.maxDashCooldown);
                 const dashBarFg = dashBar.children[1]; // 前景是第二个子对象
                 
@@ -1428,14 +1558,10 @@ export class ThreeHelper {
                 const dashBarWidth = this.game.player.radius * 1.5;
                 const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
                 dashBarFg.position.x = -dashOffsetX;
-            } else {
-                // 如果冲刺冷却条不存在但应该显示，创建它
-                this.createPlayerStatusBars();
             }
-        } else if (dashBar) {
-            // 如果冷却结束但条仍存在，移除它
-            player.remove(dashBar);
-            this.objects.delete('player_dash_bar');
+        } else {
+            // 如果冲刺冷却条不存在，创建所有状态条
+            this.createPlayerStatusBars();
         }
     }
 }
