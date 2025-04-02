@@ -22,19 +22,17 @@ export class ThreeHelper {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x222222); // 设置更亮的场景背景色
 
-        // 使用正交相机，更适合于俯视角游戏
+        // 使用透视相机，提供更真实的3D视角和透视效果
         // 计算视口参数
         this.viewSize = Math.max(this.canvas3d.height, 600); // 基于画布高度，但不小于600
         const aspectRatio = this.canvas3d.width / this.canvas3d.height;
         
-        // 使用OrthographicCamera创建相机
-        this.camera = new THREE.OrthographicCamera(
-            (-this.viewSize * aspectRatio) / 2,
-            (this.viewSize * aspectRatio) / 2,
-            this.viewSize / 2,
-            -this.viewSize / 2,
-            1,
-            2000 // 远裁剪面的距离
+        // 使用PerspectiveCamera创建相机
+        this.camera = new THREE.PerspectiveCamera(
+            45, // 视场角(FOV)，单位为度
+            aspectRatio, // 画布宽高比
+            10, // 近裁剪面
+            2000 // 远裁剪面
         );
 
         // 将相机位置设置为略微向前倾斜的视角，但调整角度使游戏更易看清
@@ -826,12 +824,38 @@ export class ThreeHelper {
                 // 设置位置和大小
                 const scale = (obj.scale || 1) * 3; // 将背景物体尺寸放大3倍
 
+                // 为对象添加随机变化以增强透视效果
+                let randomScale = 1.0;
+                let randomRotationY = 0;
+                
+                // 使用基于位置的伪随机数，确保每次加载时相同对象具有相同随机值
+                const pseudoRandom = Math.abs(Math.sin(obj.x * 0.1 + obj.y * 0.2));
+                
+                // 对树木添加更多的随机变化
+                if (obj.type === 'deadTree') {
+                    // 树木高度变化范围为原高度的80%-120%
+                    randomScale = 0.8 + pseudoRandom * 0.4;
+                    // 树木随机旋转
+                    randomRotationY = pseudoRandom * Math.PI * 2;
+                } 
+                // 对墓碑添加轻微随机旋转
+                else if (obj.type === 'gravestone') {
+                    randomRotationY = (pseudoRandom - 0.5) * 0.5; // 小角度随机倾斜
+                }
+                // 对断柱添加随机缩放
+                else if (obj.type === 'brokenPillar') {
+                    randomScale = 0.9 + pseudoRandom * 0.2;
+                }
+
                 // 如果是组合对象，直接设置位置
                 if (mesh instanceof THREE.Group) {
                     mesh.position.set(obj.x, 0, obj.y);
-                    mesh.scale.set(scale, scale, scale);
+                    mesh.scale.set(scale * randomScale, scale * randomScale, scale * randomScale);
+                    mesh.rotation.y = randomRotationY;
                 } else {
-                    mesh.position.set(obj.x, (height * scale) / 2, obj.y);
+                    mesh.position.set(obj.x, (height * scale * randomScale) / 2, obj.y);
+                    mesh.rotation.y = randomRotationY;
+                    mesh.scale.set(randomScale, randomScale, randomScale);
                 }
 
                 // 添加到场景
@@ -1049,16 +1073,17 @@ export class ThreeHelper {
             return;
         }
 
-        // 跟随玩家，保持从上方略微向前的视角
+        // 获取玩家位置
         const targetX = player.position.x;
         const targetZ = player.position.z;
         
-        // 仅保持相对z方向的偏移，x方向与玩家一致
+        // 设置相机位置，保持固定的高度和偏移角度
+        // 透视相机跟随玩家，但保持一定高度和前方偏移以获得俯视效果
         this.camera.position.x = targetX;
-        this.camera.position.y = 600; // 保持固定高度
-        this.camera.position.z = targetZ + 600; // 增加向前偏移，与初始化时一致
-
-        // 始终看向玩家位置
+        this.camera.position.y = 600; // 相机高度
+        this.camera.position.z = targetZ + 600; // 相机在玩家后方的偏移距离
+        
+        // 始终让相机看向玩家位置，但保持垂直俯视感
         this.camera.lookAt(targetX, 0, targetZ);
     }
 
@@ -1457,14 +1482,8 @@ export class ThreeHelper {
         // 确保宽高比例正确
         const aspectRatio = width / height;
         
-        // 根据新尺寸更新viewSize
-        this.viewSize = Math.max(height, 600);
-
-        // 更新相机参数
-        this.camera.left = (-this.viewSize * aspectRatio) / 2;
-        this.camera.right = (this.viewSize * aspectRatio) / 2;
-        this.camera.top = this.viewSize / 2;
-        this.camera.bottom = -this.viewSize / 2;
+        // 更新相机宽高比
+        this.camera.aspect = aspectRatio;
         this.camera.updateProjectionMatrix();
 
         console.log(`调整渲染器尺寸: ${width}x${height}`);
@@ -2326,7 +2345,18 @@ export class ThreeHelper {
 
     // 初始化核心组件和资源
     initialize() {
-        // 删除整个方法
+        console.log('开始初始化Three.js场景...');
+        this.createDefaultObjects();
+        this.createLights();
+        this.createBackgroundObjects();
+        
+        // 调整相机视角以增强3D透视效果
+        // 当相机初始设置完成后，微调偏移角度以获得更好的透视效果
+        this.camera.position.set(0, 700, 600); // 略微增加z轴偏移
+        this.camera.lookAt(0, 50, 0); // 视线稍微向下倾斜，增强透视感
+        this.camera.updateProjectionMatrix();
+        
+        console.log('Three.js场景初始化完成');
     }
 
     // 创建游戏边界
