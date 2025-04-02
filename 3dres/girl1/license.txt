@@ -1,0 +1,11 @@
+Model Information:
+* title:	“Mystic Demoness
+* source:	https://sketchfab.com/3d-models/mystic-demoness-f8cd0130148d4e62962c0042de222d7d
+* author:	Vortex3D (https://sketchfab.com/zulon)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "“Mystic Demoness" (https://sketchfab.com/3d-models/mystic-demoness-f8cd0130148d4e62962c0042de222d7d) by Vortex3D (https://sketchfab.com/zulon) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
