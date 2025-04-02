@@ -91,6 +91,13 @@ export class Game {
         this.dragStartY = null;
         this.dragStartPlayerX = null;
         this.dragStartPlayerY = null;
+        this.inputType = null; // 'mouse' 或 'touch'
+        
+        // 创建UI反馈元素
+        this.touchIndicator = document.createElement('div');
+        this.touchIndicator.className = 'touch-indicator';
+        this.touchIndicator.style.display = 'none';
+        document.body.appendChild(this.touchIndicator);
 
         // 游戏元素
         this.player = new Player(this);
@@ -404,6 +411,7 @@ export class Game {
         const handleMouseDown = (e) => {
             if (e.button === 0) { // 左键
                 this.isDragging = true;
+                this.inputType = 'mouse';
                 
                 // 记录鼠标按下时的位置（用于计算移动方向）
                 const rect = activeCanvas.getBoundingClientRect();
@@ -411,6 +419,10 @@ export class Game {
                 this.dragStartY = e.clientY - rect.top;
                 this.mouseX = this.dragStartX;
                 this.mouseY = this.dragStartY;
+                
+                // 记录玩家初始位置
+                this.dragStartPlayerX = this.player.x;
+                this.dragStartPlayerY = this.player.y;
                 
                 console.log('鼠标按下:', { 
                     x: this.dragStartX, 
@@ -428,17 +440,19 @@ export class Game {
             
             if (this.isDragging) {
                 // 在游戏主循环中处理移动逻辑，这里只更新鼠标位置
-                // console.log('鼠标移动:', { mouseX: this.mouseX, mouseY: this.mouseY });
             }
         };
         
         const handleMouseUp = (e) => {
             if (e.button === 0) { // 左键
                 this.isDragging = false;
+                this.inputType = null;
                 
                 // 清除拖动的起始位置
                 this.dragStartX = null;
                 this.dragStartY = null;
+                this.dragStartPlayerX = null;
+                this.dragStartPlayerY = null;
             }
         };
         
@@ -446,8 +460,11 @@ export class Game {
             // 鼠标离开canvas时停止拖拽
             if (this.isDragging) {
                 this.isDragging = false;
+                this.inputType = null;
                 this.dragStartX = null;
                 this.dragStartY = null;
+                this.dragStartPlayerX = null;
+                this.dragStartPlayerY = null;
             }
         };
         
@@ -459,6 +476,7 @@ export class Game {
             e.preventDefault();
             if (e.touches.length > 0) {
                 this.isDragging = true;
+                this.inputType = 'touch';
                 
                 const rect = activeCanvas.getBoundingClientRect();
                 this.mouseX = e.touches[0].clientX - rect.left;
@@ -466,6 +484,11 @@ export class Game {
                 
                 this.dragStartX = this.mouseX;
                 this.dragStartY = this.mouseY;
+                
+                // 显示触摸指示器
+                this.touchIndicator.style.display = 'block';
+                this.touchIndicator.style.left = `${e.touches[0].clientX}px`;
+                this.touchIndicator.style.top = `${e.touches[0].clientY}px`;
             }
         };
         
@@ -475,12 +498,24 @@ export class Game {
                 const rect = activeCanvas.getBoundingClientRect();
                 this.mouseX = e.touches[0].clientX - rect.left;
                 this.mouseY = e.touches[0].clientY - rect.top;
+                
+                // 更新触摸指示器位置
+                this.touchIndicator.style.left = `${e.touches[0].clientX}px`;
+                this.touchIndicator.style.top = `${e.touches[0].clientY}px`;
             }
         };
         
         const handleTouchEnd = (e) => {
             e.preventDefault();
             this.isDragging = false;
+            this.inputType = null;
+            this.dragStartX = null;
+            this.dragStartY = null;
+            this.dragStartPlayerX = null;
+            this.dragStartPlayerY = null;
+            
+            // 隐藏触摸指示器
+            this.touchIndicator.style.display = 'none';
         };
         
         // 保存事件处理函数引用，方便以后移除

@@ -99,22 +99,35 @@ export class Player {
                 const threshold = 5;
                 const moveSpeed = this.speed * 1.2; // 鼠标控制稍微快一点
                 
-                // 根据鼠标移动方向决定角色移动方向
-                if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
-                    // 水平方向控制
-                    if (deltaX > threshold) {
-                        dx = moveSpeed; // 向右移动
-                        this.facingDirection = 'right';
-                    } else if (deltaX < -threshold) {
-                        dx = -moveSpeed; // 向左移动
-                        this.facingDirection = 'left';
+                if (this.game.inputType === 'mouse') {
+                    // 鼠标模式：以角色为锚点
+                    if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
+                        // 计算相对于角色的移动方向
+                        const angle = Math.atan2(deltaY, deltaX);
+                        dx = Math.cos(angle) * moveSpeed;
+                        dy = Math.sin(angle) * moveSpeed;
+                        
+                        // 更新朝向
+                        this.facingDirection = dx > 0 ? 'right' : 'left';
                     }
-                    
-                    // 垂直方向控制
-                    if (deltaY > threshold) {
-                        dy = moveSpeed; // 向下移动
-                    } else if (deltaY < -threshold) {
-                        dy = -moveSpeed; // 向上移动
+                } else if (this.game.inputType === 'touch') {
+                    // 触摸模式：以触摸点为锚点
+                    if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
+                        // 水平方向控制
+                        if (deltaX > threshold) {
+                            dx = moveSpeed; // 向右移动
+                            this.facingDirection = 'right';
+                        } else if (deltaX < -threshold) {
+                            dx = -moveSpeed; // 向左移动
+                            this.facingDirection = 'left';
+                        }
+                        
+                        // 垂直方向控制
+                        if (deltaY > threshold) {
+                            dy = moveSpeed; // 向下移动
+                        } else if (deltaY < -threshold) {
+                            dy = -moveSpeed; // 向上移动
+                        }
                     }
                 }
             }
