@@ -1319,13 +1319,29 @@ export class ThreeHelper {
                     if (!this.objects.has(key)) {
                         this.createProjectileModel(projectile);
                     } else {
-                        // 保持投射物高度为100，与玩家高度一致
-                        this.updateObjectPosition(
-                            key,
-                            projectile.x,
-                            projectile.y,
-                            100
-                        );
+                        // 使用存储在userData中的高度信息
+                        const projectileMesh = this.objects.get(key);
+                        if (projectileMesh && projectileMesh.userData.height) {
+                            this.updateObjectPosition(
+                                key,
+                                projectile.x,
+                                projectile.y,
+                                projectileMesh.userData.height
+                            );
+                        } else {
+                            // 如果没有存储高度信息，使用默认高度
+                            this.updateObjectPosition(
+                                key,
+                                projectile.x,
+                                projectile.y,
+                                50 // 默认高度
+                            );
+                        }
+                        
+                        // 更新旋转
+                        if (projectileMesh && projectileMesh.userData.rotateSpeed) {
+                            projectileMesh.rotation.z += projectileMesh.userData.rotateSpeed;
+                        }
                     }
                 });
         } catch (e) {
@@ -1612,7 +1628,37 @@ export class ThreeHelper {
 
     // 创建投射物模型
     createProjectileModel(projectile) {
-        const geometry = new THREE.SphereGeometry(projectile.radius, 8, 8);
+        let geometry;
+        
+        // 根据形状创建不同的几何体
+        switch(projectile.shape) {
+            case 'sword':
+                // 创建扁平的菱形几何体作为剑
+                geometry = new THREE.ConeGeometry(projectile.width/2, projectile.height*1.5, 4);
+                geometry.rotateX(Math.PI/2); // 旋转使其水平方向
+                break;
+                
+            case 'axe':
+                // 创建斧头形状（球体加上圆锥）
+                geometry = new THREE.SphereGeometry(projectile.radius * 0.8, 8, 8);
+                break;
+                
+            case 'rune':
+                // 创建八面体作为符文
+                geometry = new THREE.OctahedronGeometry(projectile.radius, 0);
+                break;
+                
+            case 'rect':
+                // 创建矩形（扁平的盒子）
+                geometry = new THREE.BoxGeometry(projectile.width, projectile.height, projectile.height/2);
+                break;
+                
+            default:
+                // 默认使用球体
+                geometry = new THREE.SphereGeometry(projectile.radius, 8, 8);
+                break;
+        }
+        
         const material = new THREE.MeshStandardMaterial({
             color: projectile.color,
             emissive: projectile.color,
@@ -1622,12 +1668,41 @@ export class ThreeHelper {
         });
 
         const projectileMesh = new THREE.Mesh(geometry, material);
-        // 将高度从10提高到100，与玩家模型高度一致
-        projectileMesh.position.set(projectile.x, 100, projectile.y);
+        
+        // 根据投射物形状和类型设置不同的高度
+        let height = 50; // 默认高度与玩家中心点一致
+        
+        // 如果是剑、斧等武器，调低一些
+        if (projectile.shape === 'sword' || projectile.shape === 'axe' || projectile.shape === 'rune') {
+            height = 40;
+        }
+        // 如果是魔法效果，可以适当提高
+        else if (projectile.type === 'holy' || projectile.type === 'magic') {
+            height = 60;
+        }
+        // 如果是矩形的，可能是剑气，略高于玩家中心
+        else if (projectile.shape === 'rect') {
+            height = 45;
+        }
+        
+        projectileMesh.position.set(projectile.x, height, projectile.y);
+        
+        // 如果投射物有旋转速度，设置初始旋转角度
+        if (projectile.rotation) {
+            projectileMesh.rotation.z = projectile.rotation;
+        }
+        
+        // 保存旋转速度到userData，以便动画更新
+        if (projectile.rotateSpeed) {
+            projectileMesh.userData.rotateSpeed = projectile.rotateSpeed;
+        }
         
         // 添加阴影
         projectileMesh.castShadow = true;
         projectileMesh.receiveShadow = true;
+
+        // 保存高度信息到userData，以便updateObjectPosition使用
+        projectileMesh.userData.height = height;
 
         this.scene.add(projectileMesh);
         this.objects.set(`projectile_${projectile.id}`, projectileMesh);
