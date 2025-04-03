@@ -32,14 +32,14 @@ export class ThreeHelper {
         
         // 使用PerspectiveCamera创建相机
         this.camera = new THREE.PerspectiveCamera(
-            45, // 视场角(FOV)，单位为度
+            30, // 减小视场角(FOV)，从45减小到30，使画面更像正交投影
             aspectRatio, // 画布宽高比
             10, // 近裁剪面
-            2000 // 远裁剪面
+            3000 // 远裁剪面，增加到3000确保能看到更远的内容
         );
 
         // 将相机位置设置为略微向前倾斜的视角，但调整角度使游戏更易看清
-        this.camera.position.set(0, 700, 250); // 减少Z轴偏移，与updateCamera保持一致
+        this.camera.position.set(0, 1500, 1000); // 增大高度从700到1500，让视野更开阔
         this.camera.lookAt(0, 0, 0);
         
         // 设置相机阴影参数
@@ -1045,7 +1045,7 @@ export class ThreeHelper {
                     }
                     
                     // 调整模型大小和位置
-                    fbx.scale.set(0.48, 0.48, 0.48); // 缩小到原来的0.8倍 (0.6 * 0.8 = 0.48)
+                    fbx.scale.set(0.35, 0.35, 0.35); // 从0.7减小到0.35，使玩家尺寸与2D模式一致
                     fbx.position.y = -25; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影
@@ -1391,44 +1391,44 @@ export class ThreeHelper {
         switch (enemy.constructor.name) {
             case 'Zombie':
                 geometry = new THREE.BoxGeometry(
-                    enemy.radius * 2,
-                    enemy.radius * 4, // 增加高度，让其看起来更像站立的人形
-                    enemy.radius * 2
+                    enemy.radius * 1.5, // 减小宽度，从3倍减小到1.5倍
+                    enemy.radius * 3, // 减小高度，从6倍减小到3倍
+                    enemy.radius * 1.5  // 减小深度，从3倍减小到1.5倍
                 );
                 break;
             case 'SkeletonSoldier':
                 geometry = new THREE.CylinderGeometry(
-                    enemy.radius,
-                    enemy.radius * 0.7, // 底部略窄，像人形
-                    enemy.radius * 4, // 增加高度
+                    enemy.radius * 0.8, // 减小顶部半径，从1.5倍减小到0.8倍
+                    enemy.radius * 0.6, // 减小底部半径，从1.05倍减小到0.6倍
+                    enemy.radius * 3, // 减小高度，从6倍减小到3倍
                     4
                 );
                 break;
             case 'MedusaHead':
-                geometry = new THREE.OctahedronGeometry(enemy.radius, 0);
+                geometry = new THREE.OctahedronGeometry(enemy.radius * 0.8, 0); // 减小尺寸，从1.5倍减小到0.8倍
                 break;
             case 'BladeSoldier':
                 geometry = new THREE.BoxGeometry(
-                    enemy.radius * 2,
-                    enemy.radius * 4.5, // 更高一些
-                    enemy.radius * 2
+                    enemy.radius * 1.5, // 减小宽度，从3倍减小到1.5倍
+                    enemy.radius * 3.5, // 减小高度，从6.75倍减小到3.5倍
+                    enemy.radius * 1.5 // 减小深度，从3倍减小到1.5倍
                 );
                 break;
             case 'SpearGuard':
                 geometry = new THREE.CylinderGeometry(
-                    enemy.radius,
-                    enemy.radius * 0.8,
-                    enemy.radius * 4.2, // 增加高度
+                    enemy.radius * 0.8, // 减小顶部半径，从1.5倍减小到0.8倍
+                    enemy.radius * 0.6, // 减小底部半径，从1.2倍减小到0.6倍
+                    enemy.radius * 3.2, // 减小高度，从6.3倍减小到3.2倍
                     5 // 五边形，更像战士
                 );
                 break;
             case 'FireDemon':
-                geometry = new THREE.SphereGeometry(enemy.radius, 8, 8);
+                geometry = new THREE.SphereGeometry(enemy.radius * 0.8, 8, 8); // 减小半径，从1.5倍减小到0.8倍
                 // 稍微扁平化
                 geometry.scale(1, 1.5, 1);
                 break;
             default:
-                geometry = new THREE.SphereGeometry(enemy.radius, 8, 8);
+                geometry = new THREE.SphereGeometry(enemy.radius * 0.8, 8, 8); // 减小半径，从1.5倍减小到0.8倍
                 // 稍微增高
                 geometry.scale(1, 1.5, 1);
         }
@@ -1464,17 +1464,17 @@ export class ThreeHelper {
             
             // 计算各种模型的高度
             if (enemy.constructor.name === 'Zombie') {
-                modelHeight = enemy.radius * 4;
+                modelHeight = enemy.radius * 3; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'SkeletonSoldier') {
-                modelHeight = enemy.radius * 4;
+                modelHeight = enemy.radius * 3; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'BladeSoldier') {
-                modelHeight = enemy.radius * 4.5;
+                modelHeight = enemy.radius * 3.5; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'SpearGuard') {
-                modelHeight = enemy.radius * 4.2;
+                modelHeight = enemy.radius * 3.2; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'FireDemon') {
-                modelHeight = enemy.radius * 3;
+                modelHeight = enemy.radius * 2.4; // 考虑到0.8倍半径和1.5倍y轴缩放
             } else {
-                modelHeight = enemy.radius * 3;
+                modelHeight = enemy.radius * 2.4; // 考虑到0.8倍半径和1.5倍y轴缩放
             }
             
             // 将模型向上移动半高，使其底部接触地面，中心在半高处
@@ -1484,10 +1484,10 @@ export class ThreeHelper {
         // 设置整个组的位置
         if (enemy.constructor.name === 'MedusaHead') {
             // 美杜莎头悬空
-            enemyGroup.position.set(enemy.x, 100, enemy.y);
+            enemyGroup.position.set(enemy.x, 80, enemy.y); // 降低悬浮高度，从150降至80
         } else {
             // 其他敌人位置设置在地面上，碰撞点标记在半高处
-            const heightOffset = enemy.radius * 2; // 一个合理的值，确保碰撞点在敌人中部
+            const heightOffset = enemy.radius * 1.5; // 减小高度偏移，从3倍减小到1.5倍
             enemyGroup.position.set(enemy.x, heightOffset, enemy.y);
         }
         
@@ -1528,21 +1528,21 @@ export class ThreeHelper {
             // 计算各种模型的高度
             let modelHeight = 0;
             if (enemy.constructor.name === 'Zombie') {
-                modelHeight = enemy.radius * 4;
+                modelHeight = enemy.radius * 3; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'SkeletonSoldier') {
-                modelHeight = enemy.radius * 4;
+                modelHeight = enemy.radius * 3; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'BladeSoldier') {
-                modelHeight = enemy.radius * 4.5;
+                modelHeight = enemy.radius * 3.5; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'SpearGuard') {
-                modelHeight = enemy.radius * 4.2;
+                modelHeight = enemy.radius * 3.2; // 更新为与模型高度一致
             } else if (enemy.constructor.name === 'FireDemon') {
-                modelHeight = enemy.radius * 3;
+                modelHeight = enemy.radius * 2.4; // 考虑到0.8倍半径和1.5倍y轴缩放
             } else {
-                modelHeight = enemy.radius * 3;
+                modelHeight = enemy.radius * 2.4; // 考虑到0.8倍半径和1.5倍y轴缩放
             }
             
             // 将血条放在模型顶部
-            healthBarY = modelHeight / 2 + enemy.radius * 0.5;
+            healthBarY = modelHeight / 2 + enemy.radius * 0.3;
         }
         
         // 设置血条背景位置（放置在怪物头顶）
@@ -1680,10 +1680,10 @@ export class ThreeHelper {
                 
                 if (enemyType === 'MedusaHead') {
                     // 美杜莎头保持悬空
-                    object.position.set(x, 100, y);
+                    object.position.set(x, 80, y); // 降低悬浮高度，从150降至80
                 } else {
                     // 其他敌人位置设置为地面上，碰撞点在半高处
-                    const heightOffset = object.userData.enemy ? object.userData.enemy.radius * 2 : 30;
+                    const heightOffset = object.userData.enemy ? object.userData.enemy.radius * 1.5 : 25; // 减小高度偏移
                     object.position.set(x, heightOffset, y);
                 }
                 
@@ -1722,8 +1722,8 @@ export class ThreeHelper {
         // 设置相机位置，保持固定的高度和偏移角度
         // 透视相机跟随玩家，但保持一定高度和前方偏移以获得俯视效果
         this.camera.position.x = targetX;
-        this.camera.position.y = 600; // 相机高度保持不变
-        this.camera.position.z = targetZ + 300; // 减少一半Z轴偏移，从600改为300
+        this.camera.position.y = 1500; // 增大高度，从600到1500
+        this.camera.position.z = targetZ + 1000; // 增大Z轴偏移，从600到1000
         
         // 始终让相机看向玩家位置，但保持垂直俯视感
         this.camera.lookAt(targetX, 0, targetZ);
@@ -2528,7 +2528,7 @@ export class ThreeHelper {
         
         // 背景血条
         const healthBarBg = new THREE.Mesh(healthBarGeometry, healthBarBgMaterial);
-        healthBarBg.position.set(0, this.game.player.radius + 15, 0);
+        healthBarBg.position.set(0, 50, 0); // 降低位置，从90降至50
         
         // 前景血条（实际血量）
         const healthBarFgGeometry = new THREE.BoxGeometry(healthBarWidth, healthBarHeight, 1.5);
@@ -2544,12 +2544,15 @@ export class ThreeHelper {
         
         // 设置前景血条尺寸和位置
         healthBarFg.scale.x = healthPercent;
-        healthBarFg.position.set(-offsetX, this.game.player.radius + 15, 0);
+        healthBarFg.position.set(-offsetX, 50, 0); // 降低位置，从90降至50
         
         // 创建血条组
         const healthBarGroup = new THREE.Group();
         healthBarGroup.add(healthBarBg);
         healthBarGroup.add(healthBarFg);
+        
+        // 让血条始终面向相机
+        healthBarGroup.rotation.x = -Math.PI / 6;
         
         // 把血条添加为玩家的子对象，使其跟随玩家移动
         player.add(healthBarGroup);
@@ -2569,7 +2572,7 @@ export class ThreeHelper {
             opacity: 0.7
         });
         const dashBarBg = new THREE.Mesh(dashBarGeometry, dashBarBgMaterial);
-        dashBarBg.position.set(0, this.game.player.radius + 8, 0);
+        dashBarBg.position.set(0, 45, 0); // 降低位置，从83降至45
         
         // 计算冷却比例
         const dashCooldownPercent = this.game.player.dashCooldown > 0 
@@ -2584,12 +2587,15 @@ export class ThreeHelper {
         
         const dashBarFg = new THREE.Mesh(dashBarFgGeometry, dashBarFgMaterial);
         const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
-        dashBarFg.position.set(-dashOffsetX, this.game.player.radius + 8, 0);
+        dashBarFg.position.set(-dashOffsetX, 45, 0); // 降低位置，从83降至45
         
         // 添加冲刺冷却条到场景
         const dashBarGroup = new THREE.Group();
         dashBarGroup.add(dashBarBg);
         dashBarGroup.add(dashBarFg);
+        
+        // 让冷却条始终面向相机
+        dashBarGroup.rotation.x = -Math.PI / 6;
         
         // 让冷却条只在冷却时可见
         if (this.game.player.dashCooldown <= 0) {
@@ -2628,6 +2634,9 @@ export class ThreeHelper {
             const healthBarWidth = this.game.player.radius * 2;
             const offsetX = (healthBarWidth - (healthBarWidth * healthPercent)) / 2;
             healthBarFg.position.x = -offsetX;
+            
+            // 确保血条始终面向相机
+            healthBar.quaternion.copy(this.camera.quaternion);
         } else {
             // 如果血条不存在，创建新的
             this.createPlayerStatusBars();
@@ -2653,6 +2662,9 @@ export class ThreeHelper {
                 const dashBarWidth = this.game.player.radius * 1.5;
                 const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
                 dashBarFg.position.x = -dashOffsetX;
+                
+                // 确保冷却条始终面向相机
+                dashBar.quaternion.copy(this.camera.quaternion);
             }
         } else {
             // 如果冲刺冷却条不存在，创建所有状态条
@@ -2867,8 +2879,8 @@ export class ThreeHelper {
         
         // 调整相机视角以增强3D透视效果
         // 当相机初始设置完成后，微调偏移角度以获得更好的透视效果
-        this.camera.position.set(0, 700, 300); // 减少一半Z轴偏移，从600改为300
-        this.camera.lookAt(0, 25, 0); // 视线倾斜角度减半，从50改为25
+        this.camera.position.set(0, 1500, 1000); // 保持与构造函数中相同的位置设置
+        this.camera.lookAt(0, 0, 0); // 直接看向原点
         this.camera.updateProjectionMatrix();
         
         console.log('Three.js场景初始化完成');
@@ -2964,7 +2976,7 @@ export class ThreeHelper {
                     const model = gltf.scene;
                     
                     // 调整模型大小和位置
-                    model.scale.set(120, 120, 120); // 缩小到原来的0.8倍 (150 * 0.8 = 120)
+                    model.scale.set(90, 90, 90); // 从180减小到90，使玩家尺寸与2D模式一致
                     model.position.y = -25; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影
@@ -3026,7 +3038,7 @@ export class ThreeHelper {
         // 为每个敌人的血条设置正确的方向，使其面向相机
         this.objects.forEach((object, key) => {
             if (key.startsWith('enemy_') && object.userData.healthBar) {
-                // 将血条的朝向设为始终面向相机
+                // 将血条的朝向设为始终面向相机，使用quaternion确保更准确的朝向
                 object.userData.healthBar.quaternion.copy(this.camera.quaternion);
                 
                 // 如果有碰撞点标记，保持它一直可见
