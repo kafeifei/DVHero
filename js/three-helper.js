@@ -1045,8 +1045,9 @@ export class ThreeHelper {
                     }
                     
                     // 调整模型大小和位置
-                    fbx.scale.set(0.35, 0.35, 0.35); // 从0.7减小到0.35，使玩家尺寸与2D模式一致
+                    fbx.scale.set(0.45, 0.45, 0.45); // 从0.35增加到0.45，使主角稍微大一些
                     fbx.position.y = -25; // 调整为负值，确保底部接触地面
+                    
                     
                     // 为模型及其所有子对象启用阴影
                     fbx.traverse(child => {
@@ -1670,19 +1671,19 @@ export class ThreeHelper {
         const projectileMesh = new THREE.Mesh(geometry, material);
         
         // 根据投射物形状和类型设置不同的高度
-        let height = 50; // 默认高度与玩家中心点一致
+        let height = 65; // 默认高度与玩家中心点一致，从50提高到65
         
         // 如果是剑、斧等武器，调低一些
         if (projectile.shape === 'sword' || projectile.shape === 'axe' || projectile.shape === 'rune') {
-            height = 40;
+            height = 55; // 从40提高到55
         }
         // 如果是魔法效果，可以适当提高
         else if (projectile.type === 'holy' || projectile.type === 'magic') {
-            height = 60;
+            height = 75; // 从60提高到75
         }
         // 如果是矩形的，可能是剑气，略高于玩家中心
         else if (projectile.shape === 'rect') {
-            height = 45;
+            height = 60; // 从45提高到60
         }
         
         projectileMesh.position.set(projectile.x, height, projectile.y);
@@ -2603,7 +2604,7 @@ export class ThreeHelper {
         
         // 背景血条
         const healthBarBg = new THREE.Mesh(healthBarGeometry, healthBarBgMaterial);
-        healthBarBg.position.set(0, 50, 0); // 降低位置，从90降至50
+        healthBarBg.position.set(0, 65, 0); // 提高位置，从50提高到65
         
         // 前景血条（实际血量）
         const healthBarFgGeometry = new THREE.BoxGeometry(healthBarWidth, healthBarHeight, 1.5);
@@ -2619,7 +2620,7 @@ export class ThreeHelper {
         
         // 设置前景血条尺寸和位置
         healthBarFg.scale.x = healthPercent;
-        healthBarFg.position.set(-offsetX, 50, 0); // 降低位置，从90降至50
+        healthBarFg.position.set(-offsetX, 65, 0); // 提高位置，从50提高到65
         
         // 创建血条组
         const healthBarGroup = new THREE.Group();
@@ -2647,7 +2648,7 @@ export class ThreeHelper {
             opacity: 0.7
         });
         const dashBarBg = new THREE.Mesh(dashBarGeometry, dashBarBgMaterial);
-        dashBarBg.position.set(0, 45, 0); // 降低位置，从83降至45
+        dashBarBg.position.set(0, 58, 0); // 提高位置，从45提高到58
         
         // 计算冷却比例
         const dashCooldownPercent = this.game.player.dashCooldown > 0 
@@ -2662,7 +2663,7 @@ export class ThreeHelper {
         
         const dashBarFg = new THREE.Mesh(dashBarFgGeometry, dashBarFgMaterial);
         const dashOffsetX = (dashBarWidth - (dashBarWidth * dashCooldownPercent)) / 2;
-        dashBarFg.position.set(-dashOffsetX, 45, 0); // 降低位置，从83降至45
+        dashBarFg.position.set(-dashOffsetX, 58, 0); // 提高位置，从45提高到58
         
         // 添加冲刺冷却条到场景
         const dashBarGroup = new THREE.Group();
@@ -3051,7 +3052,7 @@ export class ThreeHelper {
                     const model = gltf.scene;
                     
                     // 调整模型大小和位置
-                    model.scale.set(90, 90, 90); // 从180减小到90，使玩家尺寸与2D模式一致
+                    model.scale.set(115, 115, 115); // 从90增加到115，使主角稍微大一些
                     model.position.y = -25; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影
