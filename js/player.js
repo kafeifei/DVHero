@@ -74,9 +74,11 @@ export class Player {
         // 键盘控制
         if (this.game.keys.up || this.game.keys.w || this.game.keys.ArrowUp || this.game.keys.W) {
             dy -= this.speed;
+            this.facingDirection = 'up';
         }
         if (this.game.keys.down || this.game.keys.s || this.game.keys.ArrowDown || this.game.keys.S) {
             dy += this.speed;
+            this.facingDirection = 'down';
         }
         if (this.game.keys.left || this.game.keys.a || this.game.keys.ArrowLeft || this.game.keys.A) {
             dx -= this.speed;
@@ -107,26 +109,44 @@ export class Player {
                         dx = Math.cos(angle) * moveSpeed;
                         dy = Math.sin(angle) * moveSpeed;
                         
-                        // 更新朝向
-                        this.facingDirection = dx > 0 ? 'right' : 'left';
+                        // 更新朝向 - 根据移动角度设置四个方向
+                        const angleDeg = angle * 180 / Math.PI;
+                        if (angleDeg > -45 && angleDeg < 45) {
+                            this.facingDirection = 'right';
+                        } else if (angleDeg >= 45 && angleDeg < 135) {
+                            this.facingDirection = 'down';
+                        } else if (angleDeg >= -135 && angleDeg <= -45) {
+                            this.facingDirection = 'up';
+                        } else {
+                            this.facingDirection = 'left';
+                        }
                     }
                 } else if (this.game.inputType === 'touch') {
                     // 触摸模式：以触摸点为锚点
                     if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
-                        // 水平方向控制
-                        if (deltaX > threshold) {
-                            dx = moveSpeed; // 向右移动
-                            this.facingDirection = 'right';
-                        } else if (deltaX < -threshold) {
-                            dx = -moveSpeed; // 向左移动
-                            this.facingDirection = 'left';
-                        }
+                        // 水平方向和垂直方向的判断
+                        const absX = Math.abs(deltaX);
+                        const absY = Math.abs(deltaY);
                         
-                        // 垂直方向控制
-                        if (deltaY > threshold) {
-                            dy = moveSpeed; // 向下移动
-                        } else if (deltaY < -threshold) {
-                            dy = -moveSpeed; // 向上移动
+                        // 确定主要移动方向（水平或垂直）
+                        if (absX > absY) {
+                            // 水平方向控制优先
+                            if (deltaX > threshold) {
+                                dx = moveSpeed; // 向右移动
+                                this.facingDirection = 'right';
+                            } else if (deltaX < -threshold) {
+                                dx = -moveSpeed; // 向左移动
+                                this.facingDirection = 'left';
+                            }
+                        } else {
+                            // 垂直方向控制优先
+                            if (deltaY > threshold) {
+                                dy = moveSpeed; // 向下移动
+                                this.facingDirection = 'down';
+                            } else if (deltaY < -threshold) {
+                                dy = -moveSpeed; // 向上移动
+                                this.facingDirection = 'up';
+                            }
                         }
                     }
                 }

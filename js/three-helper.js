@@ -1114,13 +1114,13 @@ export class ThreeHelper {
         const model = player.userData.model;
         if (model) {
             if (facingDirection === 'right') {
-                model.rotation.y = Math.PI / 2; // 向右旋转90度
+                model.rotation.y = 0; // 右方向实际是上
             } else if (facingDirection === 'left') {
-                model.rotation.y = -Math.PI / 2; // 向左旋转90度
+                model.rotation.y = Math.PI; // 左方向实际是下
             } else if (facingDirection === 'up') {
-                model.rotation.y = 0; // 向上（默认方向）
+                model.rotation.y = Math.PI / 2; // 上方向实际是右
             } else if (facingDirection === 'down') {
-                model.rotation.y = Math.PI; // 向下旋转180度
+                model.rotation.y = -Math.PI / 2; // 下方向实际是左
             }
             return;
         }
