@@ -8,6 +8,9 @@ export class ThreeHelper {
         this.game = game;
         this.canvas3d = game.canvas3d;
 
+        // 预加载GLTFLoader
+        this.preloadGLTFLoader();
+
         // 确保canvas尺寸正确
         if (this.canvas3d.width === 0 || this.canvas3d.height === 0) {
             // 移除强制设置的固定尺寸，使用父元素尺寸或窗口尺寸
@@ -112,16 +115,19 @@ export class ThreeHelper {
         grassTexture.needsUpdate = true;
 
         // 创建材质 - 降低亮度使其更暗，与2D模式匹配
-        const groundMaterial = new THREE.MeshBasicMaterial({
+        const groundMaterial = new THREE.MeshStandardMaterial({
             map: grassTexture, // Apply the generated texture
             side: THREE.DoubleSide,
-            color: 0x668866  // 添加较亮的绿色调
+            color: 0x668866,  // 添加较亮的绿色调
+            roughness: 0.8,   // 添加粗糙度
+            metalness: 0.1    // 添加金属感
         });
 
         // 创建地面网格
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
         ground.position.y = -10; // 略微下沉
+        ground.receiveShadow = true; // 启用地面接收阴影
         this.scene.add(ground);
         this.objects.set('ground', ground);
 
@@ -596,6 +602,8 @@ export class ThreeHelper {
                         metalness: 0.2,
                     });
                     mesh = new THREE.Mesh(geometry, material);
+                    
+                    // 不需要单独设置位置，会由通用逻辑处理
                 } else if (obj.type === 'brokenPillar') {
                     // 创建断裂的柱子（上窄下宽的圆柱体）
                     const baseHeight = height * 0.7;  // 主体高度
@@ -647,8 +655,7 @@ export class ThreeHelper {
                     mesh.add(baseMesh);
                     mesh.add(topMesh);
                     
-                    // 为整个柱子偏移中心点，使其站立
-                    mesh.position.y = -baseHeight / 2;
+                    // 不需要单独设置位置，会由通用逻辑处理
                 } else if (obj.type === 'gravestone') {
                     // 创建墓碑形状（底部圆柱加上部石碑）
                     
@@ -708,6 +715,8 @@ export class ThreeHelper {
                     
                     // 应用随机倾斜
                     mesh.rotation.z = tiltAngle;
+                    
+                    // 不需要单独设置位置，会由通用逻辑处理
                 } else if (obj.type === 'deadTree') {
                     // 使用高细长的圆柱体和球体组合作为树
                     const trunkGeo = new THREE.CylinderGeometry(
@@ -733,6 +742,8 @@ export class ThreeHelper {
                     mesh = new THREE.Group();
                     mesh.add(trunk);
                     mesh.add(foliage);
+                    
+                    // 不需要单独设置位置，会由通用逻辑处理
                 } else if (obj.type === 'torch') {
                     // 使用简单的几何形状组合
                     const stickGeo = new THREE.CylinderGeometry(
@@ -810,6 +821,8 @@ export class ThreeHelper {
                         flameCore: flameCore,
                         flameOuter: flameOuter
                     });
+                    
+                    // 不需要单独设置位置，会由通用逻辑处理
                 } else {
                     // 其他对象使用简单的Box
                     const geometry = new THREE.BoxGeometry(30, height, 30);
@@ -849,13 +862,65 @@ export class ThreeHelper {
 
                 // 如果是组合对象，直接设置位置
                 if (mesh instanceof THREE.Group) {
-                    mesh.position.set(obj.x, 0, obj.y);
+                    // 先设置缩放，因为这会影响到包围盒的计算
                     mesh.scale.set(scale * randomScale, scale * randomScale, scale * randomScale);
                     mesh.rotation.y = randomRotationY;
+                    
+                    // 初始设置物体位置，便于计算包围盒
+                    mesh.position.set(obj.x, 0, obj.y);
+                    
+                    // 在设置了缩放和位置后，计算包围盒以确定底部
+                    // 但需要更新世界矩阵以确保包围盒正确
+                    mesh.updateMatrixWorld(true);
+                    
+                    // 创建一个临时的包围盒来计算物体的实际高度
+                    const tempBox = new THREE.Box3().setFromObject(mesh);
+                    const bottomY = tempBox.min.y;  // 物体最低点的Y坐标
+                    
+                    // 计算需要向上抬升的距离，使物体的底部正好位于地面上
+                    // 添加安全检查，避免极端情况
+                    const yOffset = -bottomY;
+                    
+                    // 安全检查：如果偏移值过大或过小，或者是NaN，使用合理的默认值
+                    let finalYOffset = yOffset;
+                    if (isNaN(yOffset) || yOffset > 1000 || yOffset < -1000) {
+                        console.warn(`${obj.type} 计算的Y偏移异常: ${yOffset}，使用默认值`);
+                        finalYOffset = height * 0.5; // 使用一个基于高度的合理默认值
+                    }
+                    
+                    // 设置最终位置，确保物体底部在地面上(y=0)
+                    mesh.position.set(obj.x, finalYOffset, obj.y);
+                    
+                    // 为所有物体类型添加调试日志
+                    console.log(`${obj.type} 位置调整: 原始底部Y=${bottomY.toFixed(2)}, 计算抬升=${yOffset.toFixed(2)}, 最终抬升=${finalYOffset.toFixed(2)}, 最终Y=${mesh.position.y.toFixed(2)}`);
                 } else {
-                    mesh.position.set(obj.x, (height * scale * randomScale) / 2, obj.y);
+                    // 对于简单网格，先应用缩放
+                    mesh.scale.set(scale * randomScale, scale * randomScale, scale * randomScale);
                     mesh.rotation.y = randomRotationY;
-                    mesh.scale.set(randomScale, randomScale, randomScale);
+                    
+                    // 计算包围盒
+                    mesh.geometry.computeBoundingBox();
+                    const box = mesh.geometry.boundingBox;
+                    
+                    // 计算缩放后的高度
+                    const scaledHeight = (box.max.y - box.min.y) * scale * randomScale;
+                    
+                    // 计算需要的Y偏移，使物体底部位于地面
+                    const bottomY = box.min.y * scale * randomScale;
+                    const yOffset = -bottomY;
+                    
+                    // 安全检查：如果偏移值过大或过小，或者是NaN，使用合理的默认值
+                    let finalYOffset = yOffset;
+                    if (isNaN(yOffset) || yOffset > 1000 || yOffset < -1000) {
+                        console.warn(`${obj.type || '默认盒子'} 计算的Y偏移异常: ${yOffset}，使用默认值`);
+                        finalYOffset = scaledHeight / 2; // 使用高度一半作为默认值
+                    }
+                    
+                    // 设置位置，使物体底部在地面上
+                    mesh.position.set(obj.x, finalYOffset, obj.y);
+                    
+                    // 为简单网格物体添加调试日志
+                    console.log(`${obj.type || '默认盒子'} (简单网格) 位置调整: 原始底部Y=${bottomY.toFixed(2)}, 计算抬升=${yOffset.toFixed(2)}, 最终抬升=${finalYOffset.toFixed(2)}, 最终Y=${mesh.position.y.toFixed(2)}`);
                 }
 
                 // 添加到场景
@@ -890,8 +955,8 @@ export class ThreeHelper {
 
     // 初始化玩家模型
     initPlayerModel() {
-        // 创建玩家主体
-        const bodyGeometry = new THREE.SphereGeometry(
+        // 创建临时玩家主体（在模型加载完成前显示）
+        const tempBodyGeometry = new THREE.SphereGeometry(
             this.game.player.radius,
             16,
             16
@@ -902,46 +967,140 @@ export class ThreeHelper {
             metalness: 0.5,
         });
 
-        const playerBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        playerBody.castShadow = true;
-
-        // 创建面朝方向指示器（眼睛）
-        const eyeSize = this.game.player.radius * 0.2;
-        const eyeGeometry = new THREE.SphereGeometry(eyeSize, 8, 8);
-        const eyeMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            emissive: 0xffffff,
-            emissiveIntensity: 0.5,
-        });
-
-        // 右眼（默认朝向右侧）
-        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        const eyeOffset = this.game.player.radius * 0.6;
-        rightEye.position.set(eyeOffset, 0, 0);
-        
-        // 左眼（始终存在，与2D模式不同）
-        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        leftEye.position.set(-eyeOffset, 0, 0);
+        const tempPlayerBody = new THREE.Mesh(tempBodyGeometry, bodyMaterial);
+        tempPlayerBody.castShadow = true;
 
         // 创建玩家组合对象
         const playerGroup = new THREE.Group();
-        playerGroup.add(playerBody);
-        playerGroup.add(rightEye);
-        playerGroup.add(leftEye);
-        
-        // 保存对眼睛的引用，以便后续更新
-        playerGroup.userData.rightEye = rightEye;
-        playerGroup.userData.leftEye = leftEye;
-        playerGroup.userData.eyeOffset = eyeOffset;
+        playerGroup.add(tempPlayerBody);
         
         // 设置位置
         playerGroup.position.set(this.game.player.x, 0, this.game.player.y);
         
         this.scene.add(playerGroup);
         this.objects.set('player', playerGroup);
+
+        // 加载GLTF模型
+        this.loadPlayerGLTFModel(playerGroup);
         
         // 创建玩家状态条（血条和冷却条）
         this.createPlayerStatusBars();
+    }
+
+    // 加载玩家GLTF模型
+    loadPlayerGLTFModel(playerGroup) {
+        // 使用预加载的GLTFLoader或动态导入
+        if (this.GLTFLoader) {
+            this._loadPlayerModel(playerGroup, this.GLTFLoader);
+        } else if (this.gltfLoaderPromise) {
+            // 如果预加载Promise存在，等待加载完成
+            this.gltfLoaderPromise.then(GLTFLoader => {
+                if (GLTFLoader) {
+                    this._loadPlayerModel(playerGroup, GLTFLoader);
+                } else {
+                    // 如果Promise已解析但没有返回加载器，尝试直接导入
+                    this._dynamicLoadPlayerModel(playerGroup);
+                }
+            }).catch(error => {
+                console.error('使用预加载GLTFLoader失败:', error);
+                this._dynamicLoadPlayerModel(playerGroup);
+            });
+        } else {
+            // 没有预加载，直接动态导入
+            this._dynamicLoadPlayerModel(playerGroup);
+        }
+    }
+
+    // 使用已有的GLTFLoader加载模型
+    _loadPlayerModel(playerGroup, GLTFLoaderClass) {
+        // 显示加载信息
+        if (this.game && this.game.showWarning) {
+            this.game.showWarning('正在加载3D角色模型...', 120);
+        }
+        
+        const loader = new GLTFLoaderClass();
+        
+        // 加载模型
+        loader.load(
+            // 模型路径 - 使用相对路径
+            './3dres/girl1/scene.gltf',
+            
+            // 加载成功回调
+            (gltf) => {
+                console.log('3D角色模型加载成功:', gltf);
+                
+                // 移除临时球体
+                const tempBody = playerGroup.children[0];
+                if (tempBody) {
+                    playerGroup.remove(tempBody);
+                }
+                
+                // 获取模型
+                const model = gltf.scene;
+                
+                // 调整模型大小和位置
+                model.scale.set(150, 150, 150); // 缩放模型，设置为适中的大小
+                model.position.y = -50; // 重置模型自身位置为零点
+                
+                // 为模型及其所有子对象启用阴影
+                model.traverse(child => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                // 整体抬高玩家组的位置，这样整个模型都会抬高
+                playerGroup.position.y = 100; // 将整个玩家组抬高到地面上
+                
+                // 添加到玩家组
+                playerGroup.add(model);
+                
+                // 保存模型引用，以便以后更新
+                playerGroup.userData.model = model;
+                
+                // 显示加载完成信息
+                if (this.game && this.game.showWarning) {
+                    this.game.showWarning('3D角色模型加载完成', 60);
+                }
+            },
+            
+            // 加载进度回调
+            (xhr) => {
+                const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                console.log(`模型加载进度: ${percent}%`);
+                
+                // 更新加载进度信息
+                if (this.game && this.game.showWarning && percent % 10 === 0) { // 每10%更新一次
+                    this.game.showWarning(`3D角色模型加载中: ${percent}%`, 30);
+                }
+            },
+            
+            // 加载错误回调
+            (error) => {
+                console.error('3D角色模型加载失败:', error);
+                
+                // 显示错误信息
+                if (this.game && this.game.showWarning) {
+                    this.game.showWarning('3D角色模型加载失败，使用默认模型', 180);
+                }
+            }
+        );
+    }
+
+    // 动态导入GLTFLoader并加载模型
+    _dynamicLoadPlayerModel(playerGroup) {
+        // 动态导入GLTFLoader
+        import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
+            this._loadPlayerModel(playerGroup, GLTFLoader);
+        }).catch(error => {
+            console.error('加载GLTFLoader失败:', error);
+            
+            // 显示错误信息
+            if (this.game && this.game.showWarning) {
+                this.game.showWarning('无法加载3D模型组件，使用默认模型', 180);
+            }
+        });
     }
 
     // 更新玩家面朝方向
@@ -951,17 +1110,35 @@ export class ThreeHelper {
         
         const facingDirection = this.game.player.facingDirection;
         
-        // 根据方向调整眼睛位置
+        // 如果有GLTF模型，调整其旋转
+        const model = player.userData.model;
+        if (model) {
+            if (facingDirection === 'right') {
+                model.rotation.y = Math.PI / 2; // 向右旋转90度
+            } else if (facingDirection === 'left') {
+                model.rotation.y = -Math.PI / 2; // 向左旋转90度
+            } else if (facingDirection === 'up') {
+                model.rotation.y = 0; // 向上（默认方向）
+            } else if (facingDirection === 'down') {
+                model.rotation.y = Math.PI; // 向下旋转180度
+            }
+            return;
+        }
+        
+        // 如果没有模型，使用旧的眼睛逻辑（备用方案）
         const rightEye = player.userData.rightEye;
         const leftEye = player.userData.leftEye;
-        const offset = player.userData.eyeOffset;
         
-        if (facingDirection === 'right') {
-            rightEye.position.set(offset, 0, 0);
-            leftEye.position.set(-offset, 0, 0);
-        } else if (facingDirection === 'left') {
-            rightEye.position.set(-offset, 0, 0);
-            leftEye.position.set(offset, 0, 0);
+        if (rightEye && leftEye) {
+            const offset = player.userData.eyeOffset || 0;
+            
+            if (facingDirection === 'right') {
+                rightEye.position.set(offset, 0, 0);
+                leftEye.position.set(-offset, 0, 0);
+            } else if (facingDirection === 'left') {
+                rightEye.position.set(-offset, 0, 0);
+                leftEye.position.set(offset, 0, 0);
+            }
         }
     }
 
@@ -999,7 +1176,8 @@ export class ThreeHelper {
         });
 
         const enemyMesh = new THREE.Mesh(geometry, material);
-        enemyMesh.position.set(enemy.x, 0, enemy.y);
+        // 将敌人位置的y值设为100，与玩家模型高度一致
+        enemyMesh.position.set(enemy.x, 100, enemy.y);
         enemyMesh.castShadow = true;
 
         this.scene.add(enemyMesh);
@@ -1020,7 +1198,12 @@ export class ThreeHelper {
         });
 
         const projectileMesh = new THREE.Mesh(geometry, material);
-        projectileMesh.position.set(projectile.x, 10, projectile.y);
+        // 将高度从10提高到100，与玩家模型高度一致
+        projectileMesh.position.set(projectile.x, 100, projectile.y);
+        
+        // 添加阴影
+        projectileMesh.castShadow = true;
+        projectileMesh.receiveShadow = true;
 
         this.scene.add(projectileMesh);
         this.objects.set(`projectile_${projectile.id}`, projectileMesh);
@@ -1040,7 +1223,12 @@ export class ThreeHelper {
         });
 
         const orbMesh = new THREE.Mesh(geometry, material);
-        orbMesh.position.set(expOrb.x, 5, expOrb.y);
+        // 将高度从5提高到50，更贴近玩家模型高度但略低一些
+        orbMesh.position.set(expOrb.x, 50, expOrb.y);
+        
+        // 添加阴影
+        orbMesh.castShadow = true;
+        orbMesh.receiveShadow = true;
 
         this.scene.add(orbMesh);
         this.objects.set(`expOrb_${expOrb.id}`, orbMesh);
@@ -1052,7 +1240,14 @@ export class ThreeHelper {
     updateObjectPosition(key, x, y, z = 0) {
         const object = this.objects.get(key);
         if (object) {
-            object.position.set(x, z, y); // 注意：Three.js中y是上方，我们使用z作为y
+            if (key === 'player') {
+                // 特殊处理玩家对象：保持垂直高度不变，只更新水平位置
+                const currentY = object.position.y; // 保存当前的y值
+                object.position.set(x, currentY, y); // 设置新位置，保持y值不变
+            } else {
+                // 其他对象正常更新
+                object.position.set(x, z, y); // 注意：Three.js中y是上方，我们使用z作为y
+            }
         }
     }
 
@@ -1316,7 +1511,8 @@ export class ThreeHelper {
                     this.updateObjectPosition(
                         key,
                         enemy.x,
-                        enemy.y
+                        enemy.y,
+                        100 // 添加高度参数100，与玩家模型高度一致
                     );
                 }
             });
@@ -1337,7 +1533,7 @@ export class ThreeHelper {
                             key,
                             projectile.x,
                             projectile.y,
-                            10
+                            100 // 从10改为100，与玩家模型高度一致
                         );
                     }
                 });
@@ -1356,7 +1552,7 @@ export class ThreeHelper {
                         key,
                         orb.x,
                         orb.y,
-                        5
+                        50 // 从5改为50，更贴近玩家模型高度但略低一些
                     );
                 }
             });
@@ -1494,28 +1690,34 @@ export class ThreeHelper {
 
     // 创建灯光
     createLights() {
-        // 环境光
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // 增加环境光强度
+        // 环境光 - 稍微减弱环境光以突出阴影效果
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         this.scene.add(ambientLight);
 
-        // 主方向光 - 从相机方向照射
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight.position.set(0, 700, 500); // 与相机位置一致
-        directionalLight.lookAt(0, 0, 0);
+        // 主方向光 - 从高处斜射，模拟太阳光
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        // 将光源放在高处，并稍微偏移，创造45度角斜射效果
+        directionalLight.position.set(800, 1200, 800);
+        // 指向稍微下方，而不是原点，这样光源方向会固定在世界坐标系中
+        directionalLight.target.position.set(0, -100, 0);
+        this.scene.add(directionalLight.target); // 必须将target添加到场景中才能生效
         directionalLight.castShadow = true;
 
         // 调整阴影相机参数，避免锯齿
         directionalLight.shadow.camera.near = 1;
-        directionalLight.shadow.camera.far = 2000;
-        directionalLight.shadow.camera.left = -500;
-        directionalLight.shadow.camera.right = 500;
-        directionalLight.shadow.camera.top = 500;
-        directionalLight.shadow.camera.bottom = -500;
+        directionalLight.shadow.camera.far = 3000; // 增加远平面距离
+        directionalLight.shadow.camera.left = -1000; // 扩大视锥体
+        directionalLight.shadow.camera.right = 1000;
+        directionalLight.shadow.camera.top = 1000;
+        directionalLight.shadow.camera.bottom = -1000;
         
         // 增加阴影贴图分辨率和质量
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        directionalLight.shadow.bias = -0.0005; // 减少阴影痤疮
+        directionalLight.shadow.mapSize.width = 4096;
+        directionalLight.shadow.mapSize.height = 4096;
+        directionalLight.shadow.bias = -0.0002; // 调整偏移值，使阴影更加自然
+        directionalLight.shadow.normalBias = 0.01;
+        // 添加阴影模糊效果
+        directionalLight.shadow.radius = 2;
         
         this.scene.add(directionalLight);
 
@@ -1523,14 +1725,25 @@ export class ThreeHelper {
         const hemisphereLight = new THREE.HemisphereLight(
             0xffffbb, // 天空颜色
             0x080820, // 地面颜色
-            0.6       // 强度
+            0.4       // 降低强度以突出主光源的阴影
         );
         this.scene.add(hemisphereLight);
 
+        // 添加一个补充光源，模拟环境反射光，减少阴影过暗的问题
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        fillLight.position.set(-600, 400, -600); // 放在与主光源大致相反的位置
+        // 使用固定target，而不是lookAt
+        fillLight.target.position.set(200, -50, 200);
+        this.scene.add(fillLight.target);
+        // 此光源不产生阴影，只用于补光
+        this.scene.add(fillLight);
+
         // 添加额外的辅助照明 - 背面光源，确保物体背面也有照明
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        backLight.position.set(0, 100, -600); // 从相机对面方向照射
-        backLight.lookAt(0, 0, 0);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        backLight.position.set(0, 200, -600);
+        // 使用固定target，而不是lookAt
+        backLight.target.position.set(0, -50, 200);
+        this.scene.add(backLight.target);
         this.scene.add(backLight);
 
         // 记录主光源
@@ -1689,16 +1902,20 @@ export class ThreeHelper {
         this.successTexture.repeat.set(repeatX, repeatY);
         this.successTexture.needsUpdate = true;
 
-        // 创建材质 - 使用BasicMaterial确保可见
-        const groundMaterial = new THREE.MeshBasicMaterial({
+        // 创建材质 - 使用StandardMaterial支持阴影
+        const groundMaterial = new THREE.MeshStandardMaterial({
             map: this.successTexture,
             side: THREE.DoubleSide,
+            color: 0x668866, // 添加绿色调
+            roughness: 0.8,  // 添加粗糙度
+            metalness: 0.1   // 添加金属感
         });
 
         // 创建地面
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = -10;
+        ground.receiveShadow = true; // 启用阴影接收
         this.scene.add(ground);
         this.objects.set('success_ground', ground);
 
@@ -2402,5 +2619,20 @@ export class ThreeHelper {
         this.objects.set('boundary', line);
         
         return line;
+    }
+
+    // 预加载GLTFLoader
+    preloadGLTFLoader() {
+        console.log('预加载GLTFLoader...');
+        this.gltfLoaderPromise = import('three/examples/jsm/loaders/GLTFLoader.js')
+            .then(module => {
+                console.log('GLTFLoader加载成功');
+                this.GLTFLoader = module.GLTFLoader;
+                return module.GLTFLoader;
+            })
+            .catch(error => {
+                console.error('GLTFLoader加载失败:', error);
+                return null;
+            });
     }
 }
