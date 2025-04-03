@@ -10,8 +10,10 @@ export const Utils = {
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
     },
 
-    // 检测碰撞
+    // 检测碰撞 - 简化版本，在2D平面上进行碰撞检测，忽略高度差异
     checkCollision: (obj1, obj2) => {
+        // 始终在2D平面上进行碰撞检测，无论是否在3D模式
+        // 这样与2D模式的判定逻辑一致
         return (
             Utils.distance(obj1.x, obj1.y, obj2.x, obj2.y) <
             obj1.radius + obj2.radius

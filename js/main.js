@@ -166,6 +166,13 @@ function setupEventListeners() {
         backFromHelp.addEventListener('click', handleBackFromHelp);
     }
     
+    // "2D/3D模式切换"按钮
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    if (modeToggleBtn) {
+        modeToggleBtn.removeEventListener('click', handleModeToggle);
+        modeToggleBtn.addEventListener('click', handleModeToggle);
+    }
+    
     eventListenersInitialized = true;
 }
 
@@ -222,6 +229,20 @@ function handleBackFromHelp() {
     document.getElementById('start-screen').classList.remove('hidden');
 }
 
+// 模式切换按钮点击处理函数
+function handleModeToggle() {
+    if (window.game) {
+        console.log('切换游戏模式');
+        window.game.toggleMode();
+        
+        // 更新按钮文本内容以反映当前模式
+        const modeToggleBtn = document.getElementById('mode-toggle-btn');
+        if (modeToggleBtn) {
+            modeToggleBtn.textContent = window.game.is3D ? '切换到2D' : '切换到3D';
+        }
+    }
+}
+
 // 声明全局游戏对象
 window.game = null;
 
@@ -255,6 +276,14 @@ function initGame() {
     // 设置所有事件监听器
     console.log('初始化所有事件监听器');
     window.game.setupAllEventListeners();
+    
+    // 设置模式切换按钮监听器
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    if (modeToggleBtn) {
+        modeToggleBtn.removeEventListener('click', handleModeToggle);
+        modeToggleBtn.addEventListener('click', handleModeToggle);
+        modeToggleBtn.textContent = '切换到3D'; // 初始为2D模式
+    }
     
     // 先以2D模式启动游戏
     window.game.is3D = false;
@@ -309,6 +338,12 @@ function loadThreeJS() {
             // 更新Canvas可见性
             window.game.updateCanvasVisibility();
             
+            // 更新模式切换按钮文本
+            const modeToggleBtn = document.getElementById('mode-toggle-btn');
+            if (modeToggleBtn) {
+                modeToggleBtn.textContent = '切换到2D';
+            }
+            
             // 设置鼠标事件监听 - 确保在Canvas切换后设置
             setTimeout(() => {
                 window.game.setupMouseEvents();
@@ -355,6 +390,12 @@ function fallbackTo2D() {
     
     // 更新Canvas可见性
     window.game.updateCanvasVisibility();
+    
+    // 更新模式切换按钮文本
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    if (modeToggleBtn) {
+        modeToggleBtn.textContent = '切换到3D';
+    }
     
     window.game.showWarning('3D模式加载失败，已切换到2D模式', 180);
 }

@@ -272,6 +272,12 @@ export class Game {
                             this.resize();
                         }, 100);
                         
+                        // 更新模式切换按钮文本
+                        const modeToggleBtn = document.getElementById('mode-toggle-btn');
+                        if (modeToggleBtn) {
+                            modeToggleBtn.textContent = '切换到2D';
+                        }
+                        
                         // 显示切换完成的提示
                         this.showWarning('已切换到3D模式', 120);
                     } catch (error) {
@@ -331,6 +337,12 @@ export class Game {
             setTimeout(() => {
                 this.resize();
             }, 100);
+            
+            // 更新模式切换按钮文本
+            const modeToggleBtn = document.getElementById('mode-toggle-btn');
+            if (modeToggleBtn) {
+                modeToggleBtn.textContent = '切换到3D';
+            }
             
             // 显示切换完成的提示
             this.showWarning('已切换到2D模式', 120);

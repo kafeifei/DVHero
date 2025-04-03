@@ -439,3 +439,29 @@ body {
     border-radius: 50%;
     transform: translate(-50%, -50%);
 }
+
+/* 模式切换按钮样式 */
+.mode-toggle-btn {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    background-color: #6d1a1a;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.mode-toggle-btn:hover {
+    background-color: #9e2626;
+    transform: scale(1.05);
+}
+
+.mode-toggle-btn:active {
+    transform: scale(0.95);
+}

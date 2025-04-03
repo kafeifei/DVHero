@@ -39,7 +39,7 @@ export class ThreeHelper {
         );
 
         // 将相机位置设置为略微向前倾斜的视角，但调整角度使游戏更易看清
-        this.camera.position.set(0, 700, 500); // 调整相机高度和前后位置
+        this.camera.position.set(0, 700, 250); // 减少Z轴偏移，与updateCamera保持一致
         this.camera.lookAt(0, 0, 0);
         
         // 设置相机阴影参数
@@ -977,6 +977,9 @@ export class ThreeHelper {
         // 设置位置
         playerGroup.position.set(this.game.player.x, 0, this.game.player.y);
         
+        // 添加一个碰撞点标记，显示逻辑位置
+        this.addCollisionMarker(playerGroup);
+        
         this.scene.add(playerGroup);
         this.objects.set('player', playerGroup);
 
@@ -991,6 +994,27 @@ export class ThreeHelper {
         
         // 创建玩家状态条（血条和冷却条）
         this.createPlayerStatusBars();
+    }
+    
+    // 添加碰撞点标记，用于显示物体的逻辑位置
+    addCollisionMarker(group) {
+        // 创建一个小球体，标记逻辑位置
+        const markerGeometry = new THREE.SphereGeometry(5, 8, 8);
+        const markerMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000, // 红色
+            transparent: true,
+            opacity: 0.8
+        });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        
+        // 将标记放在模型的中心点位置，y=0是地面，但人物中心应该在半高处
+        marker.position.set(0, 50, 0);
+        
+        // 保存标记的引用
+        group.userData.collisionMarker = marker;
+        
+        // 添加到组中
+        group.add(marker);
     }
 
     // 加载玩家FBX模型
@@ -1020,8 +1044,8 @@ export class ThreeHelper {
                     }
                     
                     // 调整模型大小和位置
-                    fbx.scale.set(0.1, 0.1, 0.1); // 缩放模型，根据模型大小调整
-                    fbx.position.y = -50; // 重置模型自身位置
+                    fbx.scale.set(0.48, 0.48, 0.48); // 缩小到原来的0.8倍 (0.6 * 0.8 = 0.48)
+                    fbx.position.y = 0; // 将模型位置调整到y=0，使模型中心与逻辑位置匹配
                     
                     // 为模型及其所有子对象启用阴影
                     fbx.traverse(child => {
@@ -1031,8 +1055,8 @@ export class ThreeHelper {
                         }
                     });
                     
-                    // 整体抬高玩家组的位置
-                    playerGroup.position.y = 100; 
+                    // 整体抬高玩家组的位置，使模型底部接触地面，中心点在半高处
+                    playerGroup.position.y = 50; // 调整为半高，与碰撞点标记对齐
                     
                     // 添加到玩家组
                     playerGroup.add(fbx);
@@ -1195,13 +1219,15 @@ export class ThreeHelper {
         const model = player.userData.model;
         if (model) {
             if (facingDirection === 'right') {
-                model.rotation.y = 0; // 右方向实际是上
+                model.rotation.y = Math.PI/2;
             } else if (facingDirection === 'left') {
-                model.rotation.y = Math.PI; // 左方向实际是下
+                model.rotation.y = -Math.PI/2;
             } else if (facingDirection === 'up') {
-                model.rotation.y = Math.PI / 2; // 上方向实际是右
+                // 上下移动时不改变旋转方向
+                // model.rotation.y = -Math.PI;
             } else if (facingDirection === 'down') {
-                model.rotation.y = -Math.PI / 2; // 下方向实际是左
+                // 上下移动时不改变旋转方向
+                // model.rotation.y = 0;
             }
             return;
         }
@@ -1262,12 +1288,21 @@ export class ThreeHelper {
                 if (!this.objects.has(key)) {
                     this.createEnemyModel(enemy);
                 } else {
+                    // 不再传递高度参数，由updateObjectPosition方法根据敌人类型设置
                     this.updateObjectPosition(
                         key,
                         enemy.x,
-                        enemy.y,
-                        100 // 添加高度参数100，与玩家模型高度一致
+                        enemy.y
                     );
+                    
+                    // 更新敌人血条
+                    const enemyMesh = this.objects.get(key);
+                    if (enemyMesh) {
+                        // 更新敌人引用
+                        enemyMesh.userData.enemy = enemy;
+                        // 更新血条显示
+                        this.updateEnemyHealthBar(enemyMesh);
+                    }
                 }
             });
         } catch (e) {
@@ -1283,11 +1318,12 @@ export class ThreeHelper {
                     if (!this.objects.has(key)) {
                         this.createProjectileModel(projectile);
                     } else {
+                        // 保持投射物高度为100，与玩家高度一致
                         this.updateObjectPosition(
                             key,
                             projectile.x,
                             projectile.y,
-                            100 // 从10改为100，与玩家模型高度一致
+                            100
                         );
                     }
                 });
@@ -1355,22 +1391,45 @@ export class ThreeHelper {
             case 'Zombie':
                 geometry = new THREE.BoxGeometry(
                     enemy.radius * 2,
-                    enemy.radius * 2,
+                    enemy.radius * 4, // 增加高度，让其看起来更像站立的人形
                     enemy.radius * 2
                 );
                 break;
             case 'SkeletonSoldier':
-                geometry = new THREE.ConeGeometry(
+                geometry = new THREE.CylinderGeometry(
                     enemy.radius,
-                    enemy.radius * 2,
+                    enemy.radius * 0.7, // 底部略窄，像人形
+                    enemy.radius * 4, // 增加高度
                     4
                 );
                 break;
             case 'MedusaHead':
                 geometry = new THREE.OctahedronGeometry(enemy.radius, 0);
                 break;
+            case 'BladeSoldier':
+                geometry = new THREE.BoxGeometry(
+                    enemy.radius * 2,
+                    enemy.radius * 4.5, // 更高一些
+                    enemy.radius * 2
+                );
+                break;
+            case 'SpearGuard':
+                geometry = new THREE.CylinderGeometry(
+                    enemy.radius,
+                    enemy.radius * 0.8,
+                    enemy.radius * 4.2, // 增加高度
+                    5 // 五边形，更像战士
+                );
+                break;
+            case 'FireDemon':
+                geometry = new THREE.SphereGeometry(enemy.radius, 8, 8);
+                // 稍微扁平化
+                geometry.scale(1, 1.5, 1);
+                break;
             default:
                 geometry = new THREE.SphereGeometry(enemy.radius, 8, 8);
+                // 稍微增高
+                geometry.scale(1, 1.5, 1);
         }
 
         const material = new THREE.MeshStandardMaterial({
@@ -1380,14 +1439,174 @@ export class ThreeHelper {
         });
 
         const enemyMesh = new THREE.Mesh(geometry, material);
-        // 将敌人位置的y值设为100，与玩家模型高度一致
-        enemyMesh.position.set(enemy.x, 100, enemy.y);
+        
+        // 保存敌人类型信息和血量信息
+        enemyMesh.userData.enemyType = enemy.constructor.name;
+        enemyMesh.userData.enemy = enemy;
+        
+        // 创建敌人组，使碰撞点标记与视觉模型分离
+        const enemyGroup = new THREE.Group();
+        
+        // 添加碰撞点标记到敌人中心
+        this.addCollisionMarker(enemyGroup);
+        
+        // 添加模型到组
+        enemyGroup.add(enemyMesh);
+        
+        // 根据敌人类型设置模型位置，使其底部接触地面
+        if (enemy.constructor.name === 'MedusaHead') {
+            // 美杜莎头保持悬空，模型置于中心点
+            enemyMesh.position.y = 0;
+        } else {
+            // 其他敌人的模型位置调整，使它们的中间点位于逻辑位置，底部接触地面
+            let modelHeight = 0;
+            
+            // 计算各种模型的高度
+            if (enemy.constructor.name === 'Zombie') {
+                modelHeight = enemy.radius * 4;
+            } else if (enemy.constructor.name === 'SkeletonSoldier') {
+                modelHeight = enemy.radius * 4;
+            } else if (enemy.constructor.name === 'BladeSoldier') {
+                modelHeight = enemy.radius * 4.5;
+            } else if (enemy.constructor.name === 'SpearGuard') {
+                modelHeight = enemy.radius * 4.2;
+            } else if (enemy.constructor.name === 'FireDemon') {
+                modelHeight = enemy.radius * 3;
+            } else {
+                modelHeight = enemy.radius * 3;
+            }
+            
+            // 将模型向上移动半高，使其底部接触地面，中心在半高处
+            enemyMesh.position.y = 0;
+        }
+        
+        // 设置整个组的位置
+        if (enemy.constructor.name === 'MedusaHead') {
+            // 美杜莎头悬空
+            enemyGroup.position.set(enemy.x, 100, enemy.y);
+        } else {
+            // 其他敌人位置设置在地面上，碰撞点标记在半高处
+            const heightOffset = enemy.radius * 2; // 一个合理的值，确保碰撞点在敌人中部
+            enemyGroup.position.set(enemy.x, heightOffset, enemy.y);
+        }
+        
         enemyMesh.castShadow = true;
 
-        this.scene.add(enemyMesh);
-        this.objects.set(`enemy_${enemy.id}`, enemyMesh);
+        // 创建血条
+        this.createEnemyHealthBar(enemyGroup, enemy);
 
-        return enemyMesh;
+        this.scene.add(enemyGroup);
+        this.objects.set(`enemy_${enemy.id}`, enemyGroup);
+
+        return enemyGroup;
+    }
+
+    // 创建敌人血条
+    createEnemyHealthBar(enemyGroup, enemy) {
+        // 血条宽度基于敌人半径
+        const healthBarWidth = enemy.radius * 2;
+        const healthBarHeight = 2;
+        
+        // 创建血条背景（灰色）
+        const healthBarBgGeometry = new THREE.BoxGeometry(healthBarWidth, healthBarHeight, 1);
+        const healthBarBgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x333333,
+            transparent: true,
+            opacity: 0.7
+        });
+        const healthBarBg = new THREE.Mesh(healthBarBgGeometry, healthBarBgMaterial);
+        
+        // 获取敌人模型（组中的第一个子对象）
+        const enemyMesh = enemyGroup.children.find(child => child instanceof THREE.Mesh && child !== enemyGroup.userData.collisionMarker);
+        
+        // 根据敌人类型确定血条高度位置
+        let healthBarY = 0;
+        if (enemy.constructor.name === 'MedusaHead') {
+            healthBarY = enemy.radius * 1.5; // 美杜莎头头顶
+        } else {
+            // 计算各种模型的高度
+            let modelHeight = 0;
+            if (enemy.constructor.name === 'Zombie') {
+                modelHeight = enemy.radius * 4;
+            } else if (enemy.constructor.name === 'SkeletonSoldier') {
+                modelHeight = enemy.radius * 4;
+            } else if (enemy.constructor.name === 'BladeSoldier') {
+                modelHeight = enemy.radius * 4.5;
+            } else if (enemy.constructor.name === 'SpearGuard') {
+                modelHeight = enemy.radius * 4.2;
+            } else if (enemy.constructor.name === 'FireDemon') {
+                modelHeight = enemy.radius * 3;
+            } else {
+                modelHeight = enemy.radius * 3;
+            }
+            
+            // 将血条放在模型顶部
+            healthBarY = modelHeight / 2 + enemy.radius * 0.5;
+        }
+        
+        // 设置血条背景位置（放置在怪物头顶）
+        healthBarBg.position.set(0, healthBarY, 0);
+        
+        // 创建血条前景（红色，表示当前血量）
+        const healthPercent = enemy.health / enemy.maxHealth;
+        const healthBarFgGeometry = new THREE.BoxGeometry(healthBarWidth * healthPercent, healthBarHeight, 1.5);
+        const healthBarFgMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000
+        });
+        const healthBarFg = new THREE.Mesh(healthBarFgGeometry, healthBarFgMaterial);
+        
+        // 调整血条前景位置，使其与血条背景对齐
+        const offsetX = (healthBarWidth - healthBarWidth * healthPercent) / 2;
+        healthBarFg.position.set(-offsetX, healthBarY, 0);
+        
+        // 血条组合（背景和前景）
+        const healthBarGroup = new THREE.Group();
+        healthBarGroup.add(healthBarBg);
+        healthBarGroup.add(healthBarFg);
+        
+        // 总是让血条面向相机
+        healthBarGroup.rotation.x = -Math.PI / 6;
+        
+        // 将血条添加到敌人组上，使其跟随敌人移动
+        enemyGroup.add(healthBarGroup);
+        
+        // 保存健康条引用到模型的userData
+        enemyGroup.userData.healthBar = healthBarGroup;
+    }
+
+    // 更新敌人血条
+    updateEnemyHealthBar(enemyGroup) {
+        // 检查是否有健康条和敌人引用
+        if (!enemyGroup || !enemyGroup.userData.healthBar || !enemyGroup.userData.enemy) {
+            return;
+        }
+        
+        const enemy = enemyGroup.userData.enemy;
+        const healthBar = enemyGroup.userData.healthBar;
+        
+        // 计算当前血量百分比
+        const healthPercent = enemy.health / enemy.maxHealth;
+        
+        // 获取血条前景（第二个子对象）
+        const healthBarFg = healthBar.children[1];
+        if (healthBarFg) {
+            // 更新血条宽度
+            healthBarFg.scale.x = healthPercent;
+            
+            // 调整位置，使血条从左到右均匀减少
+            const healthBarWidth = enemy.radius * 2;
+            const offsetX = (healthBarWidth - (healthBarWidth * healthPercent)) / 2;
+            healthBarFg.position.x = -offsetX;
+            
+            // 根据血量改变颜色
+            if (healthPercent > 0.5) {
+                healthBarFg.material.color.setHex(0xff0000); // 红色
+            } else if (healthPercent > 0.25) {
+                healthBarFg.material.color.setHex(0xff5500); // 橙色
+            } else {
+                healthBarFg.material.color.setHex(0xff0000); // 红色（保持红色）
+            }
+        }
     }
 
     // 创建投射物模型
@@ -1448,6 +1667,29 @@ export class ThreeHelper {
                 // 特殊处理玩家对象：保持垂直高度不变，只更新水平位置
                 const currentY = object.position.y; // 保存当前的y值
                 object.position.set(x, currentY, y); // 设置新位置，保持y值不变
+                
+                // 如果有碰撞点标记，确保它位于中心点
+                if (object.userData.collisionMarker) {
+                    // 保持位置在玩家中心点
+                    object.userData.collisionMarker.position.set(0, 0, 0);
+                }
+            } else if (key.startsWith('enemy_')) {
+                // 根据敌人类型设置不同的高度
+                const enemyType = object.userData.enemyType;
+                
+                if (enemyType === 'MedusaHead') {
+                    // 美杜莎头保持悬空
+                    object.position.set(x, 100, y);
+                } else {
+                    // 其他敌人位置设置为地面上，碰撞点在半高处
+                    const heightOffset = object.userData.enemy ? object.userData.enemy.radius * 2 : 30;
+                    object.position.set(x, heightOffset, y);
+                }
+                
+                // 确保碰撞点标记位于中心
+                if (object.userData.collisionMarker) {
+                    object.userData.collisionMarker.position.set(0, 0, 0);
+                }
             } else {
                 // 其他对象正常更新
                 object.position.set(x, z, y); // 注意：Three.js中y是上方，我们使用z作为y
@@ -1479,8 +1721,8 @@ export class ThreeHelper {
         // 设置相机位置，保持固定的高度和偏移角度
         // 透视相机跟随玩家，但保持一定高度和前方偏移以获得俯视效果
         this.camera.position.x = targetX;
-        this.camera.position.y = 600; // 相机高度
-        this.camera.position.z = targetZ + 600; // 相机在玩家后方的偏移距离
+        this.camera.position.y = 600; // 相机高度保持不变
+        this.camera.position.z = targetZ + 300; // 减少一半Z轴偏移，从600改为300
         
         // 始终让相机看向玩家位置，但保持垂直俯视感
         this.camera.lookAt(targetX, 0, targetZ);
@@ -1579,6 +1821,9 @@ export class ThreeHelper {
             
             // 更新玩家状态条（血条和技能冷却条）
             this.updatePlayerStatusBars();
+            
+            // 更新敌人血条方向，使其面向相机
+            this.updateEnemyHealthBarDirection();
 
             // 更新相机位置
             this.updateCamera();
@@ -2621,8 +2866,8 @@ export class ThreeHelper {
         
         // 调整相机视角以增强3D透视效果
         // 当相机初始设置完成后，微调偏移角度以获得更好的透视效果
-        this.camera.position.set(0, 700, 600); // 略微增加z轴偏移
-        this.camera.lookAt(0, 50, 0); // 视线稍微向下倾斜，增强透视感
+        this.camera.position.set(0, 700, 300); // 减少一半Z轴偏移，从600改为300
+        this.camera.lookAt(0, 25, 0); // 视线倾斜角度减半，从50改为25
         this.camera.updateProjectionMatrix();
         
         console.log('Three.js场景初始化完成');
@@ -2718,8 +2963,8 @@ export class ThreeHelper {
                     const model = gltf.scene;
                     
                     // 调整模型大小和位置
-                    model.scale.set(150, 150, 150); // 缩放模型，设置为适中的大小
-                    model.position.y = -50; // 重置模型自身位置为零点
+                    model.scale.set(120, 120, 120); // 缩小到原来的0.8倍 (150 * 0.8 = 120)
+                    model.position.y = 0; // 将模型位置调整到y=0，使模型中心与逻辑位置匹配
                     
                     // 为模型及其所有子对象启用阴影
                     model.traverse(child => {
@@ -2729,8 +2974,8 @@ export class ThreeHelper {
                         }
                     });
                     
-                    // 整体抬高玩家组的位置，这样整个模型都会抬高
-                    playerGroup.position.y = 100; // 将整个玩家组抬高到地面上
+                    // 整体抬高玩家组的位置，使模型底部接触地面，中心点在半高处
+                    playerGroup.position.y = 50; // 调整为半高，与碰撞点标记对齐
                     
                     // 添加到玩家组
                     playerGroup.add(model);
@@ -2771,6 +3016,22 @@ export class ThreeHelper {
             // 显示错误信息
             if (this.game && this.game.showWarning) {
                 this.game.showWarning('无法加载3D模型组件，使用默认模型', 180);
+            }
+        });
+    }
+
+    // 更新所有敌人血条的方向，使其始终面向相机
+    updateEnemyHealthBarDirection() {
+        // 为每个敌人的血条设置正确的方向，使其面向相机
+        this.objects.forEach((object, key) => {
+            if (key.startsWith('enemy_') && object.userData.healthBar) {
+                // 将血条的朝向设为始终面向相机
+                object.userData.healthBar.quaternion.copy(this.camera.quaternion);
+                
+                // 如果有碰撞点标记，保持它一直可见
+                if (object.userData.collisionMarker) {
+                    object.userData.collisionMarker.quaternion.copy(this.camera.quaternion);
+                }
             }
         });
     }
