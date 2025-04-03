@@ -1953,11 +1953,11 @@ export class ThreeHelper {
 
         // 加载背景对象所需的图像 - 修复路径问题
         const imagesToLoad = [
-            { key: 'castleTower', path: '/castle_tower.png' },
-            { key: 'brokenPillar', path: '/broken_pillar.png' },
-            { key: 'gravestone', path: '/gravestone.png' },
-            { key: 'deadTree', path: '/dead_tree.png' },
-            { key: 'torch', path: '/torch.png' },
+            { key: 'castleTower', path: '/images/castle_tower.png' },
+            { key: 'brokenPillar', path: '/images/broken_pillar.png' },
+            { key: 'gravestone', path: '/images/gravestone.png' },
+            { key: 'deadTree', path: '/images/dead_tree.png' },
+            { key: 'torch', path: '/images/torch.png' },
         ];
 
         // 如果是同步模式，使用Promise.all确保所有纹理加载完成

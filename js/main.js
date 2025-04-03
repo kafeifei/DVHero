@@ -359,131 +359,63 @@ function fallbackTo2D() {
     window.game.showWarning('3D模式加载失败，已切换到2D模式', 180);
 }
 
-// 预加载Three.js纹理
+// 预加载游戏资源
 function preloadTextures() {
-    // 确保使用正确的路径
-    const textureUrls = [
-        '/grass_texture.png',  // 使用绝对路径
-        '/castle_tower.png',
-        '/broken_pillar.png',
-        '/gravestone.png',
-        '/dead_tree.png',
-        '/torch.png',
-    ];
-
-    console.log('预加载3D纹理...');
-    console.log('当前路径:', window.location.href);
-    console.log('纹理路径:', textureUrls);
-
-    // 不再自动执行测试，将testImageVisibility作为全局函数导出
-    window.testImageVisibility = function () {
-        console.log('创建测试图像元素...');
-        const debugContainer = document.createElement('div');
-        debugContainer.id = 'texture-debug';
-        debugContainer.style.position = 'fixed';
-        debugContainer.style.bottom = '10px';
-        debugContainer.style.right = '10px';
-        debugContainer.style.background = 'rgba(0,0,0,0.7)';
-        debugContainer.style.padding = '10px';
-        debugContainer.style.borderRadius = '5px';
-        debugContainer.style.zIndex = '1000';
-        debugContainer.style.display = 'flex';
-        debugContainer.style.flexDirection = 'column';
-        debugContainer.style.gap = '5px';
-
-        const title = document.createElement('h4');
-        title.textContent = '纹理测试';
-        title.style.color = 'white';
-        title.style.margin = '0 0 10px 0';
-        debugContainer.appendChild(title);
-
-        // 尝试每个路径
-        const paths = [
-            '/grass_texture.png',
-            './grass_texture.png',
-            'grass_texture.png',
-            window.location.origin + '/grass_texture.png',
-        ];
-
-        paths.forEach((path, index) => {
-            const imgContainer = document.createElement('div');
-            imgContainer.style.marginBottom = '10px';
-
-            const label = document.createElement('div');
-            label.textContent = `路径 ${index + 1}: ${path}`;
-            label.style.color = 'white';
-            label.style.fontSize = '12px';
-            imgContainer.appendChild(label);
-
-            const img = document.createElement('img');
-            img.src = path;
-            img.alt = `纹理 ${index + 1}`;
-            img.style.width = '100px';
-            img.style.height = '100px';
-            img.style.border = '1px solid white';
-            img.style.display = 'block';
-
-            img.onload = () => {
-                label.style.color = '#00ff00';
-                label.textContent += ` (已加载: ${img.naturalWidth}x${img.naturalHeight})`;
-            };
-
-            img.onerror = () => {
-                label.style.color = '#ff0000';
-                label.textContent += ' (加载失败)';
-                img.style.display = 'none';
-            };
-
-            imgContainer.appendChild(img);
-            debugContainer.appendChild(imgContainer);
-        });
-
-        // 添加关闭按钮
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '关闭';
-        closeBtn.style.padding = '5px';
-        closeBtn.style.marginTop = '10px';
-        closeBtn.onclick = () => {
-            document.body.removeChild(debugContainer);
-        };
-        debugContainer.appendChild(closeBtn);
-
-        document.body.appendChild(debugContainer);
-    };
-
-    // 不再自动执行纹理测试
-    // setTimeout(testImageVisibility, 1000);
-
-    // 创建一个隐藏的纹理加载器
+    // 预加载纹理以提高游戏启动速度
     const textureLoader = new THREE.TextureLoader();
-    const loadingPromises = textureUrls.map((url) => {
-        return new Promise((resolve /*, reject*/) => {
+    
+    // 预加载草地纹理和其他对象纹理
+    const texturesToPreload = [
+        '/images/grass_texture.png',  // 使用绝对路径
+        '/images/castle_tower.png',
+        '/images/broken_pillar.png',
+        '/images/gravestone.png',
+        '/images/dead_tree.png',
+        '/images/torch.png',
+    ];
+    
+    let loadedCount = 0;
+    
+    // 遍历并加载每个纹理
+    texturesToPreload.forEach(path => {
+        // 尝试不同的路径格式
+        const tryLoadTexture = (pathIndex = 0) => {
+            // 不同格式的路径尝试
+            const pathVariations = [
+                path,                        // 原始路径 /images/xxx.png
+                '.' + path,                  // 相对路径 ./images/xxx.png
+                path.substring(1),           // 移除开头的/ 得到 images/xxx.png
+                window.location.origin + path // 完整URL
+            ];
+            
+            // 如果已尝试所有变体，则放弃
+            if (pathIndex >= pathVariations.length) {
+                console.error('无法加载纹理:', path);
+                loadedCount++;
+                return;
+            }
+            
+            // 当前尝试的路径
+            const currentPath = pathVariations[pathIndex];
+            
+            // 加载纹理
             textureLoader.load(
-                url,
+                currentPath,
                 (texture) => {
-                    console.log(`预加载纹理成功: ${url}`);
-                    resolve(texture);
+                    // 纹理加载成功
+                    loadedCount++;
+                    console.log(`成功预加载纹理: ${path} (${loadedCount}/${texturesToPreload.length})`);
                 },
-                (progress) => {
-                    console.log(`纹理加载进度 ${url}:`, progress);
-                },
+                undefined,
                 (error) => {
-                    console.warn(`预加载纹理失败: ${url}`, error);
-                    resolve(null); // 即使失败也继续
+                    // 该路径加载失败，尝试下一个变体
+                    console.warn(`纹理加载失败: ${currentPath}，尝试下一个路径变体`);
+                    tryLoadTexture(pathIndex + 1);
                 }
             );
-        });
+        };
+        
+        // 开始尝试加载
+        tryLoadTexture();
     });
-
-    // 不需要等待预加载完成，这只是为了提前缓存纹理
-    Promise.all(loadingPromises)
-        .then((textures) => {
-            window.preloadedTextures = textures.filter((t) => t !== null);
-            console.log(
-                `预加载完成 ${window.preloadedTextures.length}/${textureUrls.length} 个纹理`
-            );
-        })
-        .catch((err) => {
-            console.error('预加载纹理时出错', err);
-        });
 }
