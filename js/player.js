@@ -506,4 +506,33 @@ export class Player {
             ctx.fillText(`${weapon.name} Lv${weapon.level}`, 30, weaponY);
         }
     }
+
+    // 判断玩家是否在移动
+    isMoving() {
+        // 检查键盘输入
+        if (this.game.keys.up || this.game.keys.w || this.game.keys.ArrowUp || this.game.keys.W ||
+            this.game.keys.down || this.game.keys.s || this.game.keys.ArrowDown || this.game.keys.S ||
+            this.game.keys.left || this.game.keys.a || this.game.keys.ArrowLeft || this.game.keys.A ||
+            this.game.keys.right || this.game.keys.d || this.game.keys.ArrowRight || this.game.keys.D) {
+            return true;
+        }
+        
+        // 检查鼠标/触摸拖动
+        if (this.game.isDragging && this.game.dragStartX !== null && this.game.dragStartY !== null) {
+            const deltaX = this.game.mouseX - this.game.dragStartX;
+            const deltaY = this.game.mouseY - this.game.dragStartY;
+            const threshold = 5;
+            
+            if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
+                return true;
+            }
+        }
+        
+        // 检查冲刺状态
+        if (this.isDashing) {
+            return true;
+        }
+        
+        return false;
+    }
 }

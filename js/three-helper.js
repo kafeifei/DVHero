@@ -980,127 +980,208 @@ export class ThreeHelper {
         this.scene.add(playerGroup);
         this.objects.set('player', playerGroup);
 
-        // 加载GLTF模型
-        this.loadPlayerGLTFModel(playerGroup);
+        // 创建时钟用于动画
+        this.clock = new THREE.Clock();
+        
+        // 初始化动画混合器数组
+        this.mixers = [];
+
+        // 加载FBX模型
+        this.loadPlayerFBXModel(playerGroup);
         
         // 创建玩家状态条（血条和冷却条）
         this.createPlayerStatusBars();
     }
 
-    // 加载玩家GLTF模型
-    loadPlayerGLTFModel(playerGroup) {
-        // 使用预加载的GLTFLoader或动态导入
-        if (this.GLTFLoader) {
-            this._loadPlayerModel(playerGroup, this.GLTFLoader);
-        } else if (this.gltfLoaderPromise) {
-            // 如果预加载Promise存在，等待加载完成
-            this.gltfLoaderPromise.then(GLTFLoader => {
-                if (GLTFLoader) {
-                    this._loadPlayerModel(playerGroup, GLTFLoader);
-                } else {
-                    // 如果Promise已解析但没有返回加载器，尝试直接导入
-                    this._dynamicLoadPlayerModel(playerGroup);
-                }
-            }).catch(error => {
-                console.error('使用预加载GLTFLoader失败:', error);
-                this._dynamicLoadPlayerModel(playerGroup);
-            });
-        } else {
-            // 没有预加载，直接动态导入
-            this._dynamicLoadPlayerModel(playerGroup);
-        }
-    }
-
-    // 使用已有的GLTFLoader加载模型
-    _loadPlayerModel(playerGroup, GLTFLoaderClass) {
-        // 显示加载信息
-        if (this.game && this.game.showWarning) {
-            this.game.showWarning('正在加载3D角色模型...', 120);
-        }
-        
-        const loader = new GLTFLoaderClass();
-        
-        // 加载模型
-        loader.load(
-            // 模型路径 - 使用相对路径
-            './3dres/girl1/scene.gltf',
-            
-            // 加载成功回调
-            (gltf) => {
-                console.log('3D角色模型加载成功:', gltf);
-                
-                // 移除临时球体
-                const tempBody = playerGroup.children[0];
-                if (tempBody) {
-                    playerGroup.remove(tempBody);
-                }
-                
-                // 获取模型
-                const model = gltf.scene;
-                
-                // 调整模型大小和位置
-                model.scale.set(150, 150, 150); // 缩放模型，设置为适中的大小
-                model.position.y = -50; // 重置模型自身位置为零点
-                
-                // 为模型及其所有子对象启用阴影
-                model.traverse(child => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-                
-                // 整体抬高玩家组的位置，这样整个模型都会抬高
-                playerGroup.position.y = 100; // 将整个玩家组抬高到地面上
-                
-                // 添加到玩家组
-                playerGroup.add(model);
-                
-                // 保存模型引用，以便以后更新
-                playerGroup.userData.model = model;
-                
-                // 显示加载完成信息
-                if (this.game && this.game.showWarning) {
-                    this.game.showWarning('3D角色模型加载完成', 60);
-                }
-            },
-            
-            // 加载进度回调
-            (xhr) => {
-                const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                console.log(`模型加载进度: ${percent}%`);
-                
-                // 更新加载进度信息
-                if (this.game && this.game.showWarning && percent % 10 === 0) { // 每10%更新一次
-                    this.game.showWarning(`3D角色模型加载中: ${percent}%`, 30);
-                }
-            },
-            
-            // 加载错误回调
-            (error) => {
-                console.error('3D角色模型加载失败:', error);
-                
-                // 显示错误信息
-                if (this.game && this.game.showWarning) {
-                    this.game.showWarning('3D角色模型加载失败，使用默认模型', 180);
-                }
+    // 加载玩家FBX模型
+    loadPlayerFBXModel(playerGroup) {
+        // 动态导入FBXLoader
+        import('three/examples/jsm/loaders/FBXLoader.js').then(({ FBXLoader }) => {
+            // 显示加载信息
+            if (this.game && this.game.showWarning) {
+                this.game.showWarning('正在加载3D角色模型...', 120);
             }
-        );
-    }
-
-    // 动态导入GLTFLoader并加载模型
-    _dynamicLoadPlayerModel(playerGroup) {
-        // 动态导入GLTFLoader
-        import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
-            this._loadPlayerModel(playerGroup, GLTFLoader);
+            
+            const loader = new FBXLoader();
+            
+            // 加载模型
+            loader.load(
+                // 模型路径
+                './3dres/player.fbx',
+                
+                // 加载成功回调
+                (fbx) => {
+                    console.log('3D角色模型加载成功:', fbx);
+                    
+                    // 移除临时球体
+                    const tempBody = playerGroup.children[0];
+                    if (tempBody) {
+                        playerGroup.remove(tempBody);
+                    }
+                    
+                    // 调整模型大小和位置
+                    fbx.scale.set(0.1, 0.1, 0.1); // 缩放模型，根据模型大小调整
+                    fbx.position.y = -50; // 重置模型自身位置
+                    
+                    // 为模型及其所有子对象启用阴影
+                    fbx.traverse(child => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    // 整体抬高玩家组的位置
+                    playerGroup.position.y = 100; 
+                    
+                    // 添加到玩家组
+                    playerGroup.add(fbx);
+                    
+                    // 保存模型引用
+                    playerGroup.userData.model = fbx;
+                    
+                    // 处理动画
+                    if (fbx.animations && fbx.animations.length) {
+                        // 创建动画混合器
+                        const mixer = new THREE.AnimationMixer(fbx);
+                        this.mixers.push(mixer);
+                        
+                        // 保存所有动画
+                        playerGroup.userData.animations = {};
+                        playerGroup.userData.mixer = mixer;
+                        
+                        fbx.animations.forEach(clip => {
+                            const name = clip.name.toLowerCase();
+                            console.log(`发现动画: ${name}`);
+                            playerGroup.userData.animations[name] = mixer.clipAction(clip);
+                        });
+                        
+                        // 播放默认的idle动画
+                        this.playAnimation(playerGroup, 'idle');
+                    }
+                    
+                    // 显示加载完成信息
+                    if (this.game && this.game.showWarning) {
+                        this.game.showWarning('3D角色模型加载完成', 60);
+                    }
+                },
+                
+                // 加载进度回调
+                (xhr) => {
+                    const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                    console.log(`模型加载进度: ${percent}%`);
+                    
+                    // 更新加载进度信息
+                    if (this.game && this.game.showWarning && percent % 10 === 0) { 
+                        this.game.showWarning(`3D角色模型加载中: ${percent}%`, 30);
+                    }
+                },
+                
+                // 加载错误回调
+                (error) => {
+                    console.error('3D角色FBX模型加载失败:', error);
+                    
+                    // 显示错误信息，尝试加载GLTF模型作为备用
+                    if (this.game && this.game.showWarning) {
+                        this.game.showWarning('FBX模型加载失败，尝试加载GLTF模型', 180);
+                    }
+                    
+                    // 尝试加载GLTF模型作为备用
+                    this.loadPlayerGLTFModel(playerGroup);
+                }
+            );
         }).catch(error => {
-            console.error('加载GLTFLoader失败:', error);
+            console.error('加载FBXLoader失败:', error);
             
             // 显示错误信息
             if (this.game && this.game.showWarning) {
-                this.game.showWarning('无法加载3D模型组件，使用默认模型', 180);
+                this.game.showWarning('无法加载FBXLoader，使用GLTF模型代替', 180);
             }
+            
+            // 使用GLTF模型作为备用
+            this.loadPlayerGLTFModel(playerGroup);
         });
+    }
+    
+    // 播放指定动画
+    playAnimation(playerGroup, animName) {
+        if (!playerGroup || !playerGroup.userData.animations) return;
+        
+        // 在控制台显示当前播放的动画名称和所有可用动画
+        console.log(`尝试播放动画: ${animName}`);
+        console.log('可用动画:', Object.keys(playerGroup.userData.animations));
+        
+        // 查找匹配的动画（不区分大小写）
+        let foundAnimation = null;
+        let foundName = null;
+        
+        // 精确匹配
+        if (playerGroup.userData.animations[animName]) {
+            foundAnimation = playerGroup.userData.animations[animName];
+            foundName = animName;
+        } else {
+            // 模糊匹配：查找包含关键字的动画
+            for (const name in playerGroup.userData.animations) {
+                if (name.includes(animName) || animName.includes(name)) {
+                    foundAnimation = playerGroup.userData.animations[name];
+                    foundName = name;
+                    break;
+                }
+            }
+            
+            // 默认情况：如果是移动相关动画，尝试查找任何walk/run动画
+            if (!foundAnimation && (animName === 'walk' || animName === 'run')) {
+                for (const name in playerGroup.userData.animations) {
+                    if (name.includes('walk') || name.includes('run')) {
+                        foundAnimation = playerGroup.userData.animations[name];
+                        foundName = name;
+                        break;
+                    }
+                }
+            }
+            
+            // 如果是idle动画找不到，尝试查找任何可能的待机动画
+            if (!foundAnimation && animName === 'idle') {
+                for (const name in playerGroup.userData.animations) {
+                    if (name.includes('idle') || name.includes('stand')) {
+                        foundAnimation = playerGroup.userData.animations[name];
+                        foundName = name;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // 如果没有找到动画，使用第一个可用的动画
+        if (!foundAnimation && Object.keys(playerGroup.userData.animations).length > 0) {
+            const firstAnimName = Object.keys(playerGroup.userData.animations)[0];
+            foundAnimation = playerGroup.userData.animations[firstAnimName];
+            foundName = firstAnimName;
+            console.log(`未找到${animName}动画，使用第一个可用动画: ${firstAnimName}`);
+        }
+        
+        // 如果没有找到任何动画，直接返回
+        if (!foundAnimation) {
+            console.warn(`未找到任何可用动画`);
+            return;
+        }
+        
+        // 已经播放的动画不需要重新开始
+        if (playerGroup.userData.currentAnimation === foundName) {
+            return;
+        }
+        
+        console.log(`播放动画: ${foundName}`);
+        
+        // 停止当前动画
+        if (playerGroup.userData.currentAnimation && 
+            playerGroup.userData.animations[playerGroup.userData.currentAnimation]) {
+            playerGroup.userData.animations[playerGroup.userData.currentAnimation].fadeOut(0.2);
+        }
+        
+        // 播放新动画
+        foundAnimation.reset().fadeIn(0.2).play();
+        playerGroup.userData.currentAnimation = foundName;
     }
 
     // 更新玩家面朝方向
@@ -1110,7 +1191,7 @@ export class ThreeHelper {
         
         const facingDirection = this.game.player.facingDirection;
         
-        // 如果有GLTF模型，调整其旋转
+        // 如果有模型，调整其旋转
         const model = player.userData.model;
         if (model) {
             if (facingDirection === 'right') {
@@ -1139,6 +1220,129 @@ export class ThreeHelper {
                 rightEye.position.set(-offset, 0, 0);
                 leftEye.position.set(offset, 0, 0);
             }
+        }
+    }
+
+    // 更新玩家动画
+    updatePlayerAnimation() {
+        const player = this.objects.get('player');
+        if (!player || !player.userData.animations) return;
+        
+        // 检查玩家是否在移动
+        const isMoving = this.game.player.isMoving();
+        
+        // 根据移动状态播放相应动画
+        if (isMoving) {
+            this.playAnimation(player, 'walk');
+        } else {
+            this.playAnimation(player, 'idle');
+        }
+    }
+
+    // 更新场景中的所有对象位置
+    updateSceneObjects() {
+        try {
+            // 更新玩家位置
+            this.updateObjectPosition(
+                'player',
+                this.game.player.x,
+                this.game.player.y
+            );
+            
+            // 更新玩家动画
+            this.updatePlayerAnimation();
+        } catch (e) {
+            console.warn('更新玩家位置时出错:', e);
+        }
+
+        try {
+            // 更新敌人位置
+            this.game.enemies.forEach((enemy) => {
+                const key = `enemy_${enemy.id}`;
+                if (!this.objects.has(key)) {
+                    this.createEnemyModel(enemy);
+                } else {
+                    this.updateObjectPosition(
+                        key,
+                        enemy.x,
+                        enemy.y,
+                        100 // 添加高度参数100，与玩家模型高度一致
+                    );
+                }
+            });
+        } catch (e) {
+            console.warn('更新敌人位置时出错:', e);
+        }
+
+        try {
+            // 更新投射物位置
+            this.game.projectiles
+                .concat(this.game.enemyProjectiles)
+                .forEach((projectile) => {
+                    const key = `projectile_${projectile.id}`;
+                    if (!this.objects.has(key)) {
+                        this.createProjectileModel(projectile);
+                    } else {
+                        this.updateObjectPosition(
+                            key,
+                            projectile.x,
+                            projectile.y,
+                            100 // 从10改为100，与玩家模型高度一致
+                        );
+                    }
+                });
+        } catch (e) {
+            console.warn('更新投射物位置时出错:', e);
+        }
+
+        try {
+            // 更新经验球位置
+            this.game.expOrbs.forEach((orb) => {
+                const key = `expOrb_${orb.id}`;
+                if (!this.objects.has(key)) {
+                    this.createExpOrbModel(orb);
+                } else {
+                    this.updateObjectPosition(
+                        key,
+                        orb.x,
+                        orb.y,
+                        50 // 从5改为50，更贴近玩家模型高度但略低一些
+                    );
+                }
+            });
+        } catch (e) {
+            console.warn('更新经验球位置时出错:', e);
+        }
+
+        try {
+            // 清理已经不存在的对象
+            this.objects.forEach((_, key) => {
+                if (key.startsWith('enemy_')) {
+                    const id = key.replace('enemy_', '');
+                    if (!this.game.enemies.some((e) => e.id.toString() === id)) {
+                        this.removeObject(key);
+                    }
+                } else if (key.startsWith('projectile_')) {
+                    const id = key.replace('projectile_', '');
+                    if (
+                        !this.game.projectiles.some(
+                            (p) => p.id.toString() === id
+                        ) &&
+                        !this.game.enemyProjectiles.some(
+                            (p) => p.id.toString() === id
+                        )
+                    ) {
+                        this.removeObject(key);
+                    }
+                } else if (key.startsWith('expOrb_')) {
+                    const id = key.replace('expOrb_', '');
+                    if (!this.game.expOrbs.some((o) => o.id.toString() === id)) {
+                        this.removeObject(key);
+                    }
+                }
+            });
+        } catch (e) {
+            console.warn('清理对象时出错:', e);
         }
     }
 
@@ -1331,81 +1535,39 @@ export class ThreeHelper {
     // 渲染场景
     render() {
         // 如果未正确初始化，不执行渲染
-        if (!this.renderer || !this.scene || !this.camera) {
-            console.warn('渲染器、场景或相机未初始化');
+        if (!this.scene || !this.camera || !this.renderer) {
+            console.warn('3D场景未完全初始化，渲染已跳过');
             return false;
         }
 
-        // 检查渲染器状态
+        const renderStartTime = performance.now();
+        
+        // 清除上次请求的帧动画，避免重复渲染
+        if (this._renderId) {
+            cancelAnimationFrame(this._renderId);
+            this._renderId = null;
+        }
+        
+        // 确保渲染器上下文存在
+        if (!this.renderer.getContext()) {
+            console.warn('渲染器上下文丢失，尝试恢复...');
+            try {
+                this.recreateRenderer();
+            } catch (e) {
+                console.error('渲染器恢复失败:', e);
+                return false;
+            }
+        }
+
         try {
-            // 尝试获取渲染器上下文
-            const gl = this.renderer.getContext();
-            if (!gl) {
-                console.error('无法获取WebGL上下文');
-                
-                // 尝试重新创建渲染器
-                if (!this.rendererRecreateAttempts) {
-                    this.rendererRecreateAttempts = 0;
-                }
-                
-                if (this.rendererRecreateAttempts < 2) {
-                    console.log(`尝试重新创建渲染器 (${this.rendererRecreateAttempts + 1}/2)...`);
-                    this.rendererRecreateAttempts++;
-                    this.createRenderer();
-                    return false;
-                } else {
-                    console.error('多次尝试重建渲染器失败');
-                    return false;
+            // 更新动画混合器
+            if (this.mixers && this.mixers.length > 0) {
+                const delta = this.clock.getDelta();
+                for (const mixer of this.mixers) {
+                    mixer.update(delta);
                 }
             }
             
-            // 检查WebGL上下文是否丢失
-            if (gl.isContextLost && gl.isContextLost()) {
-                console.error('WebGL上下文已丢失，尝试恢复...');
-                
-                // 尝试恢复上下文
-                try {
-                    const loseContext = gl.getExtension('WEBGL_lose_context');
-                    if (loseContext) {
-                        // 先主动丢失，然后恢复
-                        loseContext.loseContext();
-                        setTimeout(() => {
-                            try {
-                                loseContext.restoreContext();
-                                console.log('WebGL上下文已恢复');
-                            } catch (e) {
-                                console.error('恢复上下文失败:', e);
-                            }
-                        }, 100);
-                    } else {
-                        // 浏览器不支持WEBGL_lose_context扩展，这是正常的
-                        console.warn('浏览器不支持WEBGL_lose_context扩展，这是正常现象');
-                    }
-                } catch (e) {
-                    console.error('尝试恢复上下文时出错:', e);
-                }
-                
-                return false;
-            }
-        } catch (e) {
-            console.error('检查渲染器状态时出错:', e);
-            return false;
-        }
-
-        // 如果有成功加载的纹理，并且还没有创建过成功纹理地面，则创建一个
-        if (this.successTexture && !this.successGroundCreated) {
-            try {
-                this.createSuccessGround();
-                this.successGroundCreated = true;
-            } catch (e) {
-                console.error('创建成功纹理地面时出错:', e);
-            }
-        }
-
-        // 记录渲染开始时间（性能监控）
-        const renderStartTime = performance.now();
-
-        try {
             // 更新场景中的对象位置
             this.updateSceneObjects();
             
@@ -1454,141 +1616,31 @@ export class ThreeHelper {
             
             return true;
         } catch (e) {
-            // 分析错误类型
-            let errorMessage = e.message || '未知错误';
-            console.error('3D渲染错误:', errorMessage, e);
-            
-            // 记录错误细节以辅助调试
-            try {
-                const debugInfo = {
-                    message: errorMessage,
-                    stack: e.stack,
-                    objects: this.scene ? this.scene.children.length : 0,
-                    camera: this.camera ? '存在' : '不存在',
-                    renderer: this.renderer ? '存在' : '不存在',
-                    context: this.renderer && this.renderer.getContext() ? '存在' : '不存在'
-                };
-                console.log('3D渲染错误详情:', debugInfo);
-            } catch (debugError) {
-                console.error('无法记录错误详情:', debugError);
-            }
-            
-            // 如果渲染过程中出错，记录错误
+            console.error(`3D渲染失败: ${e.message}`, e);
             this.renderErrorCount = (this.renderErrorCount || 0) + 1;
+            this.renderFailCount = (this.renderFailCount || 0) + 1;
             
-            if (this.renderErrorCount > 3) {
-                // 显示警告但不强制切换
-                console.error('3D渲染出错多次');
-                if (this.game && this.renderErrorCount === 4) {
-                    this.game.showWarning('3D渲染出现问题，可使用G键切换到2D模式', 180);
+            // 如果连续多次渲染失败，尝试重建渲染器
+            if (this.renderFailCount > 5) {
+                if (this.rendererRecreateAttempts < 2) {
+                    console.warn('尝试重建渲染器...');
+                    try {
+                        this.recreateRenderer();
+                        this.rendererRecreateAttempts++;
+                    } catch (recreateError) {
+                        console.error('重建渲染器失败:', recreateError);
+                    }
+                } else {
+                    console.error('多次重建渲染器失败，建议切换至2D模式');
+                    
+                    // 在游戏中显示错误提示
+                    if (this.game) {
+                        this.game.showWarning('3D渲染器异常，请使用G键切换到2D模式', 300);
+                    }
                 }
             }
             
             return false;
-        }
-    }
-    
-    // 更新场景中的所有对象位置
-    updateSceneObjects() {
-        try {
-            // 更新玩家位置
-            this.updateObjectPosition(
-                'player',
-                this.game.player.x,
-                this.game.player.y
-            );
-        } catch (e) {
-            console.warn('更新玩家位置时出错:', e);
-        }
-
-        try {
-            // 更新敌人位置
-            this.game.enemies.forEach((enemy) => {
-                const key = `enemy_${enemy.id}`;
-                if (!this.objects.has(key)) {
-                    this.createEnemyModel(enemy);
-                } else {
-                    this.updateObjectPosition(
-                        key,
-                        enemy.x,
-                        enemy.y,
-                        100 // 添加高度参数100，与玩家模型高度一致
-                    );
-                }
-            });
-        } catch (e) {
-            console.warn('更新敌人位置时出错:', e);
-        }
-
-        try {
-            // 更新投射物位置
-            this.game.projectiles
-                .concat(this.game.enemyProjectiles)
-                .forEach((projectile) => {
-                    const key = `projectile_${projectile.id}`;
-                    if (!this.objects.has(key)) {
-                        this.createProjectileModel(projectile);
-                    } else {
-                        this.updateObjectPosition(
-                            key,
-                            projectile.x,
-                            projectile.y,
-                            100 // 从10改为100，与玩家模型高度一致
-                        );
-                    }
-                });
-        } catch (e) {
-            console.warn('更新投射物位置时出错:', e);
-        }
-
-        try {
-            // 更新经验球位置
-            this.game.expOrbs.forEach((orb) => {
-                const key = `expOrb_${orb.id}`;
-                if (!this.objects.has(key)) {
-                    this.createExpOrbModel(orb);
-                } else {
-                    this.updateObjectPosition(
-                        key,
-                        orb.x,
-                        orb.y,
-                        50 // 从5改为50，更贴近玩家模型高度但略低一些
-                    );
-                }
-            });
-        } catch (e) {
-            console.warn('更新经验球位置时出错:', e);
-        }
-
-        try {
-            // 清理已经不存在的对象
-            this.objects.forEach((_, key) => {
-                if (key.startsWith('enemy_')) {
-                    const id = key.replace('enemy_', '');
-                    if (!this.game.enemies.some((e) => e.id.toString() === id)) {
-                        this.removeObject(key);
-                    }
-                } else if (key.startsWith('projectile_')) {
-                    const id = key.replace('projectile_', '');
-                    if (
-                        !this.game.projectiles.some(
-                            (p) => p.id.toString() === id
-                        ) &&
-                        !this.game.enemyProjectiles.some(
-                            (p) => p.id.toString() === id
-                        )
-                    ) {
-                        this.removeObject(key);
-                    }
-                } else if (key.startsWith('expOrb_')) {
-                    const id = key.replace('expOrb_', '');
-                    if (!this.game.expOrbs.some((o) => o.id.toString() === id)) {
-                        this.removeObject(key);
-                    }
-                }
-            });
-        } catch (e) {
-            console.warn('清理对象时出错:', e);
         }
     }
 
@@ -2634,5 +2686,92 @@ export class ThreeHelper {
                 console.error('GLTFLoader加载失败:', error);
                 return null;
             });
+    }
+
+    // 加载玩家GLTF模型作为备用
+    loadPlayerGLTFModel(playerGroup) {
+        // 动态导入GLTFLoader
+        import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
+            // 显示加载信息
+            if (this.game && this.game.showWarning) {
+                this.game.showWarning('正在加载备用3D角色模型...', 120);
+            }
+            
+            const loader = new GLTFLoader();
+            
+            // 加载模型
+            loader.load(
+                // 模型路径 - 使用相对路径
+                './3dres/girl1/scene.gltf',
+                
+                // 加载成功回调
+                (gltf) => {
+                    console.log('备用3D角色模型加载成功:', gltf);
+                    
+                    // 移除临时球体
+                    const tempBody = playerGroup.children[0];
+                    if (tempBody) {
+                        playerGroup.remove(tempBody);
+                    }
+                    
+                    // 获取模型
+                    const model = gltf.scene;
+                    
+                    // 调整模型大小和位置
+                    model.scale.set(150, 150, 150); // 缩放模型，设置为适中的大小
+                    model.position.y = -50; // 重置模型自身位置为零点
+                    
+                    // 为模型及其所有子对象启用阴影
+                    model.traverse(child => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    // 整体抬高玩家组的位置，这样整个模型都会抬高
+                    playerGroup.position.y = 100; // 将整个玩家组抬高到地面上
+                    
+                    // 添加到玩家组
+                    playerGroup.add(model);
+                    
+                    // 保存模型引用，以便以后更新
+                    playerGroup.userData.model = model;
+                    
+                    // 显示加载完成信息
+                    if (this.game && this.game.showWarning) {
+                        this.game.showWarning('备用3D角色模型加载完成', 60);
+                    }
+                },
+                
+                // 加载进度回调
+                (xhr) => {
+                    const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                    console.log(`备用模型加载进度: ${percent}%`);
+                    
+                    // 更新加载进度信息
+                    if (this.game && this.game.showWarning && percent % 10 === 0) { // 每10%更新一次
+                        this.game.showWarning(`备用3D角色模型加载中: ${percent}%`, 30);
+                    }
+                },
+                
+                // 加载错误回调
+                (error) => {
+                    console.error('备用3D角色模型加载失败:', error);
+                    
+                    // 显示错误信息
+                    if (this.game && this.game.showWarning) {
+                        this.game.showWarning('所有3D角色模型加载失败，使用默认形状', 180);
+                    }
+                }
+            );
+        }).catch(error => {
+            console.error('加载GLTFLoader失败:', error);
+            
+            // 显示错误信息
+            if (this.game && this.game.showWarning) {
+                this.game.showWarning('无法加载3D模型组件，使用默认模型', 180);
+            }
+        });
     }
 }
