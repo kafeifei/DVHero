@@ -1046,7 +1046,7 @@ export class ThreeHelper {
                     
                     // 调整模型大小和位置
                     fbx.scale.set(0.45, 0.45, 0.45); // 从0.35增加到0.45，使主角稍微大一些
-                    fbx.position.y = -25; // 调整为负值，确保底部接触地面
+                    fbx.position.y = 0; // 调整为负值，确保底部接触地面
                     
                     
                     // 为模型及其所有子对象启用阴影
@@ -3053,7 +3053,7 @@ export class ThreeHelper {
                     
                     // 调整模型大小和位置
                     model.scale.set(115, 115, 115); // 从90增加到115，使主角稍微大一些
-                    model.position.y = -25; // 调整为负值，确保底部接触地面
+                    model.position.y = 0; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影
                     model.traverse(child => {
