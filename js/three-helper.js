@@ -1046,7 +1046,7 @@ export class ThreeHelper {
                     
                     // 调整模型大小和位置
                     fbx.scale.set(0.48, 0.48, 0.48); // 缩小到原来的0.8倍 (0.6 * 0.8 = 0.48)
-                    fbx.position.y = 0; // 将模型位置调整到y=0，使模型中心与逻辑位置匹配
+                    fbx.position.y = -25; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影
                     fbx.traverse(child => {
@@ -1057,7 +1057,7 @@ export class ThreeHelper {
                     });
                     
                     // 整体抬高玩家组的位置，使模型底部接触地面，中心点在半高处
-                    playerGroup.position.y = 50; // 调整为半高，与碰撞点标记对齐
+                    playerGroup.position.y = 0; // 改为0，解决悬空问题
                     
                     // 添加到玩家组
                     playerGroup.add(fbx);
@@ -1666,7 +1666,7 @@ export class ThreeHelper {
         if (object) {
             if (key === 'player') {
                 // 特殊处理玩家对象：保持垂直高度不变，只更新水平位置
-                const currentY = object.position.y; // 保存当前的y值
+                const currentY = object.position.y || 0; // 保存当前的y值，如果未设置则使用0
                 object.position.set(x, currentY, y); // 设置新位置，保持y值不变
                 
                 // 如果有碰撞点标记，确保它位于中心点
@@ -2965,7 +2965,7 @@ export class ThreeHelper {
                     
                     // 调整模型大小和位置
                     model.scale.set(120, 120, 120); // 缩小到原来的0.8倍 (150 * 0.8 = 120)
-                    model.position.y = 0; // 将模型位置调整到y=0，使模型中心与逻辑位置匹配
+                    model.position.y = -25; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影
                     model.traverse(child => {
@@ -2976,7 +2976,7 @@ export class ThreeHelper {
                     });
                     
                     // 整体抬高玩家组的位置，使模型底部接触地面，中心点在半高处
-                    playerGroup.position.y = 50; // 调整为半高，与碰撞点标记对齐
+                    playerGroup.position.y = 0; // 改为0，解决悬空问题
                     
                     // 添加到玩家组
                     playerGroup.add(model);
