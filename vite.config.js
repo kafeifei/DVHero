@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
 import fs from 'fs-extra'
+import serveStatic from 'serve-static'
 
 export default defineConfig({
   build: {
@@ -22,17 +23,34 @@ export default defineConfig({
       }
     }
   },
-  // 设置公共目录，这样开发时也能访问到静态资源
-  publicDir: 'images',
+  // 禁用默认的public目录复制，完全由插件控制
+  publicDir: false,
   // 添加解析别名配置，使得无论在开发还是生产环境都能正确找到图片
   resolve: {
     alias: {
-      '/images': '.',
-      '/3dres': '.'
+      '/images': resolve(__dirname, 'images'),
+      '/3dres': resolve(__dirname, '3dres')
     }
   },
   // 使用插件手动复制静态资源目录
   plugins: [
+    // 开发环境插件 - 提供静态资源服务
+    {
+      name: 'serve-static-dirs',
+      apply: 'serve',
+      configureServer(server) {
+        // 为images目录设置静态服务
+        server.middlewares.use('/images', serveStatic(resolve(__dirname, 'images'), {
+          index: false
+        }));
+        
+        // 为3dres目录设置静态服务
+        server.middlewares.use('/3dres', serveStatic(resolve(__dirname, '3dres'), {
+          index: false
+        }));
+      }
+    },
+    // 构建环境插件 - 复制静态资源到dist
     {
       name: 'copy-static-dirs',
       apply: 'build',
