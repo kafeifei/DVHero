@@ -7,6 +7,7 @@ class Weapon {
         this.level = level;
         this.cooldown = 0;
         this.maxCooldown = 30; // 帧数
+        this.lastHorizontalAngle = 0; // 记录最后的水平攻击角度
     }
 
     getDamage() {
@@ -36,33 +37,22 @@ class Weapon {
         this.cooldown = this.maxCooldown;
     }
 
-    // 获取水平攻击方向，将所有方向限制为左或右
-    getHorizontalDirection(player) {
-        if (player.facingDirection === 'left') {
-            return Math.PI; // 左
-        } else {
-            return 0; // 右（默认）
-        }
-    }
-
-    // 获取攻击角度，上下方向攻击时保持最后的水平方向
+    // 获取攻击角度，基于玩家当前朝向
     getAttackAngle(player) {
-        // 只使用左右方向，忽略上下方向
-        if (player.facingDirection === 'left') {
-            return Math.PI; // 左
-        } else if (player.facingDirection === 'right') {
-            return 0; // 右
-        } else {
-            // 如果是上下方向，保持上一次的水平方向
-            // 这里通过player上一个已知的水平方向来确定
-            return this.lastHorizontalDirection || 0;
-        }
-    }
-
-    // 在攻击前更新最后的水平方向
-    updateLastDirection(player) {
-        if (player.facingDirection === 'left' || player.facingDirection === 'right') {
-            this.lastHorizontalDirection = player.facingDirection === 'left' ? Math.PI : 0;
+        // 将角色朝向转换为弧度
+        switch (player.facingDirection) {
+            case 'right': 
+                this.lastHorizontalAngle = 0;
+                return 0;        // 右
+            case 'left':  
+                this.lastHorizontalAngle = Math.PI;
+                return Math.PI;    // 左
+            case 'up':    
+            case 'down':  
+                // 上下方向时使用最后一次的水平方向
+                return this.lastHorizontalAngle;
+            default:      
+                return 0;          // 默认右
         }
     }
 }
@@ -79,7 +69,7 @@ class Crissaegrim extends Weapon {
         if (!this.canAttack()) return;
 
         // 获取攻击方向（只允许左右攻击）
-        const direction = this.getHorizontalDirection(player);
+        const direction = this.getAttackAngle(player);
         const range = 150;
 
         // 等级2以上同时攻击两侧
@@ -125,8 +115,8 @@ class Muramasa extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 限制为左右攻击
-        const angle = this.getHorizontalDirection(player);
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         game.createProjectile({
             x: player.x,
@@ -176,8 +166,8 @@ class ShieldRod extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 根据当前盾牌类型发射不同投射物
-        const angle = this.getHorizontalDirection(player);
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 基础盾牌投射物
         game.createProjectile({
@@ -248,8 +238,8 @@ class AluCardSword extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 限制为左右攻击
-        const angle = this.getHorizontalDirection(player);
+        // 使用getAttackAngle方法获取攻击角度
+        const angle = this.getAttackAngle(player);
 
         // 根据蓄力等级决定攻击方式
         if (this.chargeLevel >= this.maxChargeLevel) {
@@ -385,9 +375,6 @@ class HolySword extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 更新最后的水平方向
-        this.updateLastDirection(player);
-        
         // 使用getAttackAngle方法获取攻击角度
         const angle = this.getAttackAngle(player);
 
@@ -467,9 +454,6 @@ class RuneSword extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 更新最后的水平方向
-        this.updateLastDirection(player);
-        
         // 使用getAttackAngle方法获取攻击角度
         const angle = this.getAttackAngle(player);
 
@@ -513,9 +497,6 @@ class Badelaire extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 更新最后的水平方向
-        this.updateLastDirection(player);
-        
         // 使用getAttackAngle方法获取攻击角度
         const angle = this.getAttackAngle(player);
 
@@ -571,9 +552,6 @@ class SwordOfDawn extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 更新最后的水平方向
-        this.updateLastDirection(player);
-        
         // 使用getAttackAngle方法获取攻击角度
         const angle = this.getAttackAngle(player);
 
@@ -652,9 +630,6 @@ class FistOfTulkas extends Weapon {
     attack(game, player) {
         if (!this.canAttack()) return;
 
-        // 更新最后的水平方向
-        this.updateLastDirection(player);
-        
         // 使用getAttackAngle方法获取攻击角度
         const angle = this.getAttackAngle(player);
 

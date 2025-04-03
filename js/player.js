@@ -70,23 +70,29 @@ export class Player {
     move() {
         let dx = 0;
         let dy = 0;
+        let directionChanged = false;
+        let oldDirection = this.facingDirection;
 
         // 键盘控制
         if (this.game.keys.up || this.game.keys.w || this.game.keys.ArrowUp || this.game.keys.W) {
             dy -= this.speed;
             this.facingDirection = 'up';
+            directionChanged = true;
         }
         if (this.game.keys.down || this.game.keys.s || this.game.keys.ArrowDown || this.game.keys.S) {
             dy += this.speed;
             this.facingDirection = 'down';
+            directionChanged = true;
         }
         if (this.game.keys.left || this.game.keys.a || this.game.keys.ArrowLeft || this.game.keys.A) {
             dx -= this.speed;
             this.facingDirection = 'left';
+            directionChanged = true;
         }
         if (this.game.keys.right || this.game.keys.d || this.game.keys.ArrowRight || this.game.keys.D) {
             dx += this.speed;
             this.facingDirection = 'right';
+            directionChanged = true;
         }
 
         // 鼠标控制（按下后根据移动方向操控角色）
@@ -120,6 +126,7 @@ export class Player {
                         } else {
                             this.facingDirection = 'left';
                         }
+                        directionChanged = true;
                     }
                 } else if (this.game.inputType === 'touch') {
                     // 触摸模式：以触摸点为锚点
@@ -148,8 +155,25 @@ export class Player {
                                 this.facingDirection = 'up';
                             }
                         }
+                        directionChanged = true;
                     }
                 }
+            }
+        }
+
+        // 如果方向改变了，立即更新所有武器的攻击方向
+        if (directionChanged) {
+            // 当前面向左/右方向，记录这个水平方向
+            if (this.facingDirection === 'left' || this.facingDirection === 'right') {
+                const horizontalAngle = this.facingDirection === 'left' ? Math.PI : 0;
+                for (const weapon of this.weapons) {
+                    weapon.lastHorizontalAngle = horizontalAngle;
+                }
+            }
+            // 如果之前是左/右，现在变成上/下，保持上一次的水平方向
+            else if ((this.facingDirection === 'up' || this.facingDirection === 'down') && 
+                     (oldDirection === 'left' || oldDirection === 'right')) {
+                // 已经在上面设置过了，这里不需要重复设置
             }
         }
 
