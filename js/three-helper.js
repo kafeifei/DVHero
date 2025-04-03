@@ -996,25 +996,26 @@ export class ThreeHelper {
         this.createPlayerStatusBars();
     }
     
-    // 添加碰撞点标记，用于显示物体的逻辑位置
+    // 添加碰撞点标记（用于调试和可视化碰撞检测点）
     addCollisionMarker(group) {
-        // 创建一个小球体，标记逻辑位置
-        const markerGeometry = new THREE.SphereGeometry(5, 8, 8);
-        const markerMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000, // 红色
+        // 创建一个小球体作为碰撞点标记
+        const geometry = new THREE.SphereGeometry(5, 8, 8);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
             transparent: true,
-            opacity: 0.8
+            opacity: 0 // 设置为完全透明，但仍保留代码以便需要时可以显示
         });
-        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
         
-        // 将标记放在模型的中心点位置，y=0是地面，但人物中心应该在半高处
-        marker.position.set(0, 50, 0);
+        const marker = new THREE.Mesh(geometry, material);
+        marker.position.set(0, 0, 0); // 放置在组的中心点
         
-        // 保存标记的引用
+        // 将标记添加到组中
+        group.add(marker);
+        
+        // 存储对标记的引用
         group.userData.collisionMarker = marker;
         
-        // 添加到组中
-        group.add(marker);
+        return marker;
     }
 
     // 加载玩家FBX模型
