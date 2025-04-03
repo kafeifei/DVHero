@@ -1,4 +1,6 @@
 import { defineConfig } from 'vite'
+import { resolve } from 'path'
+import fs from 'fs-extra'
 
 export default defineConfig({
   build: {
@@ -20,12 +22,26 @@ export default defineConfig({
       }
     }
   },
-  // 直接使用images目录作为静态资源
+  // 设置公共目录，这样开发时也能访问到静态资源
   publicDir: 'images',
   // 添加解析别名配置，使得无论在开发还是生产环境都能正确找到图片
   resolve: {
     alias: {
-      '/images': '.'
+      '/images': '.',
+      '/3dres': '.'
     }
-  }
+  },
+  // 使用插件手动复制静态资源目录
+  plugins: [
+    {
+      name: 'copy-static-dirs',
+      apply: 'build',
+      closeBundle() {
+        // 在构建完成后复制目录到dist
+        fs.copySync('images', 'dist/images');
+        fs.copySync('3dres', 'dist/3dres');
+        console.log('静态资源目录已复制到dist');
+      }
+    }
+  ]
 }) 
