@@ -489,7 +489,7 @@ class RuneSword extends Weapon {
             7,
             level
         );
-        this.maxCooldown = 45;
+        this.maxCooldown = 45; // 恢复原来的攻击频率
     }
 
     attack(game, player) {
@@ -503,17 +503,17 @@ class RuneSword extends Weapon {
             x: player.x,
             y: player.y,
             angle: angle,
-            speed: 9,  // 增加速度从7到9
+            speed: 4.5,  // 降低运行速度一倍，从9降到4.5
             damage: this.getDamage(),
-            range: 350, // 增加范围从300到350
+            range: 350,
             color: '#a040ff',
             width: 30,
             height: 20,
             piercing: true,
             shape: 'rune',
-            rotateSpeed: 0.8,  // 增加旋转速度从0.5到0.8
+            rotateSpeed: 0.8,
             returning: true,
-            returnAfter: 30, // 减少返回延迟从40到30帧
+            returnAfter: 30,
             returnTarget: player,
         });
 
