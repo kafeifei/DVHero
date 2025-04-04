@@ -2219,19 +2219,34 @@ export class ThreeHelper {
             }
         }
         
+        // 帧率计数 - 记录帧率进行动态调整
+        if (!this._fpsHistory) {
+            this._fpsHistory = [];
+        }
+        
+        // 计算当前帧率并记录
+        const currentFps = Math.round(1000 / renderTime);
+        this._fpsHistory.push(currentFps);
+        
+        // 保持历史记录在一定长度内
+        if (this._fpsHistory.length > 30) {
+            this._fpsHistory.shift();
+        }
+        
+        // 计算平均帧率
+        const avgFps = this._fpsHistory.reduce((sum, fps) => sum + fps, 0) / this._fpsHistory.length;
+        
         // 检测性能问题的阈值
         const performanceThreshold = this.getConfigValue('rendering.performance.lagThreshold', 100);
+        const targetFps = this.getConfigValue('rendering.maxFPS', 60);
         
-        // 记录渲染时间超过阈值的情况
-        if (renderTime > performanceThreshold) {
-            this.logDebug(`3D渲染耗时过长: ${renderTime.toFixed(2)}ms`, 'warn', this.getConfigValue('debug.logWarnings', true));
-            
-            // 记录慢渲染次数
+        // 连续低帧率检测
+        if (avgFps < targetFps * 0.8) { // 如果平均帧率低于目标帧率的80%
             this.slowRenderCount = (this.slowRenderCount || 0) + 1;
             
             // 如果持续出现慢渲染，尝试降低渲染质量
             if (this.slowRenderCount > 5) {
-                this.logDebug('3D渲染性能较差，正在应用优化...', 'warn', this.getConfigValue('debug.logWarnings', true));
+                this.logDebug(`3D渲染性能较差，平均帧率: ${avgFps.toFixed(1)}，目标帧率: ${targetFps}`, 'warn', this.getConfigValue('debug.logWarnings', true));
                 
                 // 检查是否应该在性能不佳时禁用阴影
                 if (this.getConfigValue('rendering.performance.disableShadowsWhenLagging', true) && 
@@ -2247,21 +2262,28 @@ export class ThreeHelper {
                 }
                 
                 // 如果性能持续不佳，尝试降低像素比
-                if (this.slowRenderCount > 15) {
+                if (this.slowRenderCount > 10) {
                     const currentPixelRatio = this.renderer.getPixelRatio();
-                    const newPixelRatio = Math.max(1, currentPixelRatio * 0.75);
+                    // 更激进地降低像素比，目标是0.75倍
+                    const newPixelRatio = Math.max(0.75, currentPixelRatio * 0.85);
                     
                     if (currentPixelRatio > newPixelRatio) {
-                        this.logDebug(`由于性能问题，降低渲染像素比: ${currentPixelRatio} -> ${newPixelRatio}`, 'warn', this.getConfigValue('debug.logWarnings', true));
+                        this.logDebug(`由于性能问题，降低渲染像素比: ${currentPixelRatio.toFixed(2)} -> ${newPixelRatio.toFixed(2)}`, 'warn', this.getConfigValue('debug.logWarnings', true));
                         this.renderer.setPixelRatio(newPixelRatio);
+                        
+                        // 重新设置尺寸以应用新的像素比
+                        const width = this.canvas3d.clientWidth;
+                        const height = this.canvas3d.clientHeight;
+                        this.renderer.setSize(width, height, true);
                         
                         // 显示提示消息
                         if (this.game) {
-                            this.game.showWarning('已降低渲染质量以提高性能，建议使用G键切换到2D模式', 180);
+                            this.game.showWarning('已降低渲染质量以提高性能', 180);
                         }
                         
-                        // 重置慢渲染计数，给新设置一个机会
+                        // 重置slowRenderCount，给新设置一段适应时间
                         this.slowRenderCount = 0;
+                        this._fpsHistory = []; // 重置帧率历史
                     }
                 }
             }
@@ -2271,7 +2293,7 @@ export class ThreeHelper {
                 this.slowRenderCount--;
                 
                 // 如果性能已经很好，考虑重新启用之前禁用的功能
-                if (this.slowRenderCount === 0) {
+                if (this.slowRenderCount === 0 && avgFps > targetFps * 0.95) {
                     // 如果配置要求启用阴影但当前被禁用了，考虑恢复
                     const shouldEnableShadows = this.getConfigValue('rendering.shadows.enabled', true);
                     if (shouldEnableShadows && !this.renderer.shadowMap.enabled) {

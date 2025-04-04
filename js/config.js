@@ -17,20 +17,20 @@ const CONFIG = {
   // 渲染相关设置
   rendering: {
     // 基本渲染设置
-    maxFPS: 60,                    // 最大帧率
-    pixelRatio: 1.0,               // 像素比例(降低以提高性能)
+    maxFPS: 120,                    // 最大帧率
+    pixelRatio: 0.85,               // 像素比例(降低以提高性能，原值1.0)
     antialiasing: true,            // 是否开启抗锯齿
     preserveDrawingBuffer: false,  // 是否保留绘图缓冲区
-    powerPreference: "default",    // GPU电源偏好："default","high-performance","low-power"
+    powerPreference: "high-performance",    // GPU电源偏好："default","high-performance","low-power"
     
     // 阴影设置
     shadows: {
       enabled: true,             // 是否启用阴影
       mapSize: 1024,             // 阴影贴图尺寸(降低以提高性能,原值4096)
-      type: "PCFSoftShadow",     // 阴影类型:"Basic","PCF","PCFSoft"
+      type: "PCFShadow",     // 阴影类型:"Basic","PCF","PCFSoft"，从PCFSoftShadow改为PCFShadow
       bias: -0.0002,             // 阴影偏差
       normalBias: 0.01,          // 法线偏差
-      radius: 2,                 // 阴影模糊半径
+      radius: 1,                 // 阴影模糊半径，从2降为1
       
       // 主光源阴影相机参数
       camera: {
@@ -47,17 +47,18 @@ const CONFIG = {
     performance: {
       textureQuality: 2,              // 纹理质量: 1=低, 2=中, 3=高
       geometryDetail: 2,              // 几何体细节: 1=低, 2=中, 3=高
-      maxVisibleEnemies: 100,         // 最大可见敌人数
-      maxVisibleEffects: 50,          // 最大可见特效数
-      maxActiveLights: 10,            // 最大活动光源数
-      cullingDistance: 1500,          // 裁剪距离
-      animationDistance: 800,         // 动画更新距离
-      lightsUpdateInterval: 2,        // 光源更新间隔(帧)
+      maxVisibleEnemies: 80,         // 最大可见敌人数 (从100降为80)
+      maxVisibleEffects: 30,          // 最大可见特效数 (从50降为30)
+      maxActiveLights: 8,            // 最大活动光源数 (从10降为8)
+      cullingDistance: 1200,          // 裁剪距离 (从1500降为1200)
+      animationDistance: 600,         // 动画更新距离 (从800降为600)
+      lightsUpdateInterval: 3,        // 光源更新间隔(帧) (从2增加为3)
       dynamicShadows: false,          // 是否为动态物体启用阴影
       useMipmaps: false,              // 是否使用mipmap(减少远处纹理闪烁)
       limitDrawCalls: true,           // 是否限制绘制调用
       frustumCulling: true,           // 是否启用视锥裁剪
-      disableShadowsWhenLagging: true // 当帧率过低时禁用阴影
+      disableShadowsWhenLagging: true, // 当帧率过低时禁用阴影
+      lagThreshold: 80                // 帧率过低阈值(ms)，新增
     }
   },
   
@@ -213,10 +214,10 @@ const CONFIG = {
     
     // 动画帧率控制
     updateIntervals: {
-      torchFlames: 10,             // 每2帧更新一次火把火焰
-      torchLights: 20,             // 每3帧更新一次火把光源
-      floatingObjects: 2,         // 每2帧更新一次浮动对象
-      particleEffects: 1          // 每1帧更新一次粒子效果
+      torchFlames: 15,             // 每15帧更新一次火把火焰(原值10)
+      torchLights: 30,             // 每30帧更新一次火把光源(原值20)
+      floatingObjects: 3,         // 每3帧更新一次浮动对象(原值2)
+      particleEffects: 2          // 每2帧更新一次粒子效果(原值1)
     }
   },
   

@@ -63,8 +63,8 @@ export class Game {
             this.ctx.imageSmoothingEnabled = false;
         }
 
-        // 帧率控制
-        this.fps = 60;
+        // 帧率控制 - 从CONFIG中获取最大帧率
+        this.fps = window.CONFIG ? window.CONFIG.rendering.maxFPS : 60;
         this.fpsInterval = 1000 / this.fps;
         this.lastFrameTime = 0;
         
