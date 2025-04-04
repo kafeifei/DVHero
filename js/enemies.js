@@ -234,14 +234,14 @@ class AxeArmor extends Enemy {
             x: this.x,
             y: this.y,
             angle: angle,
-            speed: 3,
+            speed: 3 * 60, // 转换为像素/秒
             damage: this.damage,
             range: this.attackRange,
             color: '#ff7700',
             width: 20,
             height: 20,
             shape: 'axe',
-            rotateSpeed: 0.2,
+            rotateSpeed: 0.2 * Math.PI * 2, // 转换为弧度/秒
         });
     }
 }
@@ -262,7 +262,7 @@ class MedusaHead extends Enemy {
         });
 
         this.waveAmplitude = 50; // 波动幅度
-        this.waveFrequency = 3; // 波动频率（改为Hz）
+        this.waveFrequency = 0.5; // 波动频率（Hz）- 从3降低到0.5，更合理的值
         this.waveOffset = Math.random() * Math.PI * 2; // 随机波动起始点
         this.baseY = this.y;
         this.movementTime = 0;
@@ -297,7 +297,8 @@ class MedusaHead extends Enemy {
                 const moveX = Math.sign(dx) * this.speed * deltaTime;
                 this.x += moveX;
 
-                // 波浪运动（上下波动） - 基于实际时间的正弦波
+                // 波浪运动（上下波动）
+                // 使用累积的实际时间，而不是依赖帧率
                 this.y =
                     this.baseY +
                     Math.sin(
@@ -373,13 +374,13 @@ class BladeSoldier extends Enemy {
                 x: this.x,
                 y: this.y,
                 angle: spreadAngle,
-                speed: 5,
+                speed: 5 * 60, // 转换为像素/秒
                 damage: this.damage,
                 range: 80,
                 color: '#80a0ff',
                 width: 40,
                 height: 5,
-                duration: 20,
+                duration: 0.33, // 从20帧改为0.33秒
             });
         }
     }
@@ -442,13 +443,13 @@ class SpearGuard extends Enemy {
             x: this.x,
             y: this.y,
             angle: angle,
-            speed: 6,
+            speed: 6 * 60, // 转换为像素/秒
             damage: this.damage,
             range: this.attackRange,
             color: '#e8e8b0',
             width: 60,
             height: 8,
-            duration: 30,
+            duration: 0.5, // 从30帧改为0.5秒
             piercing: true,
         });
     }
@@ -789,13 +790,13 @@ class Guardian extends Enemy {
                         x: this.x,
                         y: this.y,
                         angle: spreadAngle,
-                        speed: 4,
+                        speed: 4 * 60, // 转换为像素/秒
                         damage: this.damage,
                         range: 200,
                         color: '#c080ff',
                         width: 30,
                         height: 10,
-                        duration: 90,
+                        duration: 1.5, // 从90帧改为1.5秒
                     });
                 }
                 break;
@@ -805,14 +806,14 @@ class Guardian extends Enemy {
                     x: this.x,
                     y: this.y,
                     angle: angle,
-                    speed: 3,
+                    speed: 3 * 60, // 转换为像素/秒
                     damage: this.damage * 1.5,
                     range: 250,
                     color: '#ff00ff',
                     width: 25,
                     height: 25,
                     shape: 'circle',
-                    duration: 150,
+                    duration: 2.5, // 从150帧改为2.5秒
                     piercing: true,
                 });
                 break;
@@ -832,14 +833,14 @@ class Guardian extends Enemy {
                                 x: this.x,
                                 y: this.y,
                                 angle: currentAngle,
-                                speed: 2 + i * 0.5,
+                                speed: (2 + i * 0.5) * 60, // 转换为像素/秒
                                 damage: this.damage,
                                 range: 300,
                                 color: '#4000ff',
                                 width: 15,
                                 height: 15,
                                 shape: 'star',
-                                duration: 180,
+                                duration: 3.0, // 从180帧改为3.0秒
                                 homing: true,
                                 homingTarget: this.target,
                                 homingStrength: 0.03,
