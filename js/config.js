@@ -140,7 +140,7 @@ const CONFIG = {
   scene: {
     backgroundColor: 0x222222,       // 场景背景色
     groundSize: 9000,                // 地面尺寸
-    groundTextureRepeat: 200,        // 地面纹理重复次数
+    groundTextureRepeat: 50,        // 地面纹理重复次数
     boundarySize: 1000,              // 游戏边界大小
     backgroundObjectScale: 3,        // 背景对象放大倍数
     

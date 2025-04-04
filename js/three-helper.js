@@ -24,7 +24,7 @@ export class ThreeHelper {
 
         // 初始化Three.js
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x222222); // 设置更亮的场景背景色
+        this.scene.background = new THREE.Color(this.getConfigValue('scene.backgroundColor', 0x222222));
 
         // 使用透视相机，提供更真实的3D视角和透视效果
         // 计算视口参数
@@ -168,8 +168,11 @@ export class ThreeHelper {
     createSimpleGround() {
         console.log('创建简化版地面');
 
-        // 创建几何体 - 大尺寸以确保覆盖视野，增大3倍以匹配放大的背景对象
-        const groundGeometry = new THREE.PlaneGeometry(9000, 9000);
+        // 获取地面尺寸配置
+        const groundSize = this.getConfigValue('scene.groundSize', 9000);
+
+        // 创建几何体 - 大尺寸以确保覆盖视野，使用配置中的尺寸
+        const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
 
         // 使用程序化生成的草地纹理代替加载图片
         const grassCanvas = generateGrassTexture(); // Get the canvas element
@@ -179,10 +182,9 @@ export class ThreeHelper {
         grassTexture.wrapS = THREE.RepeatWrapping;
         grassTexture.wrapT = THREE.RepeatWrapping;
 
-        // 设置重复次数，减少重复次数使格子变大
-        const repeatX = 2000 / 90 * 3; 
-        const repeatY = 2000 / 90 * 3;
-        grassTexture.repeat.set(repeatX, repeatY);
+        // 从配置中获取纹理重复次数
+        const groundTextureRepeat = this.getConfigValue('scene.groundTextureRepeat', 200);
+        grassTexture.repeat.set(groundTextureRepeat, groundTextureRepeat);
 
         // 纹理过滤 - 使用NearestFilter避免边缘模糊
         grassTexture.magFilter = THREE.NearestFilter;
@@ -190,25 +192,33 @@ export class ThreeHelper {
         grassTexture.generateMipmaps = false; // 关闭mipmap避免边缘混合
         grassTexture.needsUpdate = true;
 
-        // 创建材质 - 降低亮度使其更暗，与2D模式匹配
+        // 从配置获取地面材质属性
+        const groundConfig = this.getConfigValue('scene.ground', {
+            color: 0x668866,
+            roughness: 0.8,
+            metalness: 0.1,
+            receiveShadow: true
+        });
+
+        // 创建材质 - 使用配置的属性
         const groundMaterial = new THREE.MeshStandardMaterial({
             map: grassTexture, // Apply the generated texture
             side: THREE.DoubleSide,
-            color: 0x668866,  // 添加较亮的绿色调
-            roughness: 0.8,   // 添加粗糙度
-            metalness: 0.1    // 添加金属感
+            color: groundConfig.color,
+            roughness: groundConfig.roughness,
+            metalness: groundConfig.metalness
         });
 
         // 创建地面网格
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2; // 旋转使平面水平
         ground.position.y = -10; // 略微下沉
-        ground.receiveShadow = true; // 启用地面接收阴影
+        ground.receiveShadow = groundConfig.receiveShadow; // 从配置中获取是否接收阴影
         this.scene.add(ground);
         this.objects.set('ground', ground);
 
         // 添加暗色叠加，匹配2D模式中的深色调
-        const overlayGeometry = new THREE.PlaneGeometry(9000, 9000);
+        const overlayGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
         const overlayMaterial = new THREE.MeshBasicMaterial({
             color: 0x202040, // 更深的蓝黑色调
             transparent: true,
@@ -621,12 +631,18 @@ export class ThreeHelper {
         }
 
         let createdCount = 0;
+        
+        // 从配置中获取背景对象缩放
+        const backgroundObjectScale = this.getConfigValue('scene.backgroundObjectScale', 3);
 
         // 遍历游戏中的背景对象
         this.game.backgroundObjects.forEach((obj, index) => {
             try {
+                // 根据对象类型选择合适的纹理
                 let texture;
-                let height = 0;
+                let height = 100; // 默认高度
+                
+                // 不要在这里再次声明scale变量
 
                 // 根据对象类型选择纹理
                 switch (obj.type) {
@@ -951,7 +967,7 @@ export class ThreeHelper {
                 }
 
                 // 设置位置和大小
-                const scale = (obj.scale || 1) * 3; // 将背景物体尺寸放大3倍
+                const objectScale = (obj.scale || 1) * backgroundObjectScale; // 将背景物体尺寸使用配置的缩放因子
 
                 // 为对象添加随机变化以增强透视效果
                 let randomScale = 1.0;
@@ -979,7 +995,7 @@ export class ThreeHelper {
                 // 如果是组合对象，直接设置位置
                 if (mesh instanceof THREE.Group) {
                     // 先设置缩放，因为这会影响到包围盒的计算
-                    mesh.scale.set(scale * randomScale, scale * randomScale, scale * randomScale);
+                    mesh.scale.set(objectScale * randomScale, objectScale * randomScale, objectScale * randomScale);
                     mesh.rotation.y = randomRotationY;
                     
                     // 初始设置物体位置，便于计算包围盒
@@ -1011,7 +1027,7 @@ export class ThreeHelper {
                     console.log(`${obj.type} 位置调整: 原始底部Y=${bottomY.toFixed(2)}, 计算抬升=${yOffset.toFixed(2)}, 最终抬升=${finalYOffset.toFixed(2)}, 最终Y=${mesh.position.y.toFixed(2)}`);
                 } else {
                     // 对于简单网格，先应用缩放
-                    mesh.scale.set(scale * randomScale, scale * randomScale, scale * randomScale);
+                    mesh.scale.set(objectScale * randomScale, objectScale * randomScale, objectScale * randomScale);
                     mesh.rotation.y = randomRotationY;
                     
                     // 计算包围盒
@@ -1019,10 +1035,10 @@ export class ThreeHelper {
                     const box = mesh.geometry.boundingBox;
                     
                     // 计算缩放后的高度
-                    const scaledHeight = (box.max.y - box.min.y) * scale * randomScale;
+                    const scaledHeight = (box.max.y - box.min.y) * objectScale * randomScale;
                     
                     // 计算需要的Y偏移，使物体底部位于地面
-                    const bottomY = box.min.y * scale * randomScale;
+                    const bottomY = box.min.y * objectScale * randomScale;
                     const yOffset = -bottomY;
                     
                     // 安全检查：如果偏移值过大或过小，或者是NaN，使用合理的默认值
@@ -1063,7 +1079,7 @@ export class ThreeHelper {
                         const torchDistance = this.getConfigValue('lighting.torch.distance', 150) * 3; // 光照范围也放大3倍
                         
                         const pointLight = new THREE.PointLight(torchColor, torchIntensity, torchDistance);
-                        pointLight.position.set(obj.x, height * scale * 0.6, obj.y); // 调整光源高度位于火焰位置
+                        pointLight.position.set(obj.x, height * objectScale * 0.6, obj.y); // 调整光源高度位于火焰位置
                         this.scene.add(pointLight);
                         this.objects.set(`torch_light_${index}`, pointLight);
                         

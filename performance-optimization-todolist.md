@@ -41,10 +41,10 @@
 - [x] 实现平滑相机跟随 (`CONFIG.camera.followSpeed`)
 
 ## 6. 场景管理优化
-- [ ] 修改场景背景色 (`CONFIG.scene.backgroundColor`)
-- [ ] 修改地面尺寸和材质 (`CONFIG.scene.groundSize` 和 `CONFIG.scene.ground`)
-- [ ] 修改纹理重复次数 (`CONFIG.scene.groundTextureRepeat`)
-- [ ] 修改背景对象缩放 (`CONFIG.scene.backgroundObjectScale`)
+- [x] 修改场景背景色 (`CONFIG.scene.backgroundColor`)
+- [x] 修改地面尺寸和材质 (`CONFIG.scene.groundSize` 和 `CONFIG.scene.ground`)
+- [x] 修改纹理重复次数 (`CONFIG.scene.groundTextureRepeat`)
+- [x] 修改背景对象缩放 (`CONFIG.scene.backgroundObjectScale`)
 - [ ] 实现视锥裁剪 (`CONFIG.rendering.performance.frustumCulling`)
 - [ ] 实现绘制距离限制 (`CONFIG.rendering.performance.cullingDistance`)
 
