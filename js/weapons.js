@@ -507,11 +507,11 @@ class RuneSword extends Weapon {
             damage: this.getDamage(),
             range: 300,
             color: '#a040ff',
-            width: 25,
-            height: 25,
+            width: 30,
+            height: 20,
             piercing: true,
             shape: 'rune',
-            rotateSpeed: 0.2,
+            rotateSpeed: 0.5,  // 增加旋转速度
             returning: true,
             returnAfter: 40, // 多少帧后返回
             returnTarget: player,

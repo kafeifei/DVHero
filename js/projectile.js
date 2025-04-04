@@ -190,21 +190,32 @@ export class Projectile {
                 break;
 
             case 'rune':
-                // 符文形状（复杂图案）
+                // 符文剑形状（改为类似剑的形状）
+                // 绘制剑形状主体
                 ctx.beginPath();
-                ctx.arc(0, 0, this.width / 2, 0, Math.PI * 2);
+                ctx.moveTo(0, -this.height/2); // 剑尖
+                ctx.lineTo(this.width/4, -this.height/3); // 右侧剑身
+                ctx.lineTo(this.width/6, 0); // 右侧剑柄
+                ctx.lineTo(this.width/4, this.height/3); // 右侧剑格
+                ctx.lineTo(0, this.height/2); // 剑柄底部
+                ctx.lineTo(-this.width/4, this.height/3); // 左侧剑格
+                ctx.lineTo(-this.width/6, 0); // 左侧剑柄
+                ctx.lineTo(-this.width/4, -this.height/3); // 左侧剑身
+                ctx.closePath();
                 ctx.fill();
-
+                
+                // 添加符文效果
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 1.5;
+                // 在剑身上添加一个符文图案
                 ctx.beginPath();
-                ctx.moveTo(-this.width / 3, -this.width / 3);
-                ctx.lineTo(this.width / 3, this.width / 3);
+                ctx.moveTo(-this.width/8, -this.height/6);
+                ctx.lineTo(this.width/8, -this.height/6);
                 ctx.stroke();
-
+                
                 ctx.beginPath();
-                ctx.moveTo(this.width / 3, -this.width / 3);
-                ctx.lineTo(-this.width / 3, this.width / 3);
+                ctx.moveTo(0, -this.height/4);
+                ctx.lineTo(0, 0);
                 ctx.stroke();
                 break;
 

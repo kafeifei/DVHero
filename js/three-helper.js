@@ -1838,8 +1838,10 @@ export class ThreeHelper {
                 break;
                 
             case 'rune':
-                // 创建八面体作为符文
-                geometry = new THREE.OctahedronGeometry(projectile.radius, 0);
+                // 创建剑形状作为符文剑
+                // 使用圆锥体作为剑身基础，但更扁平
+                geometry = new THREE.ConeGeometry(projectile.width/3, projectile.height*1.5, 4);
+                geometry.rotateX(Math.PI/2); // 旋转使其水平方向
                 break;
                 
             case 'rect':
