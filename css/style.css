@@ -210,9 +210,8 @@ body {
 /* 游戏容器样式 */
 #game-container {
     position: relative;
-    width: 800px;
-    height: 600px;
-    border: 2px solid #444;
+    width: 100%;
+    height: 100vh;
     overflow: hidden;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
 }
@@ -321,12 +320,6 @@ body {
 
 /* 响应式设计 */
 @media (max-width: 820px) {
-    #game-container {
-        width: 100%;
-        height: 100vh;
-        border: none;
-    }
-    
     .logo-container {
         width: 90%;
     }

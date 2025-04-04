@@ -8,6 +8,8 @@ class Weapon {
         this.cooldown = 0;
         this.maxCooldown = 30; // 帧数
         this.lastHorizontalAngle = 0; // 记录最后的水平攻击角度
+        this.lastUpdateTime = performance.now(); // 记录上次更新时间
+        this.nextAttackTime = 0; // 下次可攻击的时间戳，初始为0表示可以立即攻击
     }
 
     getDamage() {
@@ -24,17 +26,28 @@ class Weapon {
     }
 
     update(game) {
-        if (this.cooldown > 0) {
-            this.cooldown--;
+        const currentTime = performance.now();
+        
+        // 只检查当前是否可以攻击，而不再使用累计的冷却减少
+        if (currentTime >= this.nextAttackTime) {
+            this.cooldown = 0;
         }
+        
+        this.lastUpdateTime = currentTime;
     }
 
     canAttack() {
-        return this.cooldown <= 0;
+        return performance.now() >= this.nextAttackTime;
     }
 
     resetCooldown() {
-        this.cooldown = this.maxCooldown;
+        const currentTime = performance.now();
+        // 将冷却帧数转换为实际的毫秒数 (基于60FPS)
+        const cooldownMs = (this.maxCooldown / 60) * 1000;
+        // 设置下次可攻击的绝对时间戳
+        this.nextAttackTime = currentTime + cooldownMs;
+        this.cooldown = this.maxCooldown; // 保持此值用于兼容性
+        this.lastUpdateTime = currentTime;
     }
 
     // 获取攻击角度，基于玩家当前朝向
@@ -370,6 +383,7 @@ class HolySword extends Weapon {
         this.maxCooldown = 30;
         this.specialAttackCooldown = 0;
         this.maxSpecialCooldown = 300; // 5秒
+        this.nextSpecialAttackTime = 0; // 下次可用特殊攻击的时间戳
     }
 
     attack(game, player) {
@@ -400,7 +414,8 @@ class HolySword extends Weapon {
         });
 
         // 特殊攻击（当按Z键且特殊攻击不在冷却中）
-        if (game.keys.z && this.specialAttackCooldown <= 0) {
+        const currentTime = performance.now();
+        if (game.keys.z && currentTime >= this.nextSpecialAttackTime) {
             // 圣光爆发
             for (let i = 0; i < 12; i++) {
                 const specialAngle = (i / 12) * Math.PI * 2;
@@ -424,7 +439,10 @@ class HolySword extends Weapon {
                 });
             }
 
-            this.specialAttackCooldown = this.maxSpecialCooldown;
+            // 设置特殊攻击冷却
+            const specialCooldownMs = (this.maxSpecialCooldown / 60) * 1000; // 转换为毫秒
+            this.nextSpecialAttackTime = currentTime + specialCooldownMs;
+            this.specialAttackCooldown = this.maxSpecialCooldown; // 保持兼容性
         }
 
         this.resetCooldown();
@@ -433,8 +451,17 @@ class HolySword extends Weapon {
     update(game) {
         super.update(game);
 
-        if (this.specialAttackCooldown > 0) {
-            this.specialAttackCooldown--;
+        // 检查特殊攻击是否可用
+        const currentTime = performance.now();
+        if (currentTime >= this.nextSpecialAttackTime) {
+            this.specialAttackCooldown = 0;
+        } else if (this.specialAttackCooldown > 0) {
+            // 更新基于帧的冷却（用于UI显示）
+            // 计算剩余冷却时间的百分比，并将其应用到基于帧的冷却值
+            const remainingTime = this.nextSpecialAttackTime - currentTime;
+            const specialCooldownMs = (this.maxSpecialCooldown / 60) * 1000;
+            const percentage = remainingTime / specialCooldownMs;
+            this.specialAttackCooldown = Math.ceil(this.maxSpecialCooldown * percentage);
         }
     }
 }
@@ -547,6 +574,7 @@ class SwordOfDawn extends Weapon {
         this.maxCooldown = 50;
         this.summonCooldown = 0;
         this.maxSummonCooldown = 600; // 10秒冷却
+        this.nextSummonTime = 0; // 下次可召唤士兵的时间戳
     }
 
     attack(game, player) {
@@ -570,9 +598,13 @@ class SwordOfDawn extends Weapon {
         });
 
         // 召唤士兵（当按X键且召唤不在冷却中）
-        if (game.keys.x && this.summonCooldown <= 0) {
+        const currentTime = performance.now();
+        if (game.keys.x && currentTime >= this.nextSummonTime) {
             this.summonSoldiers(game, player);
-            this.summonCooldown = this.maxSummonCooldown;
+            // 设置新的召唤冷却
+            const summonCooldownMs = (this.maxSummonCooldown / 60) * 1000; // 转换为毫秒
+            this.nextSummonTime = currentTime + summonCooldownMs;
+            this.summonCooldown = this.maxSummonCooldown; // 保持兼容性
         }
 
         this.resetCooldown();
@@ -605,8 +637,17 @@ class SwordOfDawn extends Weapon {
     update(game) {
         super.update(game);
 
-        if (this.summonCooldown > 0) {
-            this.summonCooldown--;
+        // 检查召唤是否可用
+        const currentTime = performance.now();
+        if (currentTime >= this.nextSummonTime) {
+            this.summonCooldown = 0;
+        } else if (this.summonCooldown > 0) {
+            // 更新基于帧的冷却（用于UI显示）
+            // 计算剩余冷却时间的百分比，并将其应用到基于帧的冷却值
+            const remainingTime = this.nextSummonTime - currentTime;
+            const summonCooldownMs = (this.maxSummonCooldown / 60) * 1000;
+            const percentage = remainingTime / summonCooldownMs;
+            this.summonCooldown = Math.ceil(this.maxSummonCooldown * percentage);
         }
     }
 }
@@ -625,6 +666,7 @@ class FistOfTulkas extends Weapon {
         this.maxCombo = 5;
         this.comboTimer = 0;
         this.comboTimeout = 30; // 0.5秒内需要继续攻击才能保持连击
+        this.comboExpireTime = 0; // combo过期的时间戳
     }
 
     attack(game, player) {
@@ -633,15 +675,20 @@ class FistOfTulkas extends Weapon {
         // 使用getAttackAngle方法获取攻击角度
         const angle = this.getAttackAngle(player);
 
+        const currentTime = performance.now();
         // 更新连击计数
-        if (this.comboTimer > 0) {
+        if (currentTime < this.comboExpireTime) {
             this.comboCount = (this.comboCount + 1) % (this.maxCombo + 1);
             if (this.comboCount === 0) this.comboCount = 1;
         } else {
             this.comboCount = 1;
         }
 
-        this.comboTimer = this.comboTimeout;
+        // 设置新的combo计时器
+        // 转换帧数为毫秒 (基于60FPS)
+        const comboTimeoutMs = (this.comboTimeout / 60) * 1000;
+        this.comboExpireTime = currentTime + comboTimeoutMs;
+        this.comboTimer = this.comboTimeout; // 保持兼容性
 
         // 根据连击数调整伤害和攻击范围
         let damage = this.getDamage();
@@ -683,10 +730,18 @@ class FistOfTulkas extends Weapon {
     update(game) {
         super.update(game);
 
+        const currentTime = performance.now();
         if (this.comboTimer > 0) {
-            this.comboTimer--;
-            if (this.comboTimer === 0) {
+            // 检查combo是否过期
+            if (currentTime >= this.comboExpireTime) {
+                this.comboTimer = 0;
                 this.comboCount = 0;
+            } else {
+                // 更新基于帧的计时器
+                const remainingTime = this.comboExpireTime - currentTime;
+                const comboTimeoutMs = (this.comboTimeout / 60) * 1000;
+                const percentage = remainingTime / comboTimeoutMs;
+                this.comboTimer = Math.ceil(this.comboTimeout * percentage);
             }
         }
     }

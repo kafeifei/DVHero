@@ -5,7 +5,7 @@ const CONFIG = {
   // 调试设置
   debug: {
     enabled: false,             // 是否开启调试模式
-    showFPS: false,             // 显示帧率
+    showFPS: true,              // 显示帧率
     showColliders: false,       // 显示碰撞框
     logAnimations: false,       // 记录动画日志
     logMissingTextures: false,  // 记录缺失纹理
@@ -350,3 +350,6 @@ try {
 
 // 导出配置
 export default CONFIG; 
+
+// 设置为全局变量，使window.CONFIG可以访问
+window.CONFIG = CONFIG; 

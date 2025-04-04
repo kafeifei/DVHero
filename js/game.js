@@ -18,8 +18,10 @@ import {
 export class Game {
     constructor() {
         this.canvas2d = document.getElementById('game-canvas');
+        
+        // 创建3D画布
         this.canvas3d = document.getElementById('game-canvas-3d');
-
+        
         // 创建UI Canvas用于在任何模式下显示UI
         this.canvasUI = document.createElement('canvas');
         this.canvasUI.id = 'game-canvas-ui';
@@ -42,7 +44,7 @@ export class Game {
         this.isRunning = false;
         this.isGameOver = false;
         this.isPaused = false;
-
+        
         // 设置Canvas尺寸 - 改为自适应
         this.canvas2d.width = this.canvas2d.parentElement ? this.canvas2d.parentElement.clientWidth : window.innerWidth;
         this.canvas2d.height = this.canvas2d.parentElement ? this.canvas2d.parentElement.clientHeight : window.innerHeight;
@@ -65,6 +67,9 @@ export class Game {
         this.fps = 60;
         this.fpsInterval = 1000 / this.fps;
         this.lastFrameTime = 0;
+        
+        // FPS计算相关 - 简单实现
+        this.currentFps = 0;
 
         // 游戏资源 - Dynamically generate images
         this.images = {};
@@ -645,6 +650,11 @@ export class Game {
         // 计算帧率间隔
         if (!timestamp) timestamp = 0;
         const elapsed = timestamp - this.lastFrameTime;
+
+        // 计算当前FPS，用于显示
+        if (elapsed > 0) {
+            this.currentFps = Math.round(1000 / elapsed);
+        }
 
         // 只有当到达指定的帧率间隔时才更新和绘制
         if (elapsed > this.fpsInterval) {
@@ -1309,6 +1319,15 @@ export class Game {
             this.canvasUI.width - 70,
             70
         );
+        
+        // 绘制FPS
+        if (CONFIG.debug.showFPS) {
+            this.ctxUI.fillText(
+                `FPS: ${this.currentFps || 0}`,
+                this.canvasUI.width - 70,
+                90
+            );
+        }
 
         // 绘制警告文本
         if (this.warningTimer > 0) {

@@ -416,6 +416,29 @@ export class ThreeHelper {
             this.resizeHandler = null;
         }
         
+        // 清理动画混合器和计时器
+        if (this.mixers) {
+            this.mixers.length = 0; // 清空数组
+            this.mixers = null;
+        }
+        
+        // 清理时钟
+        this.clock = null;
+        
+        // 清理计时器 - 尤其重要的是攻击动画计时器
+        const player = this.objects ? this.objects.get('player') : null;
+        if (player && player.userData) {
+            // 清除攻击动画计时器
+            if (player.userData.attackAnimationTimer) {
+                clearTimeout(player.userData.attackAnimationTimer);
+                player.userData.attackAnimationTimer = null;
+            }
+            // 重置攻击状态
+            if (player.userData.isAttacking !== undefined) {
+                player.userData.isAttacking = false;
+            }
+        }
+        
         // 首先尝试解除所有纹理的引用
         if (this.textures) {
             for (const key in this.textures) {
