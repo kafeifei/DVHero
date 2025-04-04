@@ -458,3 +458,21 @@ body {
 .mode-toggle-btn:active {
     transform: scale(0.95);
 }
+
+/* 移动设备适配 */
+@media (max-width: 767px) {
+    .mode-toggle-btn {
+        padding: 12px 20px; /* 更大的点击区域 */
+        font-size: 18px; /* 更大的字体 */
+        bottom: 25px; /* 远离底部边缘 */
+        right: 25px; /* 远离右侧边缘 */
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.7); /* 更明显的阴影 */
+        background-color: #8b2121; /* 更鲜明的背景色 */
+        z-index: 9999; /* 确保最高层级 */
+    }
+    
+    /* 游戏控制说明在移动设备上隐藏 */
+    .game-controls {
+        display: none;
+    }
+}

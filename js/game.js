@@ -1978,6 +1978,13 @@ export class Game {
             if ((e.key === 'g' || e.key === 'G') && this.imagesReady) {
                 console.log('按下G键，切换模式');
                 this.toggleMode();
+                
+                // 检测是否为移动设备，并显示使用按钮提示
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    setTimeout(() => {
+                        this.showWarning('在手机上，请点击右下角的切换按钮', 180);
+                    }, 3000); // 在模式切换完成后显示提示
+                }
             }
             
             // 在游戏结束状态，按空格键重新开始游戏

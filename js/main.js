@@ -277,12 +277,26 @@ function initGame() {
     console.log('初始化所有事件监听器');
     window.game.setupAllEventListeners();
     
-    // 设置模式切换按钮监听器
+    // 设置模式切换按钮
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     if (modeToggleBtn) {
         modeToggleBtn.removeEventListener('click', handleModeToggle);
         modeToggleBtn.addEventListener('click', handleModeToggle);
         modeToggleBtn.textContent = '切换到3D'; // 初始为2D模式
+        
+        // 为移动设备增强按钮可见性
+        if (isMobileDevice()) {
+            modeToggleBtn.style.display = 'block';
+            modeToggleBtn.style.opacity = '1';
+            
+            // 确保按钮加载后闪烁，引起用户注意
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+                modeToggleBtn.style.opacity = blinkCount % 2 === 0 ? '0.7' : '1';
+                blinkCount++;
+                if (blinkCount > 10) clearInterval(blinkInterval);
+            }, 500);
+        }
     }
     
     // 先以2D模式启动游戏
@@ -460,3 +474,48 @@ function preloadTextures() {
         tryLoadTexture();
     });
 }
+
+// 检测是否为移动设备
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// 初始化模式切换按钮
+function initModeToggleButton() {
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    
+    if (modeToggleBtn) {
+        // 确保按钮初始文本正确
+        modeToggleBtn.textContent = window.game && window.game.is3D ? '切换到2D' : '切换到3D';
+        
+        // 为移动设备增强按钮可见性
+        if (isMobileDevice()) {
+            modeToggleBtn.style.display = 'block';
+            modeToggleBtn.style.opacity = '1';
+            
+            // 确保按钮加载后5秒内闪烁，引起用户注意
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+                modeToggleBtn.style.opacity = blinkCount % 2 === 0 ? '0.7' : '1';
+                blinkCount++;
+                if (blinkCount > 10) clearInterval(blinkInterval);
+            }, 500);
+        }
+        
+        // 添加点击事件
+        modeToggleBtn.addEventListener('click', handleModeToggle);
+    }
+}
+
+// 启动游戏后初始化模式切换按钮
+document.addEventListener('DOMContentLoaded', () => {
+    // 现有的DOMContentLoaded事件处理...
+    
+    // 在游戏启动后初始化模式切换按钮
+    document.getElementById('start-game-btn').addEventListener('click', () => {
+        // 现有的游戏启动逻辑...
+        
+        // 确保模式切换按钮在游戏启动后初始化
+        setTimeout(initModeToggleButton, 1000);
+    });
+});
