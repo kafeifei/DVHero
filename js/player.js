@@ -237,15 +237,25 @@ export class Player {
     }
 
     attack() {
-        // 使用当前装备的所有武器攻击
-        for (const weapon of this.weapons) {
+        // 检查是否有武器可以攻击
+        for (let i = 0; i < this.weapons.length; i++) {
+            const weapon = this.weapons[i];
+            
             if (weapon.canAttack()) {
-                weapon.attack(this.game, this);
-                
-                // 触发攻击动画
-                if (this.game.threeHelper) {
-                    this.game.threeHelper.playAttackAnimation();
+                // 只有第一把武器(索引为0)才触发攻击动画
+                if (i === 0 && this.game.threeHelper) {
+                    // 检查当前是否已经在播放攻击动画
+                    const player = this.game.threeHelper.objects.get('player');
+                    const isAlreadyAttacking = player && player.userData && player.userData.isAttacking;
+                    
+                    // 只有在当前没有攻击动画播放时才触发新的攻击动画
+                    if (!isAlreadyAttacking) {
+                        this.game.threeHelper.playAttackAnimation();
+                    }
                 }
+                
+                // 执行武器攻击
+                weapon.attack(this.game, this);
             }
         }
     }
