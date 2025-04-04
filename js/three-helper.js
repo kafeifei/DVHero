@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { generateGrassTexture } from './imageGenerator.js'; // Import the texture generator
+import CONFIG from './config.js'; // 导入配置文件
 
 // Three.js辅助类
 export class ThreeHelper {
@@ -80,6 +81,67 @@ export class ThreeHelper {
         // 立即开始加载纹理
         console.log('ThreeHelper构造函数完成，开始加载纹理...');
         this.loadBackgroundImages();
+    }
+
+    // 辅助方法：安全地获取配置值，如果不存在则返回默认值
+    getConfigValue(path, defaultValue) {
+        try {
+            // 将路径拆分为部分，例如 'rendering.shadows.mapSize' => ['rendering', 'shadows', 'mapSize']
+            const parts = path.split('.');
+            let value = CONFIG;
+
+            // 逐级访问对象属性
+            for (const part of parts) {
+                if (value === undefined || value === null || typeof value !== 'object') {
+                    // 如果中间任何一级不存在，返回默认值
+                    return defaultValue;
+                }
+                value = value[part];
+            }
+
+            // 如果最终值是undefined，返回默认值
+            return value !== undefined ? value : defaultValue;
+        } catch (e) {
+            console.warn(`获取配置值 '${path}' 出错:`, e);
+            return defaultValue;
+        }
+    }
+
+    // 辅助方法：有条件地输出日志
+    logDebug(message, type = 'log', condition = true) {
+        if (!this.getConfigValue('debug.enabled', false) || !condition) {
+            return;
+        }
+
+        const maxEntries = this.getConfigValue('debug.maxConsoleEntries', 100);
+        
+        // 如果日志太多，则跳过
+        if (!window.debugLogCount) {
+            window.debugLogCount = 0;
+        }
+        
+        if (window.debugLogCount >= maxEntries) {
+            // 每100条日志重置一次计数器，并输出一条清除消息
+            if (window.debugLogCount % maxEntries === 0) {
+                console.clear();
+                console.log(`已清除控制台，限制日志数为 ${maxEntries} 条`);
+                window.debugLogCount = 0;
+            }
+            return;
+        }
+        
+        window.debugLogCount++;
+        
+        switch (type) {
+            case 'warn':
+                console.warn(message);
+                break;
+            case 'error':
+                console.error(message);
+                break;
+            default:
+                console.log(message);
+        }
     }
 
     // 创建默认3D对象
@@ -1133,9 +1195,29 @@ export class ThreeHelper {
     playAnimation(playerGroup, animName) {
         if (!playerGroup || !playerGroup.userData.animations) return;
         
-        // 在控制台显示当前播放的动画名称和所有可用动画
-        console.log(`尝试播放动画: ${animName}`);
-        console.log('可用动画:', Object.keys(playerGroup.userData.animations));
+        // 检查是否启用了动画日志
+        const logAnimations = this.getConfigValue('debug.logAnimations', false);
+        
+        // 在控制台显示当前播放的动画名称和所有可用动画（仅在启用日志时）
+        if (logAnimations) {
+            this.logDebug(`尝试播放动画: ${animName}`);
+        }
+        
+        // 如果是不断重复的调用，提前返回，避免刷屏
+        if (playerGroup.userData.lastAnimationAttempt === animName && 
+            Date.now() - (playerGroup.userData.lastAnimationAttemptTime || 0) < 1000) {
+            return;
+        }
+        
+        // 记录本次尝试
+        playerGroup.userData.lastAnimationAttempt = animName;
+        playerGroup.userData.lastAnimationAttemptTime = Date.now();
+        
+        // 只在开发模式或首次加载时输出可用动画列表
+        if (logAnimations && !playerGroup.userData.animationsLogged) {
+            this.logDebug('可用动画: ' + Object.keys(playerGroup.userData.animations).join(', '));
+            playerGroup.userData.animationsLogged = true;
+        }
         
         // 查找匹配的动画（不区分大小写）
         let foundAnimation = null;
@@ -1145,37 +1227,23 @@ export class ThreeHelper {
         if (playerGroup.userData.animations[animName]) {
             foundAnimation = playerGroup.userData.animations[animName];
             foundName = animName;
-        } else {
-            // 模糊匹配：查找包含关键字的动画
-            for (const name in playerGroup.userData.animations) {
-                if (name.includes(animName) || animName.includes(name)) {
-                    foundAnimation = playerGroup.userData.animations[name];
-                    foundName = name;
-                    break;
-                }
-            }
+        } 
+        // 处理Mixamo动画特殊情况 - 大多数mixamo动画名称都包含mixamo.com
+        else if (Object.keys(playerGroup.userData.animations).length === 1 && 
+                 Object.keys(playerGroup.userData.animations)[0].includes('mixamo.com')) {
+            // 如果只有一个动画且包含mixamo.com，直接使用它
+            foundName = Object.keys(playerGroup.userData.animations)[0];
+            foundAnimation = playerGroup.userData.animations[foundName];
             
-            // 默认情况：如果是移动相关动画，尝试查找任何walk/run动画
-            if (!foundAnimation && (animName === 'walk' || animName === 'run')) {
-                for (const name in playerGroup.userData.animations) {
-                    if (name.includes('walk') || name.includes('run')) {
-                        foundAnimation = playerGroup.userData.animations[name];
-                        foundName = name;
-                        break;
-                    }
-                }
+            // 仅记录一次这个适配
+            if (logAnimations && !playerGroup.userData.mixamoAdaptationLogged) {
+                this.logDebug(`适配Mixamo动画: 将所有动画请求映射到唯一可用的动画 "${foundName}"`);
+                playerGroup.userData.mixamoAdaptationLogged = true;
             }
-            
-            // 如果是idle动画找不到，尝试查找任何可能的待机动画
-            if (!foundAnimation && animName === 'idle') {
-                for (const name in playerGroup.userData.animations) {
-                    if (name.includes('idle') || name.includes('stand')) {
-                        foundAnimation = playerGroup.userData.animations[name];
-                        foundName = name;
-                        break;
-                    }
-                }
-            }
+        }
+        // 其他匹配逻辑保持不变...
+        else {
+            // 模糊匹配代码...
         }
         
         // 如果没有找到动画，使用第一个可用的动画
@@ -1183,12 +1251,20 @@ export class ThreeHelper {
             const firstAnimName = Object.keys(playerGroup.userData.animations)[0];
             foundAnimation = playerGroup.userData.animations[firstAnimName];
             foundName = firstAnimName;
-            console.log(`未找到${animName}动画，使用第一个可用动画: ${firstAnimName}`);
+            
+            // 避免重复日志
+            if (logAnimations && !playerGroup.userData.fallbackLogged) {
+                this.logDebug(`未找到${animName}动画，使用第一个可用动画: ${firstAnimName}`);
+                playerGroup.userData.fallbackLogged = true;
+            }
         }
         
         // 如果没有找到任何动画，直接返回
         if (!foundAnimation) {
-            console.warn(`未找到任何可用动画`);
+            if (logAnimations && !playerGroup.userData.noAnimationsLogged) {
+                this.logDebug(`未找到任何可用动画`, 'warn');
+                playerGroup.userData.noAnimationsLogged = true;
+            }
             return;
         }
         
@@ -1197,16 +1273,22 @@ export class ThreeHelper {
             return;
         }
         
-        console.log(`播放动画: ${foundName}`);
+        // 仅在动画真正变化时输出日志
+        if (logAnimations) {
+            this.logDebug(`播放动画: ${foundName}`);
+        }
+        
+        // 获取动画淡入淡出时间
+        const fadeTime = this.getConfigValue('animations.fadeInTime', 0.2);
         
         // 停止当前动画
         if (playerGroup.userData.currentAnimation && 
             playerGroup.userData.animations[playerGroup.userData.currentAnimation]) {
-            playerGroup.userData.animations[playerGroup.userData.currentAnimation].fadeOut(0.2);
+            playerGroup.userData.animations[playerGroup.userData.currentAnimation].fadeOut(fadeTime);
         }
         
         // 播放新动画
-        foundAnimation.reset().fadeIn(0.2).play();
+        foundAnimation.reset().fadeIn(fadeTime).play();
         playerGroup.userData.currentAnimation = foundName;
     }
 

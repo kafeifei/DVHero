@@ -4,6 +4,7 @@ import { WeaponsLibrary } from './weapons.js'; // Import WeaponsLibrary
 import { ExperienceOrb, Projectile, Particle, Effect } from './projectile.js'; // Import needed classes
 import { ThreeHelper } from './three-helper.js'; // Import ThreeHelper
 import { Utils } from './utils.js'; // Import Utils
+import CONFIG from './config.js'; // 导入配置文件
 // Import image generation functions instead of image URLs
 import {
     generateGrassTexture,
