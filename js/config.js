@@ -26,7 +26,7 @@ const CONFIG = {
     // 阴影设置
     shadows: {
       enabled: true,             // 是否启用阴影
-      mapSize: 2048,             // 阴影贴图尺寸(降低以提高性能,原值4096)
+      mapSize: 1024,             // 阴影贴图尺寸(降低以提高性能,原值4096)
       type: "PCFSoftShadow",     // 阴影类型:"Basic","PCF","PCFSoft"
       bias: -0.0002,             // 阴影偏差
       normalBias: 0.01,          // 法线偏差
