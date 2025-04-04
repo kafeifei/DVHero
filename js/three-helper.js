@@ -1085,48 +1085,8 @@ export class ThreeHelper {
 
                 // 为火把添加点光源
                 if (obj.type === 'torch') {
-                    // 检查是否已达到最大火把光源数量
-                    const maxTorches = this.getConfigValue('lighting.torch.maxTorches', 10);
-                    const torchEnabled = this.getConfigValue('lighting.torch.enabled', true);
-                    
-                    // 获取当前活动的火把光源数量
-                    const activeTorchLights = Array.from(this.objects.keys())
-                        .filter(key => key.startsWith('torch_light_'))
-                        .length;
-                    
-                    // 如果没有达到上限且配置允许，添加光源
-                    if (torchEnabled && activeTorchLights < maxTorches) {
-                        // 从配置中获取火把光设置
-                        const torchColor = this.getConfigValue('lighting.torch.color', 0xff7700);
-                        const torchIntensity = this.getConfigValue('lighting.torch.intensity', 3);
-                        const torchDistance = this.getConfigValue('lighting.torch.distance', 150) * 3; // 光照范围也放大3倍
-                        
-                        const pointLight = new THREE.PointLight(torchColor, torchIntensity, torchDistance);
-                        pointLight.position.set(obj.x, height * objectScale * 0.6, obj.y); // 调整光源高度位于火焰位置
-                        this.scene.add(pointLight);
-                        this.objects.set(`torch_light_${index}`, pointLight);
-                        
-                        // 添加光照闪烁动画
-                        if (!this.animatedLights) {
-                            this.animatedLights = [];
-                        }
-                        
-                        // 记录光源的基本信息
-                        pointLight.userData = {
-                            baseIntensity: torchIntensity,
-                            animationOffset: Math.random() * Math.PI * 2,
-                            lastUpdateTime: 0  // 用于控制更新频率
-                        };
-                        
-                        this.animatedLights.push(pointLight);
-                        
-                        if (this.getConfigValue('debug.logSceneInfo', false)) {
-                            this.logDebug(`添加火把光源 #${activeTorchLights + 1}/${maxTorches} 位置(${obj.x},${obj.y})`);
-                        }
-                    } else if (torchEnabled && this.getConfigValue('debug.logWarnings', true) && activeTorchLights === maxTorches) {
-                        // 只在第一次达到上限时输出警告
-                        this.logDebug(`已达到最大火把光源数量 (${maxTorches})，不再添加新光源`, 'warn');
-                    }
+                    // 通过专用方法添加火把特效
+                    this.createTorchEffects(obj, index, height, objectScale);
                 }
             } catch (e) {
                 console.error(`创建背景对象时出错: ${e.message}`);
@@ -2382,9 +2342,13 @@ export class ThreeHelper {
         if (this.animatedLights && this.animatedLights.length > 0) {
             // 获取光源动画更新间隔
             const torchLightsInterval = this.getConfigValue('animations.updateIntervals.torchLights', 3);
+            const torchUpdateInterval = this.getConfigValue('lighting.torch.updateInterval', 3);
+            
+            // 使用配置中的更新间隔，如果有更具体的torch.updateInterval优先使用
+            const updateInterval = torchUpdateInterval || torchLightsInterval;
             
             // 检查当前帧是否应该更新光源动画
-            if (this.frameCount % torchLightsInterval === 0) {
+            if (this.frameCount % updateInterval === 0) {
                 const time = Date.now() * this.getConfigValue('lighting.torch.flickerSpeed', 0.003);
                 const flickerIntensity = this.getConfigValue('lighting.torch.flickerIntensity', 0.3);
                 
@@ -3737,6 +3701,302 @@ export class ThreeHelper {
             }
         } catch (e) {
             console.warn('清理对象时出错:', e);
+        }
+    }
+
+    // 创建火把特效 - 光源和火焰
+    createTorchEffects(obj, index, height, objectScale) {
+        // 检查是否启用火把光照
+        const maxTorches = this.getConfigValue('lighting.torch.maxTorches', 10);
+        const torchEnabled = this.getConfigValue('lighting.torch.enabled', true);
+        
+        // 获取当前活动的火把光源数量
+        const activeTorchLights = Array.from(this.objects.keys())
+            .filter(key => key.startsWith('torch_light_'))
+            .length;
+        
+        // 如果没有达到上限且配置允许，添加光源
+        if (torchEnabled && activeTorchLights < maxTorches) {
+            // 从配置中获取火把光设置
+            const torchColor = this.getConfigValue('lighting.torch.color', 0xff7700);
+            const torchIntensity = this.getConfigValue('lighting.torch.intensity', 3);
+            const torchDistance = this.getConfigValue('lighting.torch.distance', 150) * 3; // 光照范围也放大3倍
+            const torchCastShadows = this.getConfigValue('lighting.torch.castShadows', false);
+            const attenuationFactor = this.getConfigValue('lighting.torch.attenuationFactor', 2.0);
+            
+            // 创建点光源
+            const pointLight = new THREE.PointLight(torchColor, torchIntensity, torchDistance);
+            pointLight.position.set(obj.x, height * objectScale * 0.6, obj.y); // 调整光源高度位于火焰位置
+            
+            // 设置光照衰减因子
+            pointLight.decay = attenuationFactor;
+            
+            // 设置是否产生阴影
+            pointLight.castShadow = torchCastShadows && this.getConfigValue('rendering.shadows.enabled', true);
+            
+            // 如果开启了阴影，设置阴影参数
+            if (pointLight.castShadow) {
+                // 设置阴影贴图大小
+                const shadowMapSize = Math.min(512, this.getConfigValue('rendering.shadows.mapSize', 1024));
+                pointLight.shadow.mapSize.width = shadowMapSize;
+                pointLight.shadow.mapSize.height = shadowMapSize;
+                
+                // 设置阴影相机参数
+                pointLight.shadow.camera.near = 10;
+                pointLight.shadow.camera.far = torchDistance;
+                
+                // 设置阴影偏差
+                pointLight.shadow.bias = -0.002;
+                
+                if (this.getConfigValue('debug.logSceneInfo', false)) {
+                    this.logDebug(`火把光源启用阴影: 贴图尺寸=${shadowMapSize}`);
+                }
+            }
+            
+            this.scene.add(pointLight);
+            this.objects.set(`torch_light_${index}`, pointLight);
+            
+            // 添加光照闪烁动画
+            if (!this.animatedLights) {
+                this.animatedLights = [];
+            }
+            
+            // 记录光源的基本信息
+            pointLight.userData = {
+                baseIntensity: torchIntensity,
+                animationOffset: Math.random() * Math.PI * 2,
+                lastUpdateTime: 0  // 用于控制更新频率
+            };
+            
+            this.animatedLights.push(pointLight);
+            
+            if (this.getConfigValue('debug.logSceneInfo', false)) {
+                this.logDebug(`添加火把光源 #${activeTorchLights + 1}/${maxTorches} 位置(${obj.x},${obj.y})`);
+            }
+        } else if (torchEnabled && this.getConfigValue('debug.logWarnings', true) && activeTorchLights === maxTorches) {
+            // 只在第一次达到上限时输出警告
+            this.logDebug(`已达到最大火把光源数量 (${maxTorches})，不再添加新光源`, 'warn');
+        }
+        
+        // 添加火焰效果 - 如果没有禁用动画
+        if (this.getConfigValue('lighting.torch.animateAll', false) || 
+            this.getConfigValue('animations.updateIntervals.torchFlames', 15) > 0) {
+            
+            // 创建火焰效果 - 一个核心和一个外层
+            // 火焰核心 - 更亮更黄的部分
+            const flameCoreMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffcc00,
+                transparent: true,
+                opacity: 0.8
+            });
+            const flameCoreGeometry = new THREE.SphereGeometry(3 * objectScale, 8, 8);
+            const flameCore = new THREE.Mesh(flameCoreGeometry, flameCoreMaterial);
+            flameCore.position.set(obj.x, height * objectScale * 0.6, obj.y);
+            flameCore.userData.animationOffset = Math.random() * Math.PI * 2;
+            
+            // 火焰外层 - 较暗的橙色部分
+            const flameOuterMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff5500,
+                transparent: true,
+                opacity: 0.6
+            });
+            const flameOuterGeometry = new THREE.SphereGeometry(5 * objectScale, 8, 8);
+            const flameOuter = new THREE.Mesh(flameOuterGeometry, flameOuterMaterial);
+            flameOuter.position.set(obj.x, height * objectScale * 0.6, obj.y);
+            flameOuter.userData.animationOffset = Math.random() * Math.PI * 2;
+            
+            // 添加到场景
+            this.scene.add(flameCore);
+            this.scene.add(flameOuter);
+            
+            // 将火焰添加到动画列表
+            if (!this.animatedTorches) {
+                this.animatedTorches = [];
+            }
+            
+            this.animatedTorches.push({
+                flameCore: flameCore,
+                flameOuter: flameOuter,
+                position: { x: obj.x, y: obj.y }
+            });
+            
+            // 设置对象引用，方便后续清理
+            this.objects.set(`torch_flame_core_${index}`, flameCore);
+            this.objects.set(`torch_flame_outer_${index}`, flameOuter);
+        }
+    }
+
+    // 创建背景对象 - 例如城堡塔楼、墓碑等
+    createBackgroundObject(obj, index, scale, createdCount) {
+        if (!this.scene) return;
+        
+        try {
+            // 获取物体类型和高度
+            const type = obj.type || 'pillar';
+            const objectScale = this.getConfigValue('scene.backgroundObjectScale', 3) * scale;
+            
+            // 根据类型选择不同的几何体和高度
+            let geometry;
+            let height = 30;  // 默认高度
+            let depth = 5;  // 默认深度
+            let texture = null;
+            
+            // 根据对象类型选择纹理
+            switch (type) {
+                case 'castleTower':
+                    texture = this.textures.castleTower;
+                    height = 50;
+                    break;
+                case 'brokenPillar':
+                    texture = this.textures.brokenPillar;
+                    height = 30;
+                    break;
+                case 'gravestone':
+                    texture = this.textures.gravestone;
+                    height = 15;
+                    break;
+                case 'deadTree':
+                    texture = this.textures.deadTree;
+                    height = 40;
+                    break;
+                case 'torch':
+                    texture = this.textures.torch;
+                    height = 10;
+                    break;
+                default:
+                    texture = this.textures.brokenPillar;
+                    height = 30;
+                    break;
+            }
+            
+            // 检查是否以精灵形式渲染火把
+            const renderTorchAsSprite = this.getConfigValue('lighting.torch.renderAsSprite', true);
+            
+            // 如果是火把且使用精灵渲染模式
+            if (type === 'torch' && renderTorchAsSprite && texture) {
+                // 创建精灵材质
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    color: 0xffffff,
+                    transparent: true,
+                    alphaTest: 0.3
+                });
+                
+                // 创建精灵对象
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.set(obj.x, height * objectScale * 0.5, obj.y);
+                sprite.scale.set(30 * objectScale, 60 * objectScale, 1);
+                
+                // 添加到场景
+                this.scene.add(sprite);
+                this.objects.set(`background_${index}`, sprite);
+                createdCount++;
+                
+                // 为火把添加点光源和火焰效果
+                this.createTorchEffects(obj, index, height, objectScale);
+                
+                return;
+            }
+            
+            // 创建物体几何体 - 根据对象类型选择不同形状
+            switch (type) {
+                case 'castleTower':
+                    // 创建塔楼（圆柱形）
+                    geometry = new THREE.CylinderGeometry(
+                        10 * objectScale,  // 顶部半径
+                        15 * objectScale,  // 底部半径
+                        height * objectScale,  // 高度
+                        8  // 分段数
+                    );
+                    break;
+                
+                case 'brokenPillar':
+                    // 创建断柱（圆柱形，顶部较小）
+                    geometry = new THREE.CylinderGeometry(
+                        5 * objectScale,  // 顶部半径
+                        8 * objectScale,  // 底部半径
+                        height * objectScale,  // 高度
+                        6  // 分段数
+                    );
+                    break;
+                
+                case 'gravestone':
+                    // 创建墓碑（简化为立方体）
+                    geometry = new THREE.BoxGeometry(
+                        10 * objectScale,  // 宽度
+                        height * objectScale,  // 高度
+                        3 * objectScale  // 深度
+                    );
+                    break;
+                
+                case 'deadTree':
+                    // 创建枯树（圆柱形加上顶部变形）
+                    geometry = new THREE.CylinderGeometry(
+                        1 * objectScale,  // 顶部半径
+                        5 * objectScale,  // 底部半径
+                        height * objectScale,  // 高度
+                        5  // 分段数
+                    );
+                    break;
+                
+                case 'torch':
+                    // 创建火把（细长圆柱）
+                    geometry = new THREE.CylinderGeometry(
+                        2 * objectScale,  // 顶部半径
+                        1 * objectScale,  // 底部半径
+                        height * objectScale,  // 高度
+                        6  // 分段数
+                    );
+                    break;
+                
+                default:
+                    // 默认为圆柱体
+                    geometry = new THREE.CylinderGeometry(
+                        5 * objectScale,
+                        8 * objectScale,
+                        height * objectScale,
+                        6
+                    );
+                    break;
+            }
+
+            // 创建材质
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x668866, // 添加绿色调
+                roughness: 0.8,  // 添加粗糙度
+                metalness: 0.1   // 添加金属感
+            });
+
+            // 创建网格
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.x = -Math.PI / 2; // 旋转使平面水平
+            mesh.position.y = -10; // 略微下沉
+            mesh.receiveShadow = true; // 启用阴影接收
+
+            // 添加到场景
+            this.scene.add(mesh);
+            this.objects.set(`background_${index}`, mesh);
+            createdCount++;
+
+            // 添加暗色叠加，匹配2D模式中的深色调
+            const overlayGeometry = new THREE.PlaneGeometry(10 * objectScale, 10 * objectScale);
+            const overlayMaterial = new THREE.MeshBasicMaterial({
+                color: 0x202040, // 更深的蓝黑色调
+                transparent: true,
+                opacity: 0.2,    // 增加不透明度
+                side: THREE.DoubleSide,
+                depthWrite: false,
+            });
+
+            const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
+            overlay.rotation.x = -Math.PI / 2;
+            overlay.position.y = -9; // 略高于地面
+            this.scene.add(overlay);
+            this.objects.set(`background_overlay_${index}`, overlay);
+
+            console.log(`创建了 ${createdCount} 个背景对象`);
+        } catch (e) {
+            console.error(`创建背景对象时出错: ${e.message}`);
         }
     }
 }

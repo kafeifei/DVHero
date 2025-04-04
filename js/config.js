@@ -17,8 +17,8 @@ const CONFIG = {
   // 渲染相关设置
   rendering: {
     // 基本渲染设置
-    maxFPS: 120,                    // 最大帧率
-    pixelRatio: 0.85,               // 像素比例(降低以提高性能，原值1.0)
+    maxFPS: 100,                    // 最大帧率
+    pixelRatio: 1,               // 像素比例(降低以提高性能，原值1.0)
     antialiasing: true,            // 是否开启抗锯齿
     preserveDrawingBuffer: false,  // 是否保留绘图缓冲区
     powerPreference: "high-performance",    // GPU电源偏好："default","high-performance","low-power"
@@ -111,14 +111,18 @@ const CONFIG = {
     
     // 火把光设置
     torch: {
-      enabled: true,
-      color: 0xff7700,
-      intensity: 3,
-      distance: 150,
-      maxTorches: 10,           // 最大火把数
-      animateAll: false,        // 是否为所有火把添加动画
-      flickerSpeed: 0.003,
-      flickerIntensity: 0.3
+      enabled: true,              // 是否启用火把光照效果
+      color: 0xff7700,            // 火把光颜色，橙色(0xff7700)到红色(0xff4400)效果较好
+      intensity: 3,               // 光照强度，推荐范围1-5，越大照亮范围越大
+      distance: 150,              // 光照影响距离(像素)，推荐80-200，越大性能消耗越高
+      maxTorches: 10,             // 场景中同时渲染的最大火把数量，降低此值可提高性能
+      animateAll: false,          // 是否为所有火把添加动画，true会消耗更多性能
+      flickerSpeed: 0.003,        // 火把闪烁速度，推荐0.001-0.01，越大闪烁越快
+      flickerIntensity: 0.3,      // 火把闪烁幅度，推荐0.1-0.5，越大亮度变化越明显
+      updateInterval: 3,          // 火把光效更新间隔(帧)，增大此值可提高性能
+      castShadows: false,         // 火把是否产生动态阴影，开启会显著降低性能
+      renderAsSprite: true,       // 是否将火把渲染为精灵而非3D对象，提高性能
+      attenuationFactor: 2.0      // 光照衰减系数，控制光照如何随距离衰减，推荐1.0-3.0
     }
   },
   
