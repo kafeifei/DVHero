@@ -1643,6 +1643,55 @@ export class Game {
         this.isGameOver = true;
         this.isRunning = false;
     }
+    
+    // 添加游戏结束画面绘制方法
+    drawGameOver() {
+        // 确保UI画布上下文存在
+        if (!this.ctxUI) {
+            console.warn('UI上下文不存在');
+            return;
+        }
+
+        // 半透明黑色覆盖
+        this.ctxUI.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctxUI.fillRect(
+            0,
+            0,
+            this.canvasUI.width,
+            this.canvasUI.height
+        );
+
+        // 游戏结束文本
+        this.ctxUI.fillStyle = '#ff0000';
+        this.ctxUI.font = '48px Arial';
+        this.ctxUI.textAlign = 'center';
+        this.ctxUI.fillText(
+            '游戏结束',
+            this.canvasUI.width / 2,
+            this.canvasUI.height / 2 - 30
+        );
+
+        // 显示游戏时间
+        this.ctxUI.fillStyle = '#ffffff';
+        this.ctxUI.font = '24px Arial';
+        const minutes = Math.floor(this.gameTime / 60);
+        const seconds = this.gameTime % 60;
+        this.ctxUI.fillText(
+            `存活时间: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+            this.canvasUI.width / 2,
+            this.canvasUI.height / 2 + 20
+        );
+
+        // 重新开始提示
+        this.ctxUI.font = '20px Arial';
+        this.ctxUI.fillText(
+            '按空格键重新开始游戏',
+            this.canvasUI.width / 2,
+            this.canvasUI.height / 2 + 70
+        );
+
+        this.ctxUI.textAlign = 'left';
+    }
 
     restart() {
         console.log('重新开始游戏');
