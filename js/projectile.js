@@ -87,7 +87,10 @@ export class Projectile {
 
         // 返回逻辑
         if (this.returning) {
-            if (this.returnTimer < this.returnAfter) {
+            // 修复：将returnAfter从帧数转换为秒数，以支持基于时间的返回逻辑
+            const returnAfterInSeconds = this.returnAfter / 60;
+            
+            if (this.returnTimer < returnAfterInSeconds) {
                 this.returnTimer += deltaTime;
             } else if (this.returnTarget) {
                 // 计算回到目标的方向
@@ -96,10 +99,17 @@ export class Projectile {
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
                 if (distance > this.speed * deltaTime) {
+                    // 增加返回速度为原来的1.5倍，加快返回
+                    const returnSpeed = this.speed * 1.5;
                     // 移动向目标
                     this.angle = Math.atan2(dy, dx);
-                    this.x += Math.cos(this.angle) * this.speed * deltaTime;
-                    this.y += Math.sin(this.angle) * this.speed * deltaTime;
+                    this.x += Math.cos(this.angle) * returnSpeed * deltaTime;
+                    this.y += Math.sin(this.angle) * returnSpeed * deltaTime;
+                    
+                    // 即使在返回过程中也要继续旋转
+                    if (this.rotateSpeed) {
+                        this.rotation += this.rotateSpeed * deltaTime;
+                    }
                 } else {
                     // 已到达目标
                     this.active = false;

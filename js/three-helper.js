@@ -1546,9 +1546,14 @@ export class ThreeHelper {
                 if (projectile.shape === 'rect') {
                     // 对于矩形投射物（如真空刃），让它沿运动方向旋转
                     projectileObj.rotation.y = projectile.angle + Math.PI/2;
+                } else if (projectile.shape === 'rune') {
+                    // 符文剑特殊处理 - 使用z轴旋转，这样在返回过程中也能保持旋转效果
+                    projectileObj.rotation.z = projectile.rotation || 0;
+                    // 同时根据移动方向调整y轴旋转
+                    projectileObj.rotation.y = projectile.angle;
                 } else if (projectile.rotateSpeed) {
-                    // 如果投射物有自旋，更新旋转角度
-                    projectileObj.rotation.y += projectile.rotateSpeed;
+                    // 如果投射物有自旋，使用投射物自身的rotation属性
+                    projectileObj.rotation.y = projectile.rotation || 0;
                 } else {
                     // 其他投射物，根据运动方向旋转
                     projectileObj.rotation.y = projectile.angle;
@@ -1838,9 +1843,8 @@ export class ThreeHelper {
                 break;
                 
             case 'rune':
-                // 创建剑形状作为符文剑
-                // 使用圆锥体作为剑身基础，但更扁平
-                geometry = new THREE.ConeGeometry(projectile.width/3, projectile.height*1.5, 4);
+                // 创建简单剑形几何体
+                geometry = new THREE.ConeGeometry(projectile.width/3, projectile.height*1.8, 4);
                 geometry.rotateX(Math.PI/2); // 旋转使其水平方向
                 break;
                 
