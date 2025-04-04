@@ -63,10 +63,17 @@ export class Game {
             this.ctx.imageSmoothingEnabled = false;
         }
 
-        // 帧率控制 - 从CONFIG中获取最大帧率
+        // 帧率控制和时间处理
         this.fps = window.CONFIG ? window.CONFIG.rendering.maxFPS : 60;
         this.fpsInterval = 1000 / this.fps;
         this.lastFrameTime = 0;
+        // 目标 FPS 和帧时间
+        this.targetFPS = 60;
+        this.targetFrameTime = 1000 / this.targetFPS; // 60 FPS = 16.67ms/帧
+        this.deltaTime = 0; // 记录实际每帧时间，用于更新
+        this.timeAccumulator = 0; // 时间累加器，用于固定更新步长
+        this.fixedTimeStep = 1 / this.targetFPS; // 固定物理更新步长 (秒)
+        this.updateTimer = 0; // 追踪实际游戏时间
         
         // FPS计算相关 - 简单实现
         this.currentFps = 0;
@@ -647,35 +654,54 @@ export class Game {
     gameLoop(timestamp) {
         if (!this.isRunning) return;
 
-        // 计算帧率间隔
-        if (!timestamp) timestamp = 0;
-        const elapsed = timestamp - this.lastFrameTime;
-
+        // 如果没有时间戳，使用当前时间（首次调用时可能发生）
+        if (!timestamp) timestamp = performance.now();
+        
+        // 计算实际帧时间（秒）
+        const currentTime = timestamp;
+        const elapsed = currentTime - this.lastFrameTime;
+        this.deltaTime = elapsed / 1000; // 将毫秒转换为秒
+        
         // 计算当前FPS，用于显示
         if (elapsed > 0) {
             this.currentFps = Math.round(1000 / elapsed);
+        }
+        
+        // 限制deltaTime，防止在切换标签或延迟较大时游戏行为异常
+        const maxDeltaTime = 0.1; // 最大允许的时间步长为100ms (0.1秒)
+        if (this.deltaTime > maxDeltaTime) {
+            this.deltaTime = maxDeltaTime;
         }
 
         // 只有当到达指定的帧率间隔时才更新和绘制
         if (elapsed > this.fpsInterval) {
             // 更新上一帧的时间，并调整误差
-            this.lastFrameTime = timestamp - (elapsed % this.fpsInterval);
-
+            this.lastFrameTime = currentTime - (elapsed % this.fpsInterval);
+            
             if (!this.isPaused) {
-                this.update();
+                // 更新累加器
+                this.timeAccumulator += this.deltaTime;
+                
+                // 使用固定时间步长更新游戏
+                while (this.timeAccumulator >= this.fixedTimeStep) {
+                    this.update(this.fixedTimeStep);
+                    this.timeAccumulator -= this.fixedTimeStep;
+                }
             }
 
-            // 直接调用draw方法，不再使用额外的requestAnimationFrame
+            // 执行渲染
             this.draw();
             
             this.frameCount++;
-
-            // 每60帧(1秒)增加游戏时间
-            if (this.frameCount % 60 === 0) {
+            
+            // 更新游戏时间（基于实际时间而非帧数）
+            this.updateTimer += this.deltaTime;
+            if (this.updateTimer >= 1.0) { // 每累积1秒
                 this.gameTime++;
-
+                this.updateTimer -= 1.0;
+                
                 // 每分钟增加游戏难度
-                if (this.gameTime % 60 === 0) {
+                if (this.gameTime > 0 && this.gameTime % 60 === 0) {
                     this.increaseDifficulty();
                 }
             }
@@ -684,22 +710,23 @@ export class Game {
         requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
     }
 
-    update() {
+    update(deltaTime) {
         // 更新玩家
-        this.player.update();
+        this.player.update(deltaTime);
 
-        // 生成敌人
-        if (
-            this.frameCount % this.enemySpawnRate === 0 &&
-            this.enemies.length < this.maxEnemies
-        ) {
+        // 生成敌人 - 基于时间而非帧数
+        this.enemySpawnTimer = (this.enemySpawnTimer || 0) + deltaTime;
+        const spawnInterval = 1.0 / this.enemySpawnRate * 60; // 将基于帧的速率转换为基于时间的间隔
+        
+        if (this.enemySpawnTimer >= spawnInterval && this.enemies.length < this.maxEnemies) {
             this.spawnEnemy();
+            this.enemySpawnTimer = 0;
         }
 
         // 更新敌人
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
-            enemy.update(this);
+            enemy.update(this, deltaTime);
 
             // 移除死亡的敌人
             if (!enemy.alive) {
@@ -710,7 +737,7 @@ export class Game {
         // 更新玩家投射物
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const projectile = this.projectiles[i];
-            projectile.update(this);
+            projectile.update(this, deltaTime);
 
             // 检查与敌人的碰撞
             for (const enemy of this.enemies) {
@@ -733,7 +760,7 @@ export class Game {
         // 更新敌人投射物
         for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
             const projectile = this.enemyProjectiles[i];
-            projectile.update(this);
+            projectile.update(this, deltaTime);
 
             // 检查与玩家的碰撞
             if (projectile.checkCollision(this.player)) {
@@ -753,7 +780,7 @@ export class Game {
         // 更新经验球
         for (let i = this.expOrbs.length - 1; i >= 0; i--) {
             const exp = this.expOrbs[i];
-            exp.update(this);
+            exp.update(this, deltaTime);
 
             // 检查与玩家的碰撞
             if (
@@ -765,29 +792,29 @@ export class Game {
             }
         }
 
-        // 更新粒子效果
+        // 更新粒子效果 - 使用deltaTime
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const particle = this.particles[i];
-            particle.update();
+            particle.update(deltaTime);
 
             if (particle.lifetime <= 0) {
                 this.particles.splice(i, 1);
             }
         }
 
-        // 更新视觉效果
+        // 更新视觉效果 - 使用deltaTime
         for (let i = this.effects.length - 1; i >= 0; i--) {
             const effect = this.effects[i];
-            effect.update();
+            effect.update(deltaTime);
 
             if (effect.duration <= 0) {
                 this.effects.splice(i, 1);
             }
         }
 
-        // 更新警告文本
+        // 更新警告文本 - 基于时间而非帧数
         if (this.warningTimer > 0) {
-            this.warningTimer--;
+            this.warningTimer -= deltaTime * 60; // 转换为基于帧的等效减少
         }
     }
 

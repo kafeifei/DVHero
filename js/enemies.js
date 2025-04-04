@@ -6,16 +6,15 @@ class Enemy {
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.health = options.health || 10;
-        this.maxHealth = this.health;
+        this.maxHealth = options.health || 10;
         this.damage = options.damage || 1;
-        this.speed = options.speed || 1;
+        this.speed = options.speed * 60 || 60; // 转换为像素/秒
         this.radius = options.radius || 15;
-        this.color = options.color || '#ff0000';
+        this.color = options.color || '#f00';
         this.level = options.level || 1;
-        this.expValue =
-            options.expValue || Math.max(1, Math.floor(this.level / 2));
+        this.expValue = options.expValue || 1;
         this.type = options.type || 'normal'; // normal, dark, etc.
-        this.target = options.target;
+        this.target = options.target || null;
         this.knockbackResistance = options.knockbackResistance || 1;
         this.knockbackX = 0;
         this.knockbackY = 0;
@@ -23,15 +22,18 @@ class Enemy {
         this.id = Enemy.nextId++;
     }
 
-    update(game) {
+    update(game, deltaTime) {
+        // 如果没有提供deltaTime，使用默认值（1/60秒 = 约16.7ms）
+        deltaTime = deltaTime || 1/60;
+        
         if (!this.alive) return;
 
         // 处理击退效果
         if (this.knockbackX !== 0 || this.knockbackY !== 0) {
             this.x += this.knockbackX;
             this.y += this.knockbackY;
-            this.knockbackX *= 0.8;
-            this.knockbackY *= 0.8;
+            this.knockbackX *= Math.pow(0.8, 60 * deltaTime); // 调整为与时间相关的衰减
+            this.knockbackY *= Math.pow(0.8, 60 * deltaTime);
 
             if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
             if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
@@ -46,8 +48,8 @@ class Enemy {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                const moveX = (dx / distance) * this.speed;
-                const moveY = (dy / distance) * this.speed;
+                const moveX = (dx / distance) * this.speed * deltaTime; // 基于时间的移动
+                const moveY = (dy / distance) * this.speed * deltaTime;
                 this.x += moveX;
                 this.y += moveY;
             }
@@ -193,15 +195,15 @@ class AxeArmor extends Enemy {
 
         this.attackRange = 100;
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 120;
+        this.maxAttackCooldown = 2.0; // 2秒冷却（改为秒为单位）
     }
 
-    update(game) {
-        super.update(game);
+    update(game, deltaTime) {
+        super.update(game, deltaTime);
 
         if (!this.alive) return;
 
-        // 远程攻击
+        // 远程攻击 - 基于时间的冷却
         if (this.attackCooldown <= 0) {
             const distanceToTarget = Utils.distance(
                 this.x,
@@ -215,7 +217,8 @@ class AxeArmor extends Enemy {
                 this.attackCooldown = this.maxAttackCooldown;
             }
         } else {
-            this.attackCooldown--;
+            this.attackCooldown -= deltaTime;
+            if (this.attackCooldown < 0) this.attackCooldown = 0;
         }
     }
 
@@ -259,23 +262,25 @@ class MedusaHead extends Enemy {
         });
 
         this.waveAmplitude = 50; // 波动幅度
-        this.waveFrequency = 0.05; // 波动频率
+        this.waveFrequency = 3; // 波动频率（改为Hz）
         this.waveOffset = Math.random() * Math.PI * 2; // 随机波动起始点
         this.baseY = this.y;
         this.movementTime = 0;
     }
 
-    update(game) {
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
         if (!this.alive) return;
 
-        this.movementTime += 1;
+        this.movementTime += deltaTime; // 以秒为单位累积时间
 
         // 处理击退效果
         if (this.knockbackX !== 0 || this.knockbackY !== 0) {
             this.x += this.knockbackX;
             this.y += this.knockbackY;
-            this.knockbackX *= 0.8;
-            this.knockbackY *= 0.8;
+            this.knockbackX *= Math.pow(0.8, 60 * deltaTime);
+            this.knockbackY *= Math.pow(0.8, 60 * deltaTime);
 
             if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
             if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
@@ -289,16 +294,15 @@ class MedusaHead extends Enemy {
             const distance = Math.abs(dx);
 
             if (distance > 0) {
-                const moveX = Math.sign(dx) * this.speed;
+                const moveX = Math.sign(dx) * this.speed * deltaTime;
                 this.x += moveX;
 
-                // 波浪运动（上下波动）
+                // 波浪运动（上下波动） - 基于实际时间的正弦波
                 this.y =
                     this.baseY +
                     Math.sin(
-                        this.movementTime * this.waveFrequency + this.waveOffset
-                    ) *
-                        this.waveAmplitude;
+                        this.movementTime * this.waveFrequency * Math.PI * 2 + this.waveOffset
+                    ) * this.waveAmplitude;
             }
 
             // 检查与玩家的碰撞
@@ -325,15 +329,15 @@ class BladeSoldier extends Enemy {
         });
 
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 90;
+        this.maxAttackCooldown = 1.5; // 1.5秒冷却（改为秒为单位）
     }
 
-    update(game) {
-        super.update(game);
+    update(game, deltaTime) {
+        super.update(game, deltaTime);
 
         if (!this.alive) return;
 
-        // 攻击逻辑
+        // 攻击逻辑 - 基于时间的冷却
         if (this.attackCooldown <= 0) {
             const distanceToTarget = Utils.distance(
                 this.x,
@@ -348,7 +352,8 @@ class BladeSoldier extends Enemy {
                 this.attackCooldown = this.maxAttackCooldown;
             }
         } else {
-            this.attackCooldown--;
+            this.attackCooldown -= deltaTime;
+            if (this.attackCooldown < 0) this.attackCooldown = 0;
         }
     }
 

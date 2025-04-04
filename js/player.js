@@ -8,7 +8,7 @@ export class Player {
         
         this.radius = 20;
         this.color = '#5588ff';
-        this.speed = 3;
+        this.speed = 180; // 速度单位改为像素/秒 (原来是3像素/帧)
         this.health = 100;
         this.maxHealth = 100;
         this.defense = 0;
@@ -20,18 +20,21 @@ export class Player {
         this.facingDirection = 'right'; // 'right', 'left', 'up', 'down'
         this.isDashing = false;
         this.dashCooldown = 0;
-        this.maxDashCooldown = 120; // 2秒冷却（60帧/秒）
+        this.maxDashCooldown = 2.0; // 2秒冷却（改为以秒为单位）
         this.isPetrified = false;
         this.petrifyTimer = 0;
         this.invulnerable = false;
         this.invulnerabilityTimer = 0;
-        this.maxInvulnerabilityTime = 60; // 1秒无敌时间
+        this.maxInvulnerabilityTime = 1.0; // 1秒无敌时间（改为以秒为单位）
     }
 
-    update() {
+    update(deltaTime) {
+        // 如果没有提供deltaTime，使用默认值（1/60秒 = 约16.7ms）
+        deltaTime = deltaTime || 1/60;
+        
         // 处理无敌状态
         if (this.invulnerable) {
-            this.invulnerabilityTimer--;
+            this.invulnerabilityTimer -= deltaTime;
             if (this.invulnerabilityTimer <= 0) {
                 this.invulnerable = false;
             }
@@ -39,35 +42,39 @@ export class Player {
 
         // 处理石化状态
         if (this.isPetrified) {
-            this.petrifyTimer--;
+            this.petrifyTimer -= deltaTime;
             if (this.petrifyTimer <= 0) {
                 this.isPetrified = false;
             }
             return; // 石化时不能移动或攻击
         }
 
-        // 冲刺冷却
+        // 冲刺冷却 - 基于时间更新
         if (this.dashCooldown > 0) {
-            this.dashCooldown--;
+            this.dashCooldown -= deltaTime;
+            if (this.dashCooldown < 0) this.dashCooldown = 0;
         }
 
         if (this.isDashing) {
             return; // 冲刺中不响应其他控制
         }
 
-        // 移动
-        this.move();
+        // 移动 - 传递deltaTime
+        this.move(deltaTime);
 
         // 攻击
         this.attack();
 
         // 更新武器
         for (const weapon of this.weapons) {
-            weapon.update(this.game);
+            weapon.update(this.game, deltaTime);
         }
     }
 
-    move() {
+    move(deltaTime) {
+        // 如果没有提供deltaTime，使用默认值（1/60秒 = 约16.7ms）
+        deltaTime = deltaTime || 1/60;
+        
         let dx = 0;
         let dy = 0;
         let directionChanged = false;
@@ -75,22 +82,22 @@ export class Player {
 
         // 键盘控制
         if (this.game.keys.up || this.game.keys.w || this.game.keys.ArrowUp || this.game.keys.W) {
-            dy -= this.speed;
+            dy -= this.speed * deltaTime;
             this.facingDirection = 'up';
             directionChanged = true;
         }
         if (this.game.keys.down || this.game.keys.s || this.game.keys.ArrowDown || this.game.keys.S) {
-            dy += this.speed;
+            dy += this.speed * deltaTime;
             this.facingDirection = 'down';
             directionChanged = true;
         }
         if (this.game.keys.left || this.game.keys.a || this.game.keys.ArrowLeft || this.game.keys.A) {
-            dx -= this.speed;
+            dx -= this.speed * deltaTime;
             this.facingDirection = 'left';
             directionChanged = true;
         }
         if (this.game.keys.right || this.game.keys.d || this.game.keys.ArrowRight || this.game.keys.D) {
-            dx += this.speed;
+            dx += this.speed * deltaTime;
             this.facingDirection = 'right';
             directionChanged = true;
         }
@@ -105,7 +112,7 @@ export class Player {
                 
                 // 设定一个阈值，只有超过这个阈值才算有效移动
                 const threshold = 5;
-                const moveSpeed = this.speed * 1.2; // 鼠标控制稍微快一点
+                const moveSpeed = this.speed * 1.2 * deltaTime; // 鼠标控制稍微快一点，并乘以deltaTime
                 
                 if (this.game.inputType === 'mouse') {
                     // 鼠标模式：以角色为锚点
@@ -179,7 +186,9 @@ export class Player {
 
         // 冲刺（按住Shift键或空格键）
         if ((this.game.keys.shift || this.game.keys.Shift || this.game.keys[' ']) && this.dashCooldown <= 0 && (dx !== 0 || dy !== 0)) {
-            this.dash(this.x + dx * 15, this.y + dy * 15);
+            // 计算冲刺距离 - 现在基于速度和一个固定系数
+            const dashDistanceFactor = 15 * (1/60) / deltaTime; // 保持原来的冲刺距离感觉
+            this.dash(this.x + dx * dashDistanceFactor, this.y + dy * dashDistanceFactor);
             return;
         }
 
@@ -198,14 +207,14 @@ export class Player {
 
         this.isDashing = true;
         this.invulnerable = true;
-        this.invulnerabilityTimer = 30; // 0.5秒无敌时间
+        this.invulnerabilityTimer = 0.5; // 0.5秒无敌时间（以秒为单位）
 
         // 创建冲刺效果
         this.game.createEffect({
             x: this.x,
             y: this.y,
             color: '#80c0ff',
-            duration: 20,
+            duration: 0.33, // 转为秒为单位
             radius: this.radius,
         });
 
@@ -213,6 +222,8 @@ export class Player {
         const steps = 10;
         const dx = (targetX - this.x) / steps;
         const dy = (targetY - this.y) / steps;
+        const dashDuration = 0.2; // 冲刺持续0.2秒
+        const stepInterval = dashDuration / steps; // 每步间隔
 
         for (let i = 1; i <= steps; i++) {
             setTimeout(() => {
@@ -221,7 +232,7 @@ export class Player {
                     x: this.x,
                     y: this.y,
                     color: '#a0d0ff',
-                    duration: 15,
+                    duration: 0.25, // 转为秒为单位
                     radius: this.radius * 0.9,
                 });
 
@@ -232,7 +243,7 @@ export class Player {
                     this.isDashing = false;
                     this.dashCooldown = this.maxDashCooldown;
                 }
-            }, i * 20); // 每步20毫秒，总共200毫秒完成冲刺
+            }, i * stepInterval * 1000); // 将秒转换为毫秒
         }
     }
 
@@ -323,14 +334,14 @@ export class Player {
     petrify(duration) {
         if (!this.invulnerable) {
             this.isPetrified = true;
-            this.petrifyTimer = duration;
+            this.petrifyTimer = duration; // 现在以秒为单位
 
             // 创建石化效果
             this.game.createEffect({
                 x: this.x,
                 y: this.y,
                 color: '#a0a0a0',
-                duration: duration,
+                duration: duration, // 现在以秒为单位
                 radius: this.radius * 1.2,
             });
         }

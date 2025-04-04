@@ -6,22 +6,22 @@ export class Projectile {
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.angle = options.angle || 0;
-        this.speed = options.speed || 5;
+        this.speed = (options.speed || 5) * 60; // 转换为像素/秒
         this.damage = options.damage || 1;
         this.range = options.range || 200;
         this.distanceTraveled = 0;
         this.color = options.color || '#ffffff';
-        this.width = options.width || 10;
-        this.height = options.height || 10;
-        this.shape = options.shape || 'circle'; // circle, rect, etc.
+        this.width = options.width || 5;
+        this.height = options.height || 5;
+        this.shape = options.shape || 'rect';
         this.piercing = options.piercing || false;
         this.knockback = options.knockback || 0;
         this.hitEnemies = new Set(); // 用于穿透武器记录已经击中的敌人
         this.active = true;
-        this.rotateSpeed = options.rotateSpeed || 0;
+        this.rotateSpeed = (options.rotateSpeed || 0) * Math.PI * 2; // 转换为弧度/秒
         this.rotation = options.rotation || 0;
         this.id = Projectile.nextId++;
-        this.duration = options.duration;
+        this.duration = options.duration !== undefined ? options.duration : undefined; // 不转换，可能为undefined
         this.fixed = options.fixed || false;
         this.fixedTarget = options.fixedTarget;
         this.fixedOffset = options.fixedOffset;
@@ -40,15 +40,18 @@ export class Projectile {
         this.radius = Math.max(this.width, this.height) / 2;
     }
 
-    update(game) {
+    update(game, deltaTime) {
+        // 默认deltaTime为1/60秒
+        deltaTime = deltaTime || 1/60;
+        
         // 自定义更新逻辑
         if (this.onUpdate) {
-            this.onUpdate(this);
+            this.onUpdate(this, deltaTime);
         }
 
         // 更新持续时间
         if (this.duration !== undefined) {
-            this.duration--;
+            this.duration -= deltaTime;
             if (this.duration <= 0) {
                 this.active = false;
                 return;
@@ -57,7 +60,7 @@ export class Projectile {
 
         // 更新旋转
         if (this.rotateSpeed) {
-            this.rotation += this.rotateSpeed;
+            this.rotation += this.rotateSpeed * deltaTime;
         }
 
         // 固定位置的投射物（如围绕玩家的护盾）
@@ -85,18 +88,18 @@ export class Projectile {
         // 返回逻辑
         if (this.returning) {
             if (this.returnTimer < this.returnAfter) {
-                this.returnTimer++;
+                this.returnTimer += deltaTime;
             } else if (this.returnTarget) {
                 // 计算回到目标的方向
                 const dx = this.returnTarget.x - this.x;
                 const dy = this.returnTarget.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance > this.speed) {
+                if (distance > this.speed * deltaTime) {
                     // 移动向目标
                     this.angle = Math.atan2(dy, dx);
-                    this.x += Math.cos(this.angle) * this.speed;
-                    this.y += Math.sin(this.angle) * this.speed;
+                    this.x += Math.cos(this.angle) * this.speed * deltaTime;
+                    this.y += Math.sin(this.angle) * this.speed * deltaTime;
                 } else {
                     // 已到达目标
                     this.active = false;
@@ -121,16 +124,17 @@ export class Projectile {
             while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
             while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-            // 平滑转向
-            this.angle += angleDiff * this.homingStrength;
+            // 平滑转向 - 基于时间的调整
+            this.angle += angleDiff * this.homingStrength * (60 * deltaTime);
         }
 
         // 移动
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
+        const moveDistance = this.speed * deltaTime;
+        this.x += Math.cos(this.angle) * moveDistance;
+        this.y += Math.sin(this.angle) * moveDistance;
 
         // 更新已移动距离
-        this.distanceTraveled += this.speed;
+        this.distanceTraveled += moveDistance;
 
         // 检查是否超出范围
         if (this.distanceTraveled >= this.range) {
@@ -282,10 +286,10 @@ export class ExperienceOrb {
         this.value = value;
         this.radius = 5 + Math.min(5, value);
         this.magnetDistance = 150;
-        this.baseSpeed = 1;
-        this.maxSpeed = 8;
+        this.baseSpeed = 60; // 转换为像素/秒
+        this.maxSpeed = 480; // 转换为像素/秒
         this.color = '#00ffff';
-        this.pulseSpeed = 0.05;
+        this.pulseSpeed = 3; // 转换为Hz
         this.pulseAmount = 0.2;
         this.pulse = 0;
         this.pulseOffset = Math.random() * Math.PI * 2; // 添加随机初始相位
@@ -294,9 +298,11 @@ export class ExperienceOrb {
         this.id = ExperienceOrb.nextId++;
     }
 
-    update(game) {
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
         // 更新脉动效果
-        this.pulse = (this.pulse + this.pulseSpeed) % (Math.PI * 2);
+        this.pulse = (this.pulse + this.pulseSpeed * deltaTime * Math.PI * 2) % (Math.PI * 2);
 
         // 计算与玩家的距离
         const dx = game.player.x - this.x;
@@ -307,12 +313,12 @@ export class ExperienceOrb {
         if (distance < this.attractionRange) {
             // 计算吸引力（距离越近吸引力越大）
             const attraction = 1 - distance / this.attractionRange;
-            this.speed = attraction * this.maxSpeed;
+            this.speed = this.baseSpeed + attraction * (this.maxSpeed - this.baseSpeed);
 
             // 移向玩家
             if (distance > 0) {
-                this.x += (dx / distance) * this.speed;
-                this.y += (dy / distance) * this.speed;
+                this.x += (dx / distance) * this.speed * deltaTime;
+                this.y += (dy / distance) * this.speed * deltaTime;
             }
         }
     }
@@ -392,16 +398,18 @@ export class Particle {
         this.y = y;
         this.color = color;
         this.size = size;
-        this.lifetime = lifetime;
+        this.lifetime = lifetime; // 以秒为单位
         this.initialLifetime = lifetime;
-        this.speedX = (Math.random() - 0.5) * 2;
-        this.speedY = (Math.random() - 0.5) * 2;
+        this.speedX = (Math.random() - 0.5) * 120; // 转换为像素/秒
+        this.speedY = (Math.random() - 0.5) * 120;
     }
 
-    update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        this.lifetime--;
+    update(deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
+        this.x += this.speedX * deltaTime;
+        this.y += this.speedY * deltaTime;
+        this.lifetime -= deltaTime;
     }
 
     draw(ctx, offsetX, offsetY) {
@@ -426,14 +434,15 @@ export class Effect {
     constructor(options) {
         this.x = options.x || 0;
         this.y = options.y || 0;
-        this.color = options.color || '#fff';
-        this.radius = options.radius || 20;
-        this.duration = options.duration || 30;
+        this.color = options.color || '#ffffff';
+        this.radius = options.radius || 10;
+        this.duration = options.duration || 0.5; // 以秒为单位
         this.initialDuration = this.duration;
     }
 
-    update() {
-        this.duration--;
+    update(deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        this.duration -= deltaTime;
     }
 
     draw(ctx, offsetX, offsetY) {
