@@ -1546,11 +1546,6 @@ export class ThreeHelper {
                 if (projectile.shape === 'rect') {
                     // 对于矩形投射物（如真空刃），让它沿运动方向旋转
                     projectileObj.rotation.y = projectile.angle + Math.PI/2;
-                } else if (projectile.shape === 'rune') {
-                    // 符文剑特殊处理 - 使用z轴旋转，这样在返回过程中也能保持旋转效果
-                    projectileObj.rotation.z = projectile.rotation || 0;
-                    // 同时根据移动方向调整y轴旋转
-                    projectileObj.rotation.y = projectile.angle;
                 } else if (projectile.rotateSpeed) {
                     // 如果投射物有自旋，使用投射物自身的rotation属性
                     projectileObj.rotation.y = projectile.rotation || 0;

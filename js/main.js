@@ -247,7 +247,7 @@ function handleModeToggle() {
         // 更新按钮文本内容以反映当前模式
         const modeToggleBtn = document.getElementById('mode-toggle-btn');
         if (modeToggleBtn) {
-            modeToggleBtn.textContent = window.game.is3D ? '切换到2D' : '切换到3D';
+            modeToggleBtn.textContent = window.game.is3D ? '2D' : '3D';
         }
     }
 }
@@ -333,7 +333,7 @@ function initGame() {
     if (modeToggleBtn) {
         modeToggleBtn.removeEventListener('click', handleModeToggle);
         modeToggleBtn.addEventListener('click', handleModeToggle);
-        modeToggleBtn.textContent = '切换到3D'; // 初始为2D模式
+        modeToggleBtn.textContent = '3D'; // 初始为2D模式
         
         // 为iOS设备特别处理按钮显示
         if (isIOSDevice()) {
@@ -410,7 +410,7 @@ function loadThreeJS() {
             // 更新模式切换按钮文本
             const modeToggleBtn = document.getElementById('mode-toggle-btn');
             if (modeToggleBtn) {
-                modeToggleBtn.textContent = '切换到2D';
+                modeToggleBtn.textContent = '2D';
             }
             
             // 设置鼠标事件监听 - 确保在Canvas切换后设置
@@ -463,7 +463,7 @@ function fallbackTo2D() {
     // 更新模式切换按钮文本
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     if (modeToggleBtn) {
-        modeToggleBtn.textContent = '切换到3D';
+        modeToggleBtn.textContent = '3D';
     }
     
     window.game.showWarning('3D模式加载失败，已切换到2D模式', 180);
@@ -536,7 +536,7 @@ function initModeToggleButton() {
     
     if (modeToggleBtn) {
         // 确保按钮初始文本正确
-        modeToggleBtn.textContent = window.game && window.game.is3D ? '切换到2D' : '切换到3D';
+        modeToggleBtn.textContent = window.game && window.game.is3D ? '2D' : '3D';
         
         // 为移动设备增强按钮可见性
         if (isMobileDevice()) {

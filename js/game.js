@@ -343,7 +343,7 @@ export class Game {
                         // 更新模式切换按钮文本
                         const modeToggleBtn = document.getElementById('mode-toggle-btn');
                         if (modeToggleBtn) {
-                            modeToggleBtn.textContent = '切换到2D';
+                            modeToggleBtn.textContent = '2D';
                         }
                         
                         // 显示切换完成的提示
@@ -447,7 +447,7 @@ export class Game {
             // 更新模式切换按钮文本
             const modeToggleBtn = document.getElementById('mode-toggle-btn');
             if (modeToggleBtn) {
-                modeToggleBtn.textContent = '切换到3D';
+                modeToggleBtn.textContent = '3D';
             }
             
             // 显示切换完成的提示

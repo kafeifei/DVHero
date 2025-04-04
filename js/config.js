@@ -11,7 +11,7 @@ const CONFIG = {
     logMissingTextures: false,  // 记录缺失纹理
     logSceneInfo: false,        // 记录场景信息
     logWarnings: true,          // 记录警告信息
-    maxConsoleEntries: 100      // 控制台日志最大条数限制
+    maxConsoleEntries: 60      // 控制台日志最大条数限制
   },
   
   // 渲染相关设置
