@@ -167,8 +167,16 @@ export class Game {
         let canvas3d = document.getElementById('game-canvas-3d');
 
         if (canvas2d && canvas3d) {
+            // 确保两个Canvas尺寸一致，防止闪烁
+            canvas3d.width = canvas2d.width;
+            canvas3d.height = canvas2d.height;
+            
+            // 确保Canvas样式尺寸也一致
+            canvas3d.style.width = canvas2d.style.width || '100%';
+            canvas3d.style.height = canvas2d.style.height || '100%';
+            
             if (this.is3D) {
-                // 3D模式：3D canvas活跃，2D canvas不活跃
+                // 先设置尺寸后改变可见性，减少闪烁
                 
                 // 设置2D Canvas为不可见
                 canvas2d.style.display = 'none';
@@ -181,6 +189,11 @@ export class Game {
                 canvas3d.style.visibility = 'visible';
                 canvas3d.classList.remove('inactive');
                 canvas3d.classList.add('active');
+                
+                // 如果有threeHelper，确保重新调整大小
+                if (this.threeHelper && this.threeHelper.renderer) {
+                    this.threeHelper.resize(canvas3d.width, canvas3d.height);
+                }
             } else {
                 // 2D模式：2D canvas活跃，3D canvas不活跃
                 
@@ -196,13 +209,13 @@ export class Game {
                     }
                 }
                 
-                // 设置3D Canvas为不可见
+                // 先设置3D Canvas为不可见
                 canvas3d.style.display = 'none';
                 canvas3d.style.visibility = 'hidden';
                 canvas3d.classList.remove('active');
                 canvas3d.classList.add('inactive');
                 
-                // 设置2D Canvas为可见
+                // 最后设置2D Canvas为可见
                 canvas2d.style.display = 'block';
                 canvas2d.style.visibility = 'visible';
                 canvas2d.classList.remove('inactive');
@@ -238,6 +251,21 @@ export class Game {
         this._modeChanging = true;
         setTimeout(() => this._modeChanging = false, 1000); // 1秒后允许再次切换
         
+        // 准备切换前，先隐藏警告文本，避免闪烁
+        this.warningTimer = 0;
+        
+        // 获取canvas元素，同步尺寸
+        const canvas2d = document.getElementById('game-canvas');
+        const canvas3d = document.getElementById('game-canvas-3d');
+        
+        if (canvas2d && canvas3d) {
+            // 预先同步Canvas尺寸，减少后续闪烁
+            canvas3d.width = canvas2d.width;
+            canvas3d.height = canvas2d.height;
+            canvas3d.style.width = canvas2d.style.width || '100%';
+            canvas3d.style.height = canvas2d.style.height || '100%';
+        }
+        
         // 如果要切换到3D模式
         if (!this.is3D) {
             // 检查ThreeHelper是否加载就绪
@@ -247,7 +275,17 @@ export class Game {
                 return;
             }
             
-            this.showWarning('正在切换到3D模式...', 120);
+            // 显示切换提示前，预先设置3D Canvas尺寸
+            if (this.threeHelper && this.threeHelper.renderer && canvas3d) {
+                const width = canvas3d.width;
+                const height = canvas3d.height;
+                this.threeHelper.resize(width, height);
+            }
+            
+            // 延迟显示警告，减少渲染阻塞带来的闪烁
+            setTimeout(() => {
+                this.showWarning('正在切换到3D模式...', 120);
+            }, 10);
             
             // iOS设备特殊处理
             const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
@@ -326,6 +364,27 @@ export class Game {
         } 
         // 从3D切换到2D
         else {
+            // 清理3D资源前，先准备好2D模式
+            this.canvas2d = document.getElementById('game-canvas');
+            if (this.canvas2d) {
+                // 预先获取上下文，避免切换时延迟
+                this.ctx = this.canvas2d.getContext('2d', {
+                    willReadFrequently: true,
+                    alpha: false
+                });
+                
+                if (this.ctx) {
+                    this.ctx.imageSmoothingEnabled = false;
+                    // 预先清除画布，避免显示旧内容
+                    this.ctx.clearRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+                }
+            }
+            
+            // 延迟提示
+            setTimeout(() => {
+                this.showWarning('正在切换到2D模式...', 120);
+            }, 10);
+            
             // 清理3D资源
             if (this.threeHelper) {
                 try {
@@ -403,6 +462,7 @@ export class Game {
     recreate3DCanvas(callback) {
         const container = document.getElementById('game-container');
         const oldCanvas = document.getElementById('game-canvas-3d');
+        const canvas2d = document.getElementById('game-canvas');
         
         if (!container || !oldCanvas) {
             console.error('找不到容器或Canvas元素');
@@ -414,6 +474,14 @@ export class Game {
         const width = oldCanvas.width;
         const height = oldCanvas.height;
         const classes = oldCanvas.className;
+        const style = {
+            width: oldCanvas.style.width || (canvas2d ? canvas2d.style.width : '100%'),
+            height: oldCanvas.style.height || (canvas2d ? canvas2d.style.height : '100%'),
+            position: oldCanvas.style.position,
+            top: oldCanvas.style.top,
+            left: oldCanvas.style.left,
+            zIndex: oldCanvas.style.zIndex
+        };
         
         // 按照以下顺序操作:
         // 1. 移除现有的canvas
@@ -427,6 +495,14 @@ export class Game {
             newCanvas.width = width;
             newCanvas.height = height;
             newCanvas.className = classes;
+            
+            // 应用保存的样式
+            newCanvas.style.width = style.width;
+            newCanvas.style.height = style.height;
+            newCanvas.style.position = style.position;
+            newCanvas.style.top = style.top;
+            newCanvas.style.left = style.left;
+            newCanvas.style.zIndex = style.zIndex;
             
             // 4. 添加新canvas到DOM
             container.appendChild(newCanvas);
@@ -972,6 +1048,23 @@ export class Game {
     // 从3D模式回退到2D模式的辅助方法
     renderFallbackTo2D(reason) {
         console.error(`切换回2D模式: ${reason}`);
+        
+        // 在更改模式前，先准备好2D渲染环境
+        this.canvas2d = document.getElementById('game-canvas');
+        if (this.canvas2d) {
+            this.ctx = this.canvas2d.getContext('2d', {
+                willReadFrequently: true,
+                alpha: false
+            });
+            
+            if (this.ctx) {
+                this.ctx.imageSmoothingEnabled = false;
+                // 预先清除画布
+                this.ctx.clearRect(0, 0, this.canvas2d.width, this.canvas2d.height);
+            }
+        }
+        
+        // 重置状态
         this.is3D = false;
         this.renderFailCount = 0;
         this.renderErrorCount = 0;
@@ -980,8 +1073,10 @@ export class Game {
         // 更新Canvas可见性
         this.updateCanvasVisibility();
         
-        // 显示警告提示
-        this.showWarning('3D模式不可用，已切换到2D模式', 180);
+        // 延迟显示警告提示，避免渲染阻塞
+        setTimeout(() => {
+            this.showWarning('3D模式不可用，已切换到2D模式', 180);
+        }, 50);
         
         // 使用2D模式渲染
         this.draw2D();
