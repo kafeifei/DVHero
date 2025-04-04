@@ -116,10 +116,10 @@ const CONFIG = {
       intensity: 3,               // 光照强度，推荐范围1-5，越大照亮范围越大
       distance: 150,              // 光照影响距离(像素)，推荐80-200，越大性能消耗越高
       maxTorches: 10,             // 场景中同时渲染的最大火把数量，降低此值可提高性能
-      animateAll: false,          // 是否为所有火把添加动画，true会消耗更多性能
-      flickerSpeed: 0.003,        // 火把闪烁速度，推荐0.001-0.01，越大闪烁越快
-      flickerIntensity: 0.3,      // 火把闪烁幅度，推荐0.1-0.5，越大亮度变化越明显
-      updateInterval: 3,          // 火把光效更新间隔(帧)，增大此值可提高性能
+      animateAll: true,           // 是否为所有火把添加动画，true会消耗更多性能
+      flickerSpeed: 0.01,         // 火把闪烁速度，推荐0.001-0.01，越大闪烁越快
+      flickerIntensity: 0.5,      // 火把闪烁幅度，推荐0.1-0.5，越大亮度变化越明显
+      updateInterval: 1,          // 火把光效更新间隔(帧)，增大此值可提高性能
       castShadows: false,         // 火把是否产生动态阴影，开启会显著降低性能
       renderAsSprite: true,       // 是否将火把渲染为精灵而非3D对象，提高性能
       attenuationFactor: 2.0      // 光照衰减系数，控制光照如何随距离衰减，推荐1.0-3.0
@@ -218,8 +218,8 @@ const CONFIG = {
     
     // 动画帧率控制
     updateIntervals: {
-      torchFlames: 15,             // 每15帧更新一次火把火焰(原值10)
-      torchLights: 30,             // 每30帧更新一次火把光源(原值20)
+      torchFlames: 2,              // 每2帧更新一次火把火焰(原值15)
+      torchLights: 4,              // 每4帧更新一次火把光源(原值30)
       floatingObjects: 3,         // 每3帧更新一次浮动对象(原值2)
       particleEffects: 2          // 每2帧更新一次粒子效果(原值1)
     }
