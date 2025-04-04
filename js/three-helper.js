@@ -2287,14 +2287,8 @@ export class ThreeHelper {
             const torchFlamesInterval = this.getConfigValue('animations.updateIntervals.torchFlames', 2);
             // 检查当前帧是否应该更新火把动画
             if (this.frameCount % torchFlamesInterval === 0) {
-                const flickerSpeed = this.getConfigValue('lighting.torch.flickerSpeed', 0.01);
-                const time = Date.now() * flickerSpeed;
-                const animateAll = this.getConfigValue('lighting.torch.animateAll', true);
-                
-                // 添加诊断日志，每秒输出一次
-                if (this.frameCount % 60 === 0) {
-                    console.log(`火把动画更新：火把数量=${this.animatedTorches.length}, 更新间隔=${torchFlamesInterval}, 闪烁速度=${flickerSpeed}`);
-                }
+                const time = Date.now() * this.getConfigValue('lighting.torch.flickerSpeed', 0.003);
+                const animateAll = this.getConfigValue('lighting.torch.animateAll', false);
                 
                 // 获取当前相机位置，用于距离计算
                 const cameraPosition = this.camera ? this.camera.position : { x: 0, y: 0, z: 0 };
@@ -2302,11 +2296,11 @@ export class ThreeHelper {
                 
                 for (const torch of this.animatedTorches) {
                     if (torch.flameCore && torch.flameOuter) {
-                        // 始终动画所有火把
-                        let shouldAnimate = true;
+                        // 是否应该动画此火把
+                        let shouldAnimate = animateAll;
                         
-                        // 只有在不强制动画所有火把时才检查距离
-                        if (!animateAll && torch.flameCore.parent) {
+                        // 如果不是强制动画所有火把，检查距离
+                        if (!shouldAnimate && torch.flameCore.parent) {
                             // 计算火把与相机的距离
                             torch.flameCore.parent.updateWorldMatrix(true, false);
                             const worldPosition = new THREE.Vector3();
@@ -2322,33 +2316,22 @@ export class ThreeHelper {
                         
                         if (shouldAnimate) {
                             // 获取闪烁强度
-                            const flickerIntensity = this.getConfigValue('lighting.torch.flickerIntensity', 0.5);
+                            const flickerIntensity = this.getConfigValue('lighting.torch.flickerIntensity', 0.3);
                             
-                            // 将火焰材质设为发光效果增强
-                            torch.flameCore.material.emissive = new THREE.Color(0xffcc00);
-                            torch.flameCore.material.emissiveIntensity = 1.0 + 0.5 * Math.sin(time + torch.flameCore.userData.animationOffset);
-                            
-                            torch.flameOuter.material.emissive = new THREE.Color(0xff5500);
-                            torch.flameOuter.material.emissiveIntensity = 0.8 + 0.3 * Math.sin(time * 0.8 + torch.flameOuter.userData.animationOffset);
-                            
-                            // 火焰核心的脉动效果 - 增加基础大小和变化幅度
-                            const coreScale = 1.0 + flickerIntensity * Math.sin(time + torch.flameCore.userData.animationOffset);
+                            // 火焰核心的脉动效果
+                            const coreScale = 0.9 + flickerIntensity * Math.sin(time + torch.flameCore.userData.animationOffset);
                             torch.flameCore.scale.x = coreScale;
                             torch.flameCore.scale.z = coreScale;
                             
-                            // 火焰外部的摇曳效果 - 更大的变化幅度
-                            const outerScaleX = 1.0 + flickerIntensity * 1.2 * Math.sin(time * 0.7 + torch.flameOuter.userData.animationOffset);
-                            const outerScaleZ = 1.0 + flickerIntensity * 1.5 * Math.sin(time * 0.8 + torch.flameOuter.userData.animationOffset + 1.0);
+                            // 火焰外部的摇曳效果
+                            const outerScaleX = 0.9 + flickerIntensity * Math.sin(time * 0.7 + torch.flameOuter.userData.animationOffset);
+                            const outerScaleZ = 0.9 + flickerIntensity * Math.sin(time * 0.8 + torch.flameOuter.userData.animationOffset + 1.0);
                             torch.flameOuter.scale.x = outerScaleX;
                             torch.flameOuter.scale.z = outerScaleZ;
                             
-                            // 火焰的随机旋转 - 增加旋转角度
-                            torch.flameOuter.rotation.x = 0.15 * Math.sin(time * 0.5 + torch.flameOuter.userData.animationOffset);
-                            torch.flameOuter.rotation.z = 0.15 * Math.sin(time * 0.6 + torch.flameOuter.userData.animationOffset + 2.0);
-                            
-                            // 增加Y轴缩放，使火焰上下摇曳
-                            torch.flameCore.scale.y = 1.0 + 0.3 * Math.sin(time * 1.2 + torch.flameCore.userData.animationOffset + 0.5);
-                            torch.flameOuter.scale.y = 1.0 + 0.4 * Math.sin(time * 0.9 + torch.flameOuter.userData.animationOffset + 1.5);
+                            // 火焰的随机旋转
+                            torch.flameOuter.rotation.x = 0.1 * Math.sin(time * 0.5 + torch.flameOuter.userData.animationOffset);
+                            torch.flameOuter.rotation.z = 0.1 * Math.sin(time * 0.6 + torch.flameOuter.userData.animationOffset + 2.0);
                         }
                     }
                 }
@@ -3804,11 +3787,9 @@ export class ThreeHelper {
             const flameCoreMaterial = new THREE.MeshBasicMaterial({
                 color: 0xffcc00,
                 transparent: true,
-                opacity: 0.8,
-                emissive: 0xffcc00,
-                emissiveIntensity: 1.0
+                opacity: 0.8
             });
-            const flameCoreGeometry = new THREE.SphereGeometry(4 * objectScale, 8, 8);
+            const flameCoreGeometry = new THREE.SphereGeometry(3 * objectScale, 8, 8);
             const flameCore = new THREE.Mesh(flameCoreGeometry, flameCoreMaterial);
             flameCore.position.set(obj.x, height * objectScale * 0.6, obj.y);
             flameCore.userData.animationOffset = Math.random() * Math.PI * 2;
@@ -3817,11 +3798,9 @@ export class ThreeHelper {
             const flameOuterMaterial = new THREE.MeshBasicMaterial({
                 color: 0xff5500,
                 transparent: true,
-                opacity: 0.7,
-                emissive: 0xff5500,
-                emissiveIntensity: 0.8
+                opacity: 0.6
             });
-            const flameOuterGeometry = new THREE.SphereGeometry(7 * objectScale, 8, 8);
+            const flameOuterGeometry = new THREE.SphereGeometry(5 * objectScale, 8, 8);
             const flameOuter = new THREE.Mesh(flameOuterGeometry, flameOuterMaterial);
             flameOuter.position.set(obj.x, height * objectScale * 0.6, obj.y);
             flameOuter.userData.animationOffset = Math.random() * Math.PI * 2;
@@ -3844,9 +3823,6 @@ export class ThreeHelper {
             // 设置对象引用，方便后续清理
             this.objects.set(`torch_flame_core_${index}`, flameCore);
             this.objects.set(`torch_flame_outer_${index}`, flameOuter);
-            
-            // 添加诊断日志
-            console.log(`已创建火把火焰 #${this.animatedTorches.length} 位置(${obj.x},${obj.y})`);
         }
     }
 

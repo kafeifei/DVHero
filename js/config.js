@@ -117,7 +117,7 @@ const CONFIG = {
       distance: 150,              // 光照影响距离(像素)，推荐80-200，越大性能消耗越高
       maxTorches: 10,             // 场景中同时渲染的最大火把数量，降低此值可提高性能
       animateAll: true,           // 是否为所有火把添加动画，true会消耗更多性能
-      flickerSpeed: 0.01,         // 火把闪烁速度，推荐0.001-0.01，越大闪烁越快
+      flickerSpeed: 0.005,         // 火把闪烁速度，推荐0.001-0.01，越大闪烁越快
       flickerIntensity: 0.5,      // 火把闪烁幅度，推荐0.1-0.5，越大亮度变化越明显
       updateInterval: 1,          // 火把光效更新间隔(帧)，增大此值可提高性能
       castShadows: false,         // 火把是否产生动态阴影，开启会显著降低性能
