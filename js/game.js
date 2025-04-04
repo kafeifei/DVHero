@@ -1349,8 +1349,14 @@ export class Game {
         
         // 绘制FPS
         if (CONFIG.debug.showFPS) {
+            // 添加FPS显示更新间隔检查
+            if (!this._fpsUpdateTime || Date.now() - this._fpsUpdateTime > 1000) {
+                this._fpsCurrentDisplay = this.currentFps || 0;
+                this._fpsUpdateTime = Date.now();
+            }
+            
             this.ctxUI.fillText(
-                `FPS: ${this.currentFps || 0}`,
+                `FPS: ${this._fpsCurrentDisplay || 0}`,
                 this.canvasUI.width - 70,
                 90
             );

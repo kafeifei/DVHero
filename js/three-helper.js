@@ -2160,7 +2160,7 @@ export class ThreeHelper {
         // 显示FPS
         if (this.getConfigValue('debug.showFPS', false)) {
             const fps = Math.round(1000 / renderTime);
-            if (!this._fpsUpdateTime || Date.now() - this._fpsUpdateTime > 500) {
+            if (!this._fpsUpdateTime || Date.now() - this._fpsUpdateTime > 1000) {
                 this.logDebug(`FPS: ${fps} (渲染耗时: ${renderTime.toFixed(2)}ms)`);
                 this._fpsUpdateTime = Date.now();
             }
