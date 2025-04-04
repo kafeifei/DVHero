@@ -1515,135 +1515,122 @@ export class ThreeHelper {
 
     // 更新场景中的所有对象位置
     updateSceneObjects() {
-        try {
-            // 更新玩家位置
-            this.updateObjectPosition(
-                'player',
-                this.game.player.x,
-                this.game.player.y
-            );
+        // 1. 更新玩家位置
+        if (this.game.player) {
+            this.updateObjectPosition('player', this.game.player.x, this.game.player.y);
+        }
+        
+        // 2. 更新敌人位置
+        for (const enemy of this.game.enemies) {
+            const key = `enemy_${enemy.id}`;
             
-            // 更新玩家动画
-            this.updatePlayerAnimation();
-        } catch (e) {
-            console.warn('更新玩家位置时出错:', e);
-        }
-
-        try {
+            // 检查敌人是否已有3D表示
+            if (!this.objects.has(key)) {
+                this.createEnemyModel(enemy);
+            }
+            
             // 更新敌人位置
-            this.game.enemies.forEach((enemy) => {
-                const key = `enemy_${enemy.id}`;
-                if (!this.objects.has(key)) {
-                    this.createEnemyModel(enemy);
-                } else {
-                    // 不再传递高度参数，由updateObjectPosition方法根据敌人类型设置
-                    this.updateObjectPosition(
-                        key,
-                        enemy.x,
-                        enemy.y
-                    );
-                    
-                    // 更新敌人血条
-                    const enemyMesh = this.objects.get(key);
-                    if (enemyMesh) {
-                        // 更新敌人引用
-                        enemyMesh.userData.enemy = enemy;
-                        // 更新血条显示
-                        this.updateEnemyHealthBar(enemyMesh);
-                    }
-                }
-            });
-        } catch (e) {
-            console.warn('更新敌人位置时出错:', e);
-        }
-
-        try {
-            // 更新投射物位置
-            this.game.projectiles
-                .concat(this.game.enemyProjectiles)
-                .forEach((projectile) => {
-                    const key = `projectile_${projectile.id}`;
-                    if (!this.objects.has(key)) {
-                        this.createProjectileModel(projectile);
-                    } else {
-                        // 使用存储在userData中的高度信息
-                        const projectileMesh = this.objects.get(key);
-                        if (projectileMesh && projectileMesh.userData.height) {
-                            this.updateObjectPosition(
-                                key,
-                                projectile.x,
-                                projectile.y,
-                                projectileMesh.userData.height
-                            );
-                        } else {
-                            // 如果没有存储高度信息，使用默认高度
-                            this.updateObjectPosition(
-                                key,
-                                projectile.x,
-                                projectile.y,
-                                50 // 默认高度
-                            );
-                        }
+            this.updateObjectPosition(key, enemy.x, enemy.y);
+            
+            // 更新敌人血条，确保其面向相机
+            const healthBarKey = `enemy_healthbar_${enemy.id}`;
+            if (this.objects.has(healthBarKey)) {
+                const healthBar = this.objects.get(healthBarKey);
+                if (healthBar) {
+                    // 确保血条位置保持在敌人头顶
+                    const enemyObj = this.objects.get(key);
+                    if (enemyObj) {
+                        // 获取敌人的世界坐标
+                        enemyObj.updateWorldMatrix(true, false);
+                        const worldPos = new THREE.Vector3();
+                        enemyObj.getWorldPosition(worldPos);
                         
-                        // 更新旋转
-                        if (projectileMesh && projectileMesh.userData.rotateSpeed) {
-                            projectileMesh.rotation.z += projectileMesh.userData.rotateSpeed;
+                        // 设置血条位置
+                        const yOffset = enemy.radius * 2.5;
+                        healthBar.position.set(0, yOffset, 0);
+                        
+                        // 更新血条比例
+                        const healthPercent = enemy.health / enemy.maxHealth;
+                        const healthBarFg = healthBar.children[1]; // 血条前景
+                        
+                        if (healthBarFg) {
+                            healthBarFg.scale.x = healthPercent;
+                            
+                            // 调整位置，以便血条从左向右减少
+                            const healthBarWidth = enemy.radius * 2;
+                            const offsetX = (healthBarWidth - (healthBarWidth * healthPercent)) / 2;
+                            healthBarFg.position.x = -offsetX;
                         }
                     }
-                });
-        } catch (e) {
-            console.warn('更新投射物位置时出错:', e);
+                }
+            }
         }
-
-        try {
-            // 更新经验球位置
-            this.game.expOrbs.forEach((orb) => {
-                const key = `expOrb_${orb.id}`;
-                if (!this.objects.has(key)) {
-                    this.createExpOrbModel(orb);
+        
+        // 3. 更新投射物位置
+        for (const projectile of this.game.projectiles.concat(this.game.enemyProjectiles)) {
+            const key = `projectile_${projectile.id}`;
+            
+            // 检查投射物是否已有3D表示
+            if (!this.objects.has(key)) {
+                this.createProjectileModel(projectile);
+            }
+            
+            // 更新投射物位置
+            const projectileObj = this.objects.get(key);
+            if (projectileObj) {
+                // 直接设置位置和高度
+                const height = projectileObj.userData.height || 65;
+                projectileObj.position.set(projectile.x, height, projectile.y);
+                
+                // 更新旋转，先确保模型面向运动方向
+                if (projectile.shape === 'rect') {
+                    // 对于矩形投射物（如真空刃），让它沿运动方向旋转
+                    projectileObj.rotation.y = projectile.angle + Math.PI/2;
+                } else if (projectile.rotateSpeed) {
+                    // 如果投射物有自旋，更新旋转角度
+                    projectileObj.rotation.y += projectile.rotateSpeed;
                 } else {
-                    this.updateObjectPosition(
-                        key,
-                        orb.x,
-                        orb.y,
-                        50 // 从5改为50，更贴近玩家模型高度但略低一些
-                    );
+                    // 其他投射物，根据运动方向旋转
+                    projectileObj.rotation.y = projectile.angle;
                 }
-            });
-        } catch (e) {
-            console.warn('更新经验球位置时出错:', e);
-        }
-
-        try {
-            // 清理已经不存在的对象
-            this.objects.forEach((_, key) => {
-                if (key.startsWith('enemy_')) {
-                    const id = key.replace('enemy_', '');
-                    if (!this.game.enemies.some((e) => e.id.toString() === id)) {
-                        this.removeObject(key);
-                    }
-                } else if (key.startsWith('projectile_')) {
-                    const id = key.replace('projectile_', '');
-                    if (
-                        !this.game.projectiles.some(
-                            (p) => p.id.toString() === id
-                        ) &&
-                        !this.game.enemyProjectiles.some(
-                            (p) => p.id.toString() === id
-                        )
-                    ) {
-                        this.removeObject(key);
-                    }
-                } else if (key.startsWith('expOrb_')) {
-                    const id = key.replace('expOrb_', '');
-                    if (!this.game.expOrbs.some((o) => o.id.toString() === id)) {
-                        this.removeObject(key);
-                    }
+                
+                // 真空刃特殊处理：如果是矩形且高度很小，添加倾斜效果增强剑气感
+                if (projectile.shape === 'rect' && projectile.height < 3 && projectile.width > 20) {
+                    // 轻微倾斜给人一种"剑气"的感觉
+                    projectileObj.rotation.x = Math.PI * 0.1; // 稍微向上倾斜
                 }
-            });
-        } catch (e) {
-            console.warn('清理对象时出错:', e);
+            }
         }
+        
+        // 4. 更新经验球位置
+        for (const expOrb of this.game.expOrbs) {
+            const key = `expOrb_${expOrb.id}`;
+            
+            // 检查经验球是否已有3D表示
+            if (!this.objects.has(key)) {
+                this.createExpOrbModel(expOrb);
+            }
+            
+            // 更新经验球位置
+            const orbObj = this.objects.get(key);
+            if (orbObj) {
+                // 获取配置中的悬浮高度
+                const floatingHeight = this.getConfigValue('models.floatingHeights.expOrbs', 50);
+                
+                // 添加脉动效果
+                const time = Date.now() * 0.001; // 转换为秒
+                const pulseOffset = expOrb.id * 0.1; // 为每个经验球添加不同的偏移
+                const heightOffset = Math.sin(time * 2 + pulseOffset) * 5; // 上下波动
+                
+                orbObj.position.set(expOrb.x, floatingHeight + heightOffset, expOrb.y);
+                
+                // 添加旋转
+                orbObj.rotation.y += 0.03;
+            }
+        }
+        
+        // 5. 清理不再存在的对象
+        this.cleanupRemovedObjects();
     }
 
     // 创建敌人模型
@@ -3683,6 +3670,73 @@ export class ThreeHelper {
                 rightEye.position.set(-offset, 0, 0);
                 leftEye.position.set(offset, 0, 0);
             }
+        }
+    }
+
+    // 清理已经不存在的对象
+    cleanupRemovedObjects() {
+        try {
+            // 创建一个要删除的键的列表（避免在迭代时修改集合）
+            const keysToRemove = [];
+            
+            this.objects.forEach((object, key) => {
+                // 跳过背景对象、玩家和静态场景对象
+                if (key.startsWith('background_') || 
+                    key === 'player' || 
+                    key === 'ground' || 
+                    key === 'boundary' ||
+                    key === 'center_marker' ||
+                    key === 'player_health_bar' ||
+                    key === 'player_dash_bar') {
+                    return;
+                }
+                
+                // 清理敌人对象
+                if (key.startsWith('enemy_') && !key.includes('healthbar')) {
+                    const id = key.replace('enemy_', '');
+                    if (!this.game.enemies.some(e => e.id.toString() === id)) {
+                        keysToRemove.push(key);
+                        
+                        // 同时移除相关的血条
+                        keysToRemove.push(`enemy_healthbar_${id}`);
+                    }
+                }
+                // 清理敌人血条（单独处理以防有漏网之鱼）
+                else if (key.startsWith('enemy_healthbar_')) {
+                    const id = key.replace('enemy_healthbar_', '');
+                    if (!this.game.enemies.some(e => e.id.toString() === id)) {
+                        keysToRemove.push(key);
+                    }
+                }
+                // 清理投射物
+                else if (key.startsWith('projectile_')) {
+                    const id = key.replace('projectile_', '');
+                    const stillExists = this.game.projectiles.some(p => p.id.toString() === id) || 
+                                      this.game.enemyProjectiles.some(p => p.id.toString() === id);
+                    
+                    if (!stillExists) {
+                        keysToRemove.push(key);
+                    }
+                }
+                // 清理经验球
+                else if (key.startsWith('expOrb_')) {
+                    const id = key.replace('expOrb_', '');
+                    if (!this.game.expOrbs.some(o => o.id.toString() === id)) {
+                        keysToRemove.push(key);
+                    }
+                }
+            });
+            
+            // 执行清理
+            for (const key of keysToRemove) {
+                this.removeObject(key);
+            }
+            
+            if (keysToRemove.length > 0 && this.getConfigValue('debug.logSceneInfo', false)) {
+                this.logDebug(`已清理 ${keysToRemove.length} 个不再存在的3D对象`);
+            }
+        } catch (e) {
+            console.warn('清理对象时出错:', e);
         }
     }
 }

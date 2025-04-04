@@ -88,9 +88,22 @@ class Crissaegrim extends Weapon {
         // 等级2以上同时攻击两侧
         const attackDirections = this.level >= 2 ? [0, Math.PI] : [direction];
 
+        // 计算实际的攻击间隔时间，保持动画效果
+        // 假设游戏设计为60帧为基准，原始间隔为50毫秒（即每3帧发射一次）
+        // 我们需要确保动画效果在高帧率下也保持一致
+        const targetFPS = 60;  // 目标帧率基准
+        const originalDelay = 50; // 原始设计中的延迟（毫秒）
+        // 获取当前游戏的帧率设置
+        const currentFPS = game.fps || targetFPS;
+        // 计算根据当前帧率调整后的延迟时间，确保动画速度保持一致
+        const adjustedDelay = originalDelay * (targetFPS / currentFPS);
+
         for (const angle of attackDirections) {
             for (let i = 0; i < this.attacks; i++) {
                 setTimeout(() => {
+                    // 如果游戏已经停止，不继续创建投射物
+                    if (!game.isRunning || game.isPaused) return;
+                    
                     // 扇形攻击范围
                     const spreadAngle = Math.PI / 4; // 45度扇形
 
@@ -107,8 +120,9 @@ class Crissaegrim extends Weapon {
                         width: 30,
                         height: 2,
                         piercing: true,
+                        shape: 'rect',  // 确保投射物使用矩形形状
                     });
-                }, i * 50); // 每次攻击间隔50毫秒
+                }, i * adjustedDelay); // 使用调整后的延迟时间
             }
         }
 
