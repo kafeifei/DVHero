@@ -5,31 +5,31 @@
 - [x] 实现条件日志功能，根据`CONFIG.debug`决定是否输出日志
 
 ## 2. 渲染器优化
-- [ ] 修改渲染器创建函数，应用以下配置：
-  - [ ] 像素比例 (`CONFIG.rendering.pixelRatio`)
-  - [ ] 抗锯齿设置 (`CONFIG.rendering.antialiasing`)
-  - [ ] 绘图缓冲区保留 (`CONFIG.rendering.preserveDrawingBuffer`)
-  - [ ] GPU电源偏好 (`CONFIG.rendering.powerPreference`)
-- [ ] 实现性能监控，在渲染时间过长时检查`CONFIG.rendering.performance.disableShadowsWhenLagging`
+- [x] 修改渲染器创建函数，应用以下配置：
+  - [x] 像素比例 (`CONFIG.rendering.pixelRatio`)
+  - [x] 抗锯齿设置 (`CONFIG.rendering.antialiasing`)
+  - [x] 绘图缓冲区保留 (`CONFIG.rendering.preserveDrawingBuffer`)
+  - [x] GPU电源偏好 (`CONFIG.rendering.powerPreference`)
+- [x] 实现性能监控，在渲染时间过长时检查`CONFIG.rendering.performance.disableShadowsWhenLagging`
 
 ## 3. 阴影系统优化
-- [ ] 修改主光源阴影设置：
-  - [ ] 阴影贴图大小 (`CONFIG.rendering.shadows.mapSize`)
-  - [ ] 阴影类型 (`CONFIG.rendering.shadows.type`)
-  - [ ] 阴影偏差值 (`CONFIG.rendering.shadows.bias` 和 `CONFIG.rendering.shadows.normalBias`)
-  - [ ] 阴影模糊半径 (`CONFIG.rendering.shadows.radius`)
-- [ ] 应用阴影相机参数 (`CONFIG.rendering.shadows.camera`)
-- [ ] 为动态物体添加条件性阴影 (`CONFIG.rendering.performance.dynamicShadows`)
+- [x] 修改主光源阴影设置：
+  - [x] 阴影贴图大小 (`CONFIG.rendering.shadows.mapSize`)
+  - [x] 阴影类型 (`CONFIG.rendering.shadows.type`)
+  - [x] 阴影偏差值 (`CONFIG.rendering.shadows.bias` 和 `CONFIG.rendering.shadows.normalBias`)
+  - [x] 阴影模糊半径 (`CONFIG.rendering.shadows.radius`)
+- [x] 应用阴影相机参数 (`CONFIG.rendering.shadows.camera`)
+- [x] 为动态物体添加条件性阴影 (`CONFIG.rendering.performance.dynamicShadows`)
 
 ## 4. 灯光系统优化
-- [ ] 修改环境光设置 (`CONFIG.lighting.ambient`)
-- [ ] 修改主方向光设置 (`CONFIG.lighting.directional`)
-- [ ] 修改半球光设置 (`CONFIG.lighting.hemisphere`)
-- [ ] 修改补充光设置 (`CONFIG.lighting.fill`)
-- [ ] 修改背面光设置 (`CONFIG.lighting.back`)
-- [ ] 实现火把光源限制 (`CONFIG.lighting.torch.maxTorches`)
-- [ ] 实现有条件的火把动画 (`CONFIG.lighting.torch.animateAll`)
-- [ ] 优化火把光源动画更新频率 (`CONFIG.animations.updateIntervals.torchLights`)
+- [x] 修改环境光设置 (`CONFIG.lighting.ambient`)
+- [x] 修改主方向光设置 (`CONFIG.lighting.directional`)
+- [x] 修改半球光设置 (`CONFIG.lighting.hemisphere`)
+- [x] 修改补充光设置 (`CONFIG.lighting.fill`)
+- [x] 修改背面光设置 (`CONFIG.lighting.back`)
+- [x] 实现火把光源限制 (`CONFIG.lighting.torch.maxTorches`)
+- [x] 实现有条件的火把动画 (`CONFIG.lighting.torch.animateAll`)
+- [x] 优化火把光源动画更新频率 (`CONFIG.animations.updateIntervals.torchLights`)
 
 ## 5. 相机优化
 - [ ] 修改相机参数：

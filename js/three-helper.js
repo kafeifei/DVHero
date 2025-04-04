@@ -217,64 +217,75 @@ export class ThreeHelper {
         try {
             // 如果已经有渲染器，先清理
             if (this.renderer) {
-                console.log('清理现有渲染器...');
+                this.logDebug('清理现有渲染器...', 'log', this.getConfigValue('debug.logWarnings', true));
                 try {
                     this.renderer.dispose();
                     try {
                         this.renderer.forceContextLoss();
                     } catch (e) {
-                        console.warn('强制丢失WebGL上下文失败，这是正常现象:', e);
+                        this.logDebug('强制丢失WebGL上下文失败，这是正常现象:', 'warn', this.getConfigValue('debug.logWarnings', true));
                     }
                     this.renderer = null;
                 } catch (e) {
-                    console.error('清理渲染器时出错:', e);
+                    this.logDebug('清理渲染器时出错:', 'error', this.getConfigValue('debug.logWarnings', true));
                 }
             }
             
             // 确保Canvas完全干净，不获取旧的上下文
-            console.log('确保Canvas干净...');
+            this.logDebug('确保Canvas干净...', 'log', this.getConfigValue('debug.logWarnings', true));
 
-            console.log('Canvas 3D信息:', {
-                width: this.canvas3d.width,
-                height: this.canvas3d.height,
-                offsetWidth: this.canvas3d.offsetWidth,
-                offsetHeight: this.canvas3d.offsetHeight,
-                clientWidth: this.canvas3d.clientWidth, 
-                clientHeight: this.canvas3d.clientHeight
-            });
+            // 调试时记录Canvas信息
+            if (this.getConfigValue('debug.logSceneInfo', false)) {
+                this.logDebug('Canvas 3D信息:' + JSON.stringify({
+                    width: this.canvas3d.width,
+                    height: this.canvas3d.height,
+                    offsetWidth: this.canvas3d.offsetWidth,
+                    offsetHeight: this.canvas3d.offsetHeight,
+                    clientWidth: this.canvas3d.clientWidth, 
+                    clientHeight: this.canvas3d.clientHeight
+                }));
+            }
 
             // 确保canvas尺寸合法
             if (this.canvas3d.width < 1 || this.canvas3d.height < 1) {
-                console.warn('Canvas尺寸无效，使用窗口尺寸');
+                this.logDebug('Canvas尺寸无效，使用窗口尺寸', 'warn', this.getConfigValue('debug.logWarnings', true));
                 this.canvas3d.width = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientWidth : window.innerWidth;
                 this.canvas3d.height = this.canvas3d.parentElement ? this.canvas3d.parentElement.clientHeight : window.innerHeight;
             }
 
             // 检查WebGL支持
             if (!window.WebGLRenderingContext) {
-                console.error('浏览器不支持WebGL');
+                this.logDebug('浏览器不支持WebGL', 'error', this.getConfigValue('debug.logWarnings', true));
                 return false;
             }
 
             // 检查WebGL2支持
+            let isWebGL2 = false;
             try {
                 const canWebGL2 = !!window.WebGL2RenderingContext;
                 if (canWebGL2) {
-                    console.log('浏览器支持WebGL2');
+                    isWebGL2 = true;
+                    this.logDebug('浏览器支持WebGL2', 'log', this.getConfigValue('debug.logSceneInfo', false));
                 } else {
-                    console.log('浏览器不支持WebGL2，将使用WebGL1');
+                    this.logDebug('浏览器不支持WebGL2，将使用WebGL1', 'log', this.getConfigValue('debug.logWarnings', true));
                 }
             } catch (e) {
-                console.warn('检查WebGL2支持失败:', e);
+                this.logDebug('检查WebGL2支持失败:', 'warn', this.getConfigValue('debug.logWarnings', true));
             }
+
+            // 从配置中获取渲染器设置
+            const antialias = this.getConfigValue('rendering.antialiasing', true);
+            const pixelRatio = this.getConfigValue('rendering.pixelRatio', window.devicePixelRatio || 1);
+            const preserveDrawingBuffer = this.getConfigValue('rendering.preserveDrawingBuffer', false);
+            const powerPreference = this.getConfigValue('rendering.powerPreference', 'default');
 
             // 使用更安全的选项创建WebGL渲染器
             this.renderer = new THREE.WebGLRenderer({
                 canvas: this.canvas3d,
-                antialias: true,
+                antialias: antialias,
                 alpha: true,
-                powerPreference: 'high-performance',
-                preserveDrawingBuffer: true,
+                powerPreference: powerPreference,
+                preserveDrawingBuffer: preserveDrawingBuffer,
                 failIfMajorPerformanceCaveat: false,
                 depth: true,
                 stencil: false,
@@ -283,30 +294,59 @@ export class ThreeHelper {
 
             // 设置渲染器基本参数
             this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, true); // 改为true，让渲染器自动调整CSS尺寸
-            this.renderer.setPixelRatio(window.devicePixelRatio || 1);
-            this.renderer.setClearColor(0x222222, 1);
+            this.renderer.setPixelRatio(pixelRatio);
+            
+            // 设置背景色
+            const backgroundColor = this.getConfigValue('scene.backgroundColor', 0x222222);
+            this.renderer.setClearColor(backgroundColor, 1);
 
             // 设置阴影
-            if (this.renderer.capabilities && this.renderer.capabilities.isWebGL2) {
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            } else if (this.renderer.capabilities) {
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.BasicShadowMap;
+            const enableShadows = this.getConfigValue('rendering.shadows.enabled', true);
+            
+            if (enableShadows) {
+                if (this.renderer.capabilities && this.renderer.capabilities.isWebGL2) {
+                    this.renderer.shadowMap.enabled = true;
+                    
+                    // 根据配置设置阴影类型
+                    const shadowType = this.getConfigValue('rendering.shadows.type', 'PCFSoftShadow');
+                    switch (shadowType) {
+                        case 'Basic':
+                            this.renderer.shadowMap.type = THREE.BasicShadowMap;
+                            break;
+                        case 'PCF':
+                            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+                            break;
+                        case 'PCFSoft':
+                        default:
+                            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                            break;
+                    }
+                } else if (this.renderer.capabilities) {
+                    this.renderer.shadowMap.enabled = true;
+                    this.renderer.shadowMap.type = THREE.BasicShadowMap;
+                }
+            } else {
+                this.renderer.shadowMap.enabled = false;
             }
 
-            console.log('WebGL渲染器创建成功', {
-                isWebGL2: this.renderer.capabilities && this.renderer.capabilities.isWebGL2,
-                maxTextures: this.renderer.capabilities && this.renderer.capabilities.maxTextures,
-                precision: this.renderer.capabilities && this.renderer.capabilities.precision
-            });
+            if (this.getConfigValue('debug.logSceneInfo', false)) {
+                this.logDebug('WebGL渲染器创建成功 - ' + JSON.stringify({
+                    isWebGL2: this.renderer.capabilities && this.renderer.capabilities.isWebGL2,
+                    maxTextures: this.renderer.capabilities && this.renderer.capabilities.maxTextures,
+                    precision: this.renderer.capabilities && this.renderer.capabilities.precision,
+                    antialias: antialias,
+                    pixelRatio: pixelRatio,
+                    shadowsEnabled: this.renderer.shadowMap.enabled,
+                    shadowType: this.renderer.shadowMap.type
+                }));
+            }
             return true;
         } catch (error) {
-            console.error('创建WebGL渲染器时出错:', error);
+            this.logDebug('创建WebGL渲染器时出错:' + error.message, 'error', this.getConfigValue('debug.logWarnings', true));
 
             // 尝试使用极简设置创建
             try {
-                console.log('尝试使用极简选项创建渲染器...');
+                this.logDebug('尝试使用极简选项创建渲染器...', 'log', this.getConfigValue('debug.logWarnings', true));
                 
                 // 使用最低配置
                 this.renderer = new THREE.WebGLRenderer({
@@ -323,15 +363,15 @@ export class ThreeHelper {
 
                 this.renderer.setSize(this.canvas3d.width, this.canvas3d.height, true); // 改为true，让渲染器自动调整CSS尺寸
                 this.renderer.setPixelRatio(1);
-                this.renderer.setClearColor(0x222222, 1);
+                this.renderer.setClearColor(this.getConfigValue('scene.backgroundColor', 0x222222), 1);
                 
                 // 关闭阴影
                 this.renderer.shadowMap.enabled = false;
 
-                console.log('备用渲染器创建成功');
+                this.logDebug('备用渲染器创建成功', 'log', this.getConfigValue('debug.logWarnings', true));
                 return true;
             } catch (e) {
-                console.error('备用渲染器创建失败:', e);
+                this.logDebug('备用渲染器创建失败:' + e.message, 'error', this.getConfigValue('debug.logWarnings', true));
                 
                 // 通知游戏引擎3D模式不可用
                 if (this.game) {
@@ -992,20 +1032,48 @@ export class ThreeHelper {
 
                 // 为火把添加点光源
                 if (obj.type === 'torch') {
-                    const pointLight = new THREE.PointLight(0xff7700, 3, 150 * 3); // 光照范围也放大3倍
-                    pointLight.position.set(obj.x, height * scale * 0.6, obj.y); // 调整光源高度位于火焰位置
-                    this.scene.add(pointLight);
-                    this.objects.set(`torch_light_${index}`, pointLight);
+                    // 检查是否已达到最大火把光源数量
+                    const maxTorches = this.getConfigValue('lighting.torch.maxTorches', 10);
+                    const torchEnabled = this.getConfigValue('lighting.torch.enabled', true);
                     
-                    // 添加光照闪烁动画
-                    if (!this.animatedLights) {
-                        this.animatedLights = [];
+                    // 获取当前活动的火把光源数量
+                    const activeTorchLights = Array.from(this.objects.keys())
+                        .filter(key => key.startsWith('torch_light_'))
+                        .length;
+                    
+                    // 如果没有达到上限且配置允许，添加光源
+                    if (torchEnabled && activeTorchLights < maxTorches) {
+                        // 从配置中获取火把光设置
+                        const torchColor = this.getConfigValue('lighting.torch.color', 0xff7700);
+                        const torchIntensity = this.getConfigValue('lighting.torch.intensity', 3);
+                        const torchDistance = this.getConfigValue('lighting.torch.distance', 150) * 3; // 光照范围也放大3倍
+                        
+                        const pointLight = new THREE.PointLight(torchColor, torchIntensity, torchDistance);
+                        pointLight.position.set(obj.x, height * scale * 0.6, obj.y); // 调整光源高度位于火焰位置
+                        this.scene.add(pointLight);
+                        this.objects.set(`torch_light_${index}`, pointLight);
+                        
+                        // 添加光照闪烁动画
+                        if (!this.animatedLights) {
+                            this.animatedLights = [];
+                        }
+                        
+                        // 记录光源的基本信息
+                        pointLight.userData = {
+                            baseIntensity: torchIntensity,
+                            animationOffset: Math.random() * Math.PI * 2,
+                            lastUpdateTime: 0  // 用于控制更新频率
+                        };
+                        
+                        this.animatedLights.push(pointLight);
+                        
+                        if (this.getConfigValue('debug.logSceneInfo', false)) {
+                            this.logDebug(`添加火把光源 #${activeTorchLights + 1}/${maxTorches} 位置(${obj.x},${obj.y})`);
+                        }
+                    } else if (torchEnabled && this.getConfigValue('debug.logWarnings', true) && activeTorchLights === maxTorches) {
+                        // 只在第一次达到上限时输出警告
+                        this.logDebug(`已达到最大火把光源数量 (${maxTorches})，不再添加新光源`, 'warn');
                     }
-                    pointLight.userData = {
-                        baseIntensity: 3,
-                        animationOffset: Math.random() * Math.PI * 2
-                    };
-                    this.animatedLights.push(pointLight);
                 }
             } catch (e) {
                 console.error(`创建背景对象时出错: ${e.message}`);
@@ -1937,7 +2005,7 @@ export class ThreeHelper {
     render() {
         // 如果未正确初始化，不执行渲染
         if (!this.scene || !this.camera || !this.renderer) {
-            console.warn('3D场景未完全初始化，渲染已跳过');
+            this.logDebug('3D场景未完全初始化，渲染已跳过', 'warn', this.getConfigValue('debug.logWarnings', true));
             return false;
         }
 
@@ -1951,11 +2019,11 @@ export class ThreeHelper {
         
         // 确保渲染器上下文存在
         if (!this.renderer.getContext()) {
-            console.warn('渲染器上下文丢失，尝试恢复...');
+            this.logDebug('渲染器上下文丢失，尝试恢复...', 'warn', this.getConfigValue('debug.logWarnings', true));
             try {
                 this.recreateRenderer();
             } catch (e) {
-                console.error('渲染器恢复失败:', e);
+                this.logDebug('渲染器恢复失败:' + e.message, 'error', this.getConfigValue('debug.logWarnings', true));
                 return false;
             }
         }
@@ -1972,7 +2040,7 @@ export class ThreeHelper {
             // 更新场景中的对象位置
             this.updateSceneObjects();
             
-            // 更新场景中的动画对象
+            // 更新场景中的动画对象 (根据性能配置决定是否跳过某些更新)
             this.animateObjects();
             
             // 更新玩家面朝方向
@@ -1993,25 +2061,8 @@ export class ThreeHelper {
             // 记录渲染耗时
             const renderTime = performance.now() - renderStartTime;
             
-            // 检测性能问题
-            if (renderTime > 100) { // 渲染时间超过100ms可能会导致明显卡顿
-                console.warn(`3D渲染耗时过长: ${renderTime.toFixed(2)}ms`);
-                
-                // 记录慢渲染次数
-                this.slowRenderCount = (this.slowRenderCount || 0) + 1;
-                
-                // 如果持续出现慢渲染，记录警告但不自动切换
-                if (this.slowRenderCount > 10) {
-                    console.warn('3D渲染性能较差，可能需要切换到2D模式');
-                    // 不再自动切换模式，而是在游戏中显示提示
-                    if (this.game && this.slowRenderCount === 11) {
-                        this.game.showWarning('3D渲染性能较差，可使用G键切换到2D模式', 180);
-                    }
-                }
-            } else {
-                // 重置慢渲染计数
-                this.slowRenderCount = 0;
-            }
+            // 应用性能监控 - 检测性能问题
+            this.monitorPerformance(renderTime);
             
             // 重置渲染错误计数
             this.renderErrorCount = 0;
@@ -2020,22 +2071,22 @@ export class ThreeHelper {
             
             return true;
         } catch (e) {
-            console.error(`3D渲染失败: ${e.message}`, e);
+            this.logDebug(`3D渲染失败: ${e.message}`, 'error', this.getConfigValue('debug.logWarnings', true));
             this.renderErrorCount = (this.renderErrorCount || 0) + 1;
             this.renderFailCount = (this.renderFailCount || 0) + 1;
             
             // 如果连续多次渲染失败，尝试重建渲染器
             if (this.renderFailCount > 5) {
                 if (this.rendererRecreateAttempts < 2) {
-                    console.warn('尝试重建渲染器...');
+                    this.logDebug('尝试重建渲染器...', 'warn', this.getConfigValue('debug.logWarnings', true));
                     try {
                         this.recreateRenderer();
                         this.rendererRecreateAttempts++;
                     } catch (recreateError) {
-                        console.error('重建渲染器失败:', recreateError);
+                        this.logDebug('重建渲染器失败:' + recreateError.message, 'error', this.getConfigValue('debug.logWarnings', true));
                     }
                 } else {
-                    console.error('多次重建渲染器失败，建议切换至2D模式');
+                    this.logDebug('多次重建渲染器失败，建议切换至2D模式', 'error', this.getConfigValue('debug.logWarnings', true));
                     
                     // 在游戏中显示错误提示
                     if (this.game) {
@@ -2048,8 +2099,104 @@ export class ThreeHelper {
         }
     }
 
+    // 性能监控方法
+    monitorPerformance(renderTime) {
+        // 显示FPS
+        if (this.getConfigValue('debug.showFPS', false)) {
+            const fps = Math.round(1000 / renderTime);
+            if (!this._fpsUpdateTime || Date.now() - this._fpsUpdateTime > 500) {
+                this.logDebug(`FPS: ${fps} (渲染耗时: ${renderTime.toFixed(2)}ms)`);
+                this._fpsUpdateTime = Date.now();
+            }
+        }
+        
+        // 检测性能问题的阈值
+        const performanceThreshold = this.getConfigValue('rendering.performance.lagThreshold', 100);
+        
+        // 记录渲染时间超过阈值的情况
+        if (renderTime > performanceThreshold) {
+            this.logDebug(`3D渲染耗时过长: ${renderTime.toFixed(2)}ms`, 'warn', this.getConfigValue('debug.logWarnings', true));
+            
+            // 记录慢渲染次数
+            this.slowRenderCount = (this.slowRenderCount || 0) + 1;
+            
+            // 如果持续出现慢渲染，尝试降低渲染质量
+            if (this.slowRenderCount > 5) {
+                this.logDebug('3D渲染性能较差，正在应用优化...', 'warn', this.getConfigValue('debug.logWarnings', true));
+                
+                // 检查是否应该在性能不佳时禁用阴影
+                if (this.getConfigValue('rendering.performance.disableShadowsWhenLagging', true) && 
+                    this.renderer.shadowMap.enabled) {
+                    
+                    this.logDebug('由于性能问题，暂时禁用阴影渲染', 'warn', this.getConfigValue('debug.logWarnings', true));
+                    this.renderer.shadowMap.enabled = false;
+                    
+                    // 显示提示消息
+                    if (this.game && this.slowRenderCount === 6) {
+                        this.game.showWarning('已禁用阴影以提高性能', 120);
+                    }
+                }
+                
+                // 如果性能持续不佳，尝试降低像素比
+                if (this.slowRenderCount > 15) {
+                    const currentPixelRatio = this.renderer.getPixelRatio();
+                    const newPixelRatio = Math.max(1, currentPixelRatio * 0.75);
+                    
+                    if (currentPixelRatio > newPixelRatio) {
+                        this.logDebug(`由于性能问题，降低渲染像素比: ${currentPixelRatio} -> ${newPixelRatio}`, 'warn', this.getConfigValue('debug.logWarnings', true));
+                        this.renderer.setPixelRatio(newPixelRatio);
+                        
+                        // 显示提示消息
+                        if (this.game) {
+                            this.game.showWarning('已降低渲染质量以提高性能，建议使用G键切换到2D模式', 180);
+                        }
+                        
+                        // 重置慢渲染计数，给新设置一个机会
+                        this.slowRenderCount = 0;
+                    }
+                }
+            }
+        } else {
+            // 如果不再有性能问题，可以考虑恢复某些设置
+            if (this.slowRenderCount > 0) {
+                this.slowRenderCount--;
+                
+                // 如果性能已经很好，考虑重新启用之前禁用的功能
+                if (this.slowRenderCount === 0) {
+                    // 如果配置要求启用阴影但当前被禁用了，考虑恢复
+                    const shouldEnableShadows = this.getConfigValue('rendering.shadows.enabled', true);
+                    if (shouldEnableShadows && !this.renderer.shadowMap.enabled) {
+                        this.logDebug('性能已恢复，重新启用阴影渲染', 'log', this.getConfigValue('debug.logWarnings', true));
+                        this.renderer.shadowMap.enabled = true;
+                        
+                        // 根据配置设置阴影类型
+                        const shadowType = this.getConfigValue('rendering.shadows.type', 'PCFSoftShadow');
+                        switch (shadowType) {
+                            case 'Basic':
+                                this.renderer.shadowMap.type = THREE.BasicShadowMap;
+                                break;
+                            case 'PCF':
+                                this.renderer.shadowMap.type = THREE.PCFShadowMap;
+                                break;
+                            case 'PCFSoft':
+                            default:
+                                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // 动画更新
     animateObjects() {
+        // 记录当前帧
+        if (!this.frameCount) {
+            this.frameCount = 0;
+        }
+        this.frameCount++;
+        
         // 更新中心标记，使其旋转
         const centerMarker = this.objects.get('center_marker');
         if (centerMarker) {
@@ -2058,64 +2205,120 @@ export class ThreeHelper {
 
         // 更新火把动画
         if (this.animatedTorches && this.animatedTorches.length > 0) {
-            const time = Date.now() * 0.003; // 控制火焰动画速度
-            
-            for (const torch of this.animatedTorches) {
-                if (torch.flameCore && torch.flameOuter) {
-                    // 火焰核心的脉动效果
-                    const coreScale = 0.9 + 0.2 * Math.sin(time + torch.flameCore.userData.animationOffset);
-                    torch.flameCore.scale.x = coreScale;
-                    torch.flameCore.scale.z = coreScale;
-                    
-                    // 火焰外部的摇曳效果
-                    const outerScaleX = 0.9 + 0.3 * Math.sin(time * 0.7 + torch.flameOuter.userData.animationOffset);
-                    const outerScaleZ = 0.9 + 0.3 * Math.sin(time * 0.8 + torch.flameOuter.userData.animationOffset + 1.0);
-                    torch.flameOuter.scale.x = outerScaleX;
-                    torch.flameOuter.scale.z = outerScaleZ;
-                    
-                    // 火焰的随机旋转
-                    torch.flameOuter.rotation.x = 0.1 * Math.sin(time * 0.5 + torch.flameOuter.userData.animationOffset);
-                    torch.flameOuter.rotation.z = 0.1 * Math.sin(time * 0.6 + torch.flameOuter.userData.animationOffset + 2.0);
+            // 获取火把动画更新间隔
+            const torchFlamesInterval = this.getConfigValue('animations.updateIntervals.torchFlames', 2);
+            // 检查当前帧是否应该更新火把动画
+            if (this.frameCount % torchFlamesInterval === 0) {
+                const time = Date.now() * this.getConfigValue('lighting.torch.flickerSpeed', 0.003);
+                const animateAll = this.getConfigValue('lighting.torch.animateAll', false);
+                
+                // 获取当前相机位置，用于距离计算
+                const cameraPosition = this.camera ? this.camera.position : { x: 0, y: 0, z: 0 };
+                const animationDistance = this.getConfigValue('rendering.performance.animationDistance', 800);
+                
+                for (const torch of this.animatedTorches) {
+                    if (torch.flameCore && torch.flameOuter) {
+                        // 是否应该动画此火把
+                        let shouldAnimate = animateAll;
+                        
+                        // 如果不是强制动画所有火把，检查距离
+                        if (!shouldAnimate && torch.flameCore.parent) {
+                            // 计算火把与相机的距离
+                            torch.flameCore.parent.updateWorldMatrix(true, false);
+                            const worldPosition = new THREE.Vector3();
+                            torch.flameCore.parent.getWorldPosition(worldPosition);
+                            
+                            const distToCamera = Math.sqrt(
+                                Math.pow(worldPosition.x - cameraPosition.x, 2) + 
+                                Math.pow(worldPosition.z - cameraPosition.z, 2)
+                            );
+                            
+                            shouldAnimate = distToCamera < animationDistance;
+                        }
+                        
+                        if (shouldAnimate) {
+                            // 获取闪烁强度
+                            const flickerIntensity = this.getConfigValue('lighting.torch.flickerIntensity', 0.3);
+                            
+                            // 火焰核心的脉动效果
+                            const coreScale = 0.9 + flickerIntensity * Math.sin(time + torch.flameCore.userData.animationOffset);
+                            torch.flameCore.scale.x = coreScale;
+                            torch.flameCore.scale.z = coreScale;
+                            
+                            // 火焰外部的摇曳效果
+                            const outerScaleX = 0.9 + flickerIntensity * Math.sin(time * 0.7 + torch.flameOuter.userData.animationOffset);
+                            const outerScaleZ = 0.9 + flickerIntensity * Math.sin(time * 0.8 + torch.flameOuter.userData.animationOffset + 1.0);
+                            torch.flameOuter.scale.x = outerScaleX;
+                            torch.flameOuter.scale.z = outerScaleZ;
+                            
+                            // 火焰的随机旋转
+                            torch.flameOuter.rotation.x = 0.1 * Math.sin(time * 0.5 + torch.flameOuter.userData.animationOffset);
+                            torch.flameOuter.rotation.z = 0.1 * Math.sin(time * 0.6 + torch.flameOuter.userData.animationOffset + 2.0);
+                        }
+                    }
                 }
             }
         }
         
         // 更新火把光源动画
         if (this.animatedLights && this.animatedLights.length > 0) {
-            const time = Date.now() * 0.003;
+            // 获取光源动画更新间隔
+            const torchLightsInterval = this.getConfigValue('animations.updateIntervals.torchLights', 3);
             
-            for (const light of this.animatedLights) {
-                if (light.userData && light.userData.baseIntensity) {
-                    // 光照强度的闪烁效果
-                    const intensityFactor = 0.85 + 0.3 * Math.sin(time * 1.5 + light.userData.animationOffset);
-                    light.intensity = light.userData.baseIntensity * intensityFactor;
-                    
-                    // 添加光照颜色的微小变化，模拟火焰颜色变化
-                    const hue = 0.05 + 0.02 * Math.sin(time * 0.8 + light.userData.animationOffset); // 在橙红色范围内变化
-                    const saturation = 0.9 + 0.1 * Math.sin(time * 0.7 + light.userData.animationOffset + 1.0);
-                    const lightness = 0.5 + 0.1 * Math.sin(time * 0.9 + light.userData.animationOffset + 2.0);
-                    
-                    // 使用HSL颜色模型创建火焰颜色
-                    light.color.setHSL(hue, saturation, lightness);
+            // 检查当前帧是否应该更新光源动画
+            if (this.frameCount % torchLightsInterval === 0) {
+                const time = Date.now() * this.getConfigValue('lighting.torch.flickerSpeed', 0.003);
+                const flickerIntensity = this.getConfigValue('lighting.torch.flickerIntensity', 0.3);
+                
+                // 获取相机位置和动画距离阈值
+                const cameraPosition = this.camera ? this.camera.position : { x: 0, y: 0, z: 0 };
+                const animationDistance = this.getConfigValue('rendering.performance.animationDistance', 800);
+                
+                for (const light of this.animatedLights) {
+                    if (light.userData && light.userData.baseIntensity) {
+                        // 计算光源与相机的距离
+                        const distToCamera = Math.sqrt(
+                            Math.pow(light.position.x - cameraPosition.x, 2) + 
+                            Math.pow(light.position.z - cameraPosition.z, 2)
+                        );
+                        
+                        // 仅更新与相机较近的光源
+                        if (distToCamera < animationDistance) {
+                            // 光照强度的闪烁效果
+                            const intensityFactor = 0.85 + flickerIntensity * Math.sin(time * 1.5 + light.userData.animationOffset);
+                            light.intensity = light.userData.baseIntensity * intensityFactor;
+                            
+                            // 添加光照颜色的微小变化，模拟火焰颜色变化
+                            const hue = 0.05 + 0.02 * Math.sin(time * 0.8 + light.userData.animationOffset);
+                            const saturation = 0.9 + 0.1 * Math.sin(time * 0.7 + light.userData.animationOffset + 1.0);
+                            const lightness = 0.5 + 0.1 * Math.sin(time * 0.9 + light.userData.animationOffset + 2.0);
+                            
+                            // 使用HSL颜色模型创建火焰颜色
+                            light.color.setHSL(hue, saturation, lightness);
+                        }
+                    }
                 }
             }
         }
 
         // 更新其他动画对象
-        for (let i = 0; i < 5; i++) {
-            const landmark = this.objects.get(`landmark_${i}`);
-            if (landmark) {
-                landmark.rotation.y += 0.01;
+        const floatingObjectsInterval = this.getConfigValue('animations.updateIntervals.floatingObjects', 2);
+        if (this.frameCount % floatingObjectsInterval === 0) {
+            for (let i = 0; i < 5; i++) {
+                const landmark = this.objects.get(`landmark_${i}`);
+                if (landmark) {
+                    landmark.rotation.y += 0.01;
 
-                // 让标记上下浮动
-                const time = Date.now() * 0.001;
-                const offset = Math.sin(time + i) * 5;
-                landmark.position.y = landmark.userData.baseHeight || 15;
-                landmark.position.y += offset;
+                    // 让标记上下浮动
+                    const time = Date.now() * 0.001;
+                    const offset = Math.sin(time + i) * 5;
+                    landmark.position.y = landmark.userData.baseHeight || 15;
+                    landmark.position.y += offset;
 
-                // 存储基础高度
-                if (!landmark.userData.baseHeight) {
-                    landmark.userData.baseHeight = landmark.position.y;
+                    // 存储基础高度
+                    if (!landmark.userData.baseHeight) {
+                        landmark.userData.baseHeight = landmark.position.y;
+                    }
                 }
             }
         }
@@ -2146,64 +2349,157 @@ export class ThreeHelper {
 
     // 创建灯光
     createLights() {
-        // 环境光 - 稍微减弱环境光以突出阴影效果
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        this.scene.add(ambientLight);
+        // 环境光 - 根据配置设置强度
+        const ambientEnabled = this.getConfigValue('lighting.ambient.enabled', true);
+        const ambientColor = this.getConfigValue('lighting.ambient.color', 0xffffff);
+        const ambientIntensity = this.getConfigValue('lighting.ambient.intensity', 0.7);
+        
+        const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
+        if (ambientEnabled) {
+            this.scene.add(ambientLight);
+        }
 
         // 主方向光 - 从高处斜射，模拟太阳光
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        // 将光源放在高处，并稍微偏移，创造45度角斜射效果
-        directionalLight.position.set(800, 1200, 800);
-        // 指向稍微下方，而不是原点，这样光源方向会固定在世界坐标系中
-        directionalLight.target.position.set(0, -100, 0);
-        this.scene.add(directionalLight.target); // 必须将target添加到场景中才能生效
-        directionalLight.castShadow = true;
-
-        // 调整阴影相机参数，避免锯齿
-        directionalLight.shadow.camera.near = 1;
-        directionalLight.shadow.camera.far = 3000; // 增加远平面距离
-        directionalLight.shadow.camera.left = -1000; // 扩大视锥体
-        directionalLight.shadow.camera.right = 1000;
-        directionalLight.shadow.camera.top = 1000;
-        directionalLight.shadow.camera.bottom = -1000;
+        const directionalEnabled = this.getConfigValue('lighting.directional.enabled', true);
+        const directionalColor = this.getConfigValue('lighting.directional.color', 0xffffff);
+        const directionalIntensity = this.getConfigValue('lighting.directional.intensity', 1.2);
         
-        // 增加阴影贴图分辨率和质量
-        directionalLight.shadow.mapSize.width = 4096;
-        directionalLight.shadow.mapSize.height = 4096;
-        directionalLight.shadow.bias = -0.0002; // 调整偏移值，使阴影更加自然
-        directionalLight.shadow.normalBias = 0.01;
-        // 添加阴影模糊效果
-        directionalLight.shadow.radius = 2;
+        // 从配置获取位置，如果未设置使用默认值
+        const directionalPosition = this.getConfigValue('lighting.directional.position', { x: 800, y: 1200, z: 800 });
+        const directionalTarget = this.getConfigValue('lighting.directional.target', { x: 0, y: -100, z: 0 });
         
-        this.scene.add(directionalLight);
-
-        // 添加辅助照明 - 柔和的半球光提供更自然的环境光照
-        const hemisphereLight = new THREE.HemisphereLight(
-            0xffffbb, // 天空颜色
-            0x080820, // 地面颜色
-            0.4       // 降低强度以突出主光源的阴影
+        const directionalLight = new THREE.DirectionalLight(directionalColor, directionalIntensity);
+        // 设置光源位置
+        directionalLight.position.set(
+            directionalPosition.x, 
+            directionalPosition.y, 
+            directionalPosition.z
         );
-        this.scene.add(hemisphereLight);
+        
+        // 设置目标点，使光源方向固定在世界坐标系中
+        directionalLight.target.position.set(
+            directionalTarget.x,
+            directionalTarget.y,
+            directionalTarget.z
+        );
+        
+        // 必须将target添加到场景中才能生效
+        this.scene.add(directionalLight.target); 
+        
+        // 配置阴影
+        const shadowsEnabled = this.getConfigValue('rendering.shadows.enabled', true);
+        const directionalCastShadow = this.getConfigValue('lighting.directional.castShadow', true);
+        directionalLight.castShadow = shadowsEnabled && directionalCastShadow;
 
-        // 添加一个补充光源，模拟环境反射光，减少阴影过暗的问题
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-        fillLight.position.set(-600, 400, -600); // 放在与主光源大致相反的位置
-        // 使用固定target，而不是lookAt
-        fillLight.target.position.set(200, -50, 200);
+        if (directionalLight.castShadow) {
+            // 从配置获取阴影相机参数
+            const shadowCamera = this.getConfigValue('rendering.shadows.camera', {
+                near: 1,
+                far: 3000,
+                left: -1000,
+                right: 1000,
+                top: 1000,
+                bottom: -1000
+            });
+            
+            // 调整阴影相机参数
+            directionalLight.shadow.camera.near = shadowCamera.near;
+            directionalLight.shadow.camera.far = shadowCamera.far;
+            directionalLight.shadow.camera.left = shadowCamera.left;
+            directionalLight.shadow.camera.right = shadowCamera.right;
+            directionalLight.shadow.camera.top = shadowCamera.top;
+            directionalLight.shadow.camera.bottom = shadowCamera.bottom;
+            
+            // 从配置获取阴影贴图尺寸
+            const shadowMapSize = this.getConfigValue('rendering.shadows.mapSize', 2048);
+            directionalLight.shadow.mapSize.width = shadowMapSize;
+            directionalLight.shadow.mapSize.height = shadowMapSize;
+            
+            // 从配置获取阴影偏差值
+            directionalLight.shadow.bias = this.getConfigValue('rendering.shadows.bias', -0.0002);
+            directionalLight.shadow.normalBias = this.getConfigValue('rendering.shadows.normalBias', 0.01);
+            
+            // 从配置获取阴影模糊半径
+            directionalLight.shadow.radius = this.getConfigValue('rendering.shadows.radius', 2);
+            
+            // 添加调试日志
+            if (this.getConfigValue('debug.logSceneInfo', false)) {
+                this.logDebug(`阴影配置: 贴图尺寸=${shadowMapSize}, 模糊半径=${directionalLight.shadow.radius}`);
+            }
+        }
+        
+        if (directionalEnabled) {
+            this.scene.add(directionalLight);
+        }
+
+        // 添加辅助照明 - 半球光
+        const hemisphereEnabled = this.getConfigValue('lighting.hemisphere.enabled', true);
+        const hemisphereSkyColor = this.getConfigValue('lighting.hemisphere.skyColor', 0xffffbb);
+        const hemisphereGroundColor = this.getConfigValue('lighting.hemisphere.groundColor', 0x080820);
+        const hemisphereIntensity = this.getConfigValue('lighting.hemisphere.intensity', 0.4);
+        
+        const hemisphereLight = new THREE.HemisphereLight(
+            hemisphereSkyColor,
+            hemisphereGroundColor,
+            hemisphereIntensity
+        );
+        
+        if (hemisphereEnabled) {
+            this.scene.add(hemisphereLight);
+        }
+
+        // 添加补充光源 - 填充光
+        const fillEnabled = this.getConfigValue('lighting.fill.enabled', true);
+        const fillColor = this.getConfigValue('lighting.fill.color', 0xffffff);
+        const fillIntensity = this.getConfigValue('lighting.fill.intensity', 0.3);
+        const fillPosition = this.getConfigValue('lighting.fill.position', { x: -600, y: 400, z: -600 });
+        const fillTarget = this.getConfigValue('lighting.fill.target', { x: 200, y: -50, z: 200 });
+        
+        const fillLight = new THREE.DirectionalLight(fillColor, fillIntensity);
+        fillLight.position.set(fillPosition.x, fillPosition.y, fillPosition.z);
+        fillLight.target.position.set(fillTarget.x, fillTarget.y, fillTarget.z);
         this.scene.add(fillLight.target);
-        // 此光源不产生阴影，只用于补光
-        this.scene.add(fillLight);
+        
+        // 根据配置决定是否产生阴影
+        fillLight.castShadow = this.getConfigValue('lighting.fill.castShadow', false) && shadowsEnabled;
+        
+        if (fillEnabled) {
+            this.scene.add(fillLight);
+        }
 
-        // 添加额外的辅助照明 - 背面光源，确保物体背面也有照明
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-        backLight.position.set(0, 200, -600);
-        // 使用固定target，而不是lookAt
-        backLight.target.position.set(0, -50, 200);
+        // 添加额外的辅助照明 - 背面光源
+        const backEnabled = this.getConfigValue('lighting.back.enabled', true);
+        const backColor = this.getConfigValue('lighting.back.color', 0xffffff);
+        const backIntensity = this.getConfigValue('lighting.back.intensity', 0.3);
+        const backPosition = this.getConfigValue('lighting.back.position', { x: 0, y: 200, z: -600 });
+        const backTarget = this.getConfigValue('lighting.back.target', { x: 0, y: -50, z: 200 });
+        
+        const backLight = new THREE.DirectionalLight(backColor, backIntensity);
+        backLight.position.set(backPosition.x, backPosition.y, backPosition.z);
+        backLight.target.position.set(backTarget.x, backTarget.y, backTarget.z);
         this.scene.add(backLight.target);
-        this.scene.add(backLight);
+        
+        // 根据配置决定是否产生阴影
+        backLight.castShadow = this.getConfigValue('lighting.back.castShadow', false) && shadowsEnabled;
+        
+        if (backEnabled) {
+            this.scene.add(backLight);
+        }
 
         // 记录主光源
         this.mainLight = directionalLight;
+        
+        // 记录已创建的光源总数，用于性能监控
+        this.lightCount = 0;
+        if (ambientEnabled) this.lightCount++;
+        if (directionalEnabled) this.lightCount++;
+        if (hemisphereEnabled) this.lightCount++;
+        if (fillEnabled) this.lightCount++;
+        if (backEnabled) this.lightCount++;
+        
+        if (this.getConfigValue('debug.logSceneInfo', false)) {
+            this.logDebug(`已创建 ${this.lightCount} 个基础光源`);
+        }
     }
 
     // 测试直接加载草地纹理
