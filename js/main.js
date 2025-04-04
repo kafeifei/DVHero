@@ -65,6 +65,15 @@ window.addEventListener('load', function() {
         eventListenersInitialized = true;
     }
     
+    // 如果是iOS设备，确保加载完成后按钮立即可见
+    if (isIOSDevice()) {
+        console.log("iOS设备加载完成，确保按钮配置正确");
+        // 尝试在不同的时间点处理iOS按钮，以确保在各种情况下都能正常显示
+        ensureButtonVisibilityForIOS();
+        setTimeout(ensureButtonVisibilityForIOS, 500);
+        setTimeout(ensureButtonVisibilityForIOS, 2000);
+    }
+    
     // 3秒后显示调试信息
     setTimeout(() => {
         console.log('==== 调试信息 ====');
@@ -266,6 +275,48 @@ window.testImageVisibility = function () {
     }
 };
 
+// 检测是否为移动设备
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// 检测是否为iOS设备
+function isIOSDevice() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// 确保iOS上模式切换按钮可见
+function ensureButtonVisibilityForIOS() {
+    if (isIOSDevice()) {
+        console.log("检测到iOS设备，确保按钮可见性");
+        const modeToggleBtn = document.getElementById('mode-toggle-btn');
+        if (modeToggleBtn) {
+            // 强制设置内联样式，覆盖Safari可能的默认行为
+            modeToggleBtn.style.position = "fixed";
+            modeToggleBtn.style.bottom = "35px";
+            modeToggleBtn.style.right = "25px";
+            modeToggleBtn.style.zIndex = "9999";
+            modeToggleBtn.style.display = "block";
+            modeToggleBtn.style.visibility = "visible";
+            modeToggleBtn.style.opacity = "1";
+            modeToggleBtn.style.backgroundColor = "#b02525";
+            modeToggleBtn.style.padding = "15px 25px";
+            modeToggleBtn.style.fontSize = "20px";
+            modeToggleBtn.style.border = "2px solid #ffffff";
+            
+            // 创建闪烁效果以吸引用户注意
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+                modeToggleBtn.style.opacity = blinkCount % 2 === 0 ? "0.7" : "1";
+                modeToggleBtn.style.transform = blinkCount % 2 === 0 ? "scale(0.95)" : "scale(1.05)";
+                blinkCount++;
+                if (blinkCount > 10) clearInterval(blinkInterval);
+            }, 300);
+        }
+    }
+}
+
 // 初始化游戏函数
 function initGame() {
     console.log('初始化游戏...');
@@ -284,8 +335,12 @@ function initGame() {
         modeToggleBtn.addEventListener('click', handleModeToggle);
         modeToggleBtn.textContent = '切换到3D'; // 初始为2D模式
         
-        // 为移动设备增强按钮可见性
-        if (isMobileDevice()) {
+        // 为iOS设备特别处理按钮显示
+        if (isIOSDevice()) {
+            ensureButtonVisibilityForIOS();
+        }
+        // 为其他移动设备增强按钮可见性
+        else if (isMobileDevice()) {
             modeToggleBtn.style.display = 'block';
             modeToggleBtn.style.opacity = '1';
             
@@ -473,11 +528,6 @@ function preloadTextures() {
         // 开始尝试加载
         tryLoadTexture();
     });
-}
-
-// 检测是否为移动设备
-function isMobileDevice() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 // 初始化模式切换按钮

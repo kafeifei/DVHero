@@ -249,6 +249,23 @@ export class Game {
             
             this.showWarning('正在切换到3D模式...', 120);
             
+            // iOS设备特殊处理
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (isIOS) {
+                const modeToggleBtn = document.getElementById('mode-toggle-btn');
+                if (modeToggleBtn) {
+                    // 强制设置内联样式，确保可见性
+                    modeToggleBtn.style.position = "fixed";
+                    modeToggleBtn.style.bottom = "35px";
+                    modeToggleBtn.style.right = "25px";
+                    modeToggleBtn.style.zIndex = "9999";
+                    modeToggleBtn.style.display = "block";
+                    modeToggleBtn.style.visibility = "visible";
+                    modeToggleBtn.style.opacity = "1";
+                }
+            }
+            
             // 重建3D Canvas，避免WebGL上下文冲突
             this.recreate3DCanvas(() => {
                 // Canvas重建成功后，加载Three.js
@@ -321,6 +338,23 @@ export class Game {
             
             // 切换到2D模式
             this.is3D = false;
+            
+            // iOS设备特殊处理
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (isIOS) {
+                const modeToggleBtn = document.getElementById('mode-toggle-btn');
+                if (modeToggleBtn) {
+                    // 强制设置内联样式，确保可见性
+                    modeToggleBtn.style.position = "fixed";
+                    modeToggleBtn.style.bottom = "35px";
+                    modeToggleBtn.style.right = "25px";
+                    modeToggleBtn.style.zIndex = "9999";
+                    modeToggleBtn.style.display = "block";
+                    modeToggleBtn.style.visibility = "visible";
+                    modeToggleBtn.style.opacity = "1";
+                }
+            }
             
             // 重新初始化2D上下文，避免切换时的闪烁问题
             this.canvas2d = document.getElementById('game-canvas');

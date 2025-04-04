@@ -435,7 +435,7 @@ body {
 
 /* 模式切换按钮样式 */
 .mode-toggle-btn {
-    position: absolute;
+    position: fixed;
     bottom: 15px;
     right: 15px;
     background-color: #6d1a1a;
@@ -445,9 +445,13 @@ body {
     font-size: 16px;
     cursor: pointer;
     border-radius: 5px;
-    z-index: 100;
+    z-index: 9999;
     transition: all 0.3s ease;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    display: block !important;
+    opacity: 1 !important;
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .mode-toggle-btn:hover {
@@ -462,17 +466,31 @@ body {
 /* 移动设备适配 */
 @media (max-width: 767px) {
     .mode-toggle-btn {
-        padding: 12px 20px; /* 更大的点击区域 */
-        font-size: 18px; /* 更大的字体 */
-        bottom: 25px; /* 远离底部边缘 */
-        right: 25px; /* 远离右侧边缘 */
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.7); /* 更明显的阴影 */
-        background-color: #8b2121; /* 更鲜明的背景色 */
-        z-index: 9999; /* 确保最高层级 */
+        padding: 12px 20px;
+        font-size: 18px;
+        bottom: 25px;
+        right: 25px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+        background-color: #8b2121;
+        z-index: 9999;
     }
     
-    /* 游戏控制说明在移动设备上隐藏 */
     .game-controls {
         display: none;
+    }
+}
+
+/* 针对iOS设备的特殊样式 */
+@supports (-webkit-touch-callout: none) {
+    .mode-toggle-btn {
+        position: fixed !important;
+        bottom: 35px !important;
+        right: 25px !important;
+        padding: 15px 25px !important;
+        font-size: 20px !important;
+        background-color: #b02525 !important;
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.4) !important;
+        -webkit-transform: translateZ(0);
+        border: 2px solid #ffffff !important;
     }
 }
