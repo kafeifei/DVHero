@@ -118,7 +118,7 @@ class Crissaegrim extends Weapon {
                         range: range,
                         color: '#a0f0ff',
                         width: 30,
-                        height: 2,
+                        height: 3,
                         piercing: true,
                         shape: 'rect',  // 确保投射物使用矩形形状
                     });
