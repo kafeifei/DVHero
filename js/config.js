@@ -171,7 +171,10 @@ const CONFIG = {
       scale: 0.45,
       shadows: true,
       animationSpeed: 1.0,
-      fadeTime: 0.2
+      fadeTime: 0.2,
+      attackAnimationSpeed: 1,  // 攻击动画速度
+      attackAnimationDuration: 0.5, // 攻击动画持续时间（秒）
+      isAttacking: false
     },
     
     // 敌人模型缩放
@@ -210,8 +213,8 @@ const CONFIG = {
     
     // 动画帧率控制
     updateIntervals: {
-      torchFlames: 2,             // 每2帧更新一次火把火焰
-      torchLights: 3,             // 每3帧更新一次火把光源
+      torchFlames: 10,             // 每2帧更新一次火把火焰
+      torchLights: 20,             // 每3帧更新一次火把光源
       floatingObjects: 2,         // 每2帧更新一次浮动对象
       particleEffects: 1          // 每1帧更新一次粒子效果
     }

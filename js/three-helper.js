@@ -1389,52 +1389,95 @@ export class ThreeHelper {
         foundAnimation.reset().fadeIn(fadeTime).play();
         playerGroup.userData.currentAnimation = foundName;
     }
-
-    // 更新玩家面朝方向
-    updatePlayerDirection() {
+    
+    // 播放攻击动画 - 中断任何当前动画并立即播放攻击动画
+    playAttackAnimation() {
         const player = this.objects.get('player');
-        if (!player) return;
+        if (!player || !player.userData.animations) return;
         
-        const facingDirection = this.game.player.facingDirection;
+        // 找到合适的攻击动画名称
+        let attackAnimName = 'attack';
         
-        // 如果有模型，调整其旋转
-        const model = player.userData.model;
-        if (model) {
-            if (facingDirection === 'right') {
-                model.rotation.y = Math.PI/2;
-            } else if (facingDirection === 'left') {
-                model.rotation.y = -Math.PI/2;
-            } else if (facingDirection === 'up') {
-                // 上下移动时不改变旋转方向
-                // model.rotation.y = -Math.PI;
-            } else if (facingDirection === 'down') {
-                // 上下移动时不改变旋转方向
-                // model.rotation.y = 0;
-            }
-            return;
+        // 检查可用的动画列表，查找包含attack关键字的动画
+        const availableAnimations = Object.keys(player.userData.animations);
+        const attackAnimations = availableAnimations.filter(name => 
+            name.toLowerCase().includes('attack') || 
+            name.toLowerCase().includes('slash') || 
+            name.toLowerCase().includes('swing')
+        );
+        
+        if (attackAnimations.length > 0) {
+            attackAnimName = attackAnimations[0];
+        } else if (availableAnimations.length > 0) {
+            // 如果没有找到攻击动画，使用第一个可用的动画
+            attackAnimName = availableAnimations[0];
         }
         
-        // 如果没有模型，使用旧的眼睛逻辑（备用方案）
-        const rightEye = player.userData.rightEye;
-        const leftEye = player.userData.leftEye;
+        // 获取攻击动画速度配置
+        const attackSpeed = this.getConfigValue('models.player.attackAnimationSpeed', 1.0);
         
-        if (rightEye && leftEye) {
-            const offset = player.userData.eyeOffset || 0;
+        // 获取动画混合器
+        const mixer = player.userData.mixer;
+        if (!mixer) return;
+        
+        // 查找合适的动画动作
+        let attackAction = player.userData.animations[attackAnimName];
+        if (!attackAction) return;
+        
+        // 设置动画速度 - 从配置中读取
+        attackAction.setEffectiveTimeScale(attackSpeed);
+        
+        // 保存当前正在播放的动画（非攻击动画）以便攻击结束后恢复
+        if (player.userData.currentAnimation && player.userData.currentAnimation !== attackAnimName) {
+            player.userData.lastNonAttackAnimation = player.userData.currentAnimation;
+        }
+        
+        // 获取更短的淡入时间，使攻击动画能够更快开始
+        const fadeTime = 0.1; // 使用更短的淡入时间，使动画切换更快
+        
+        // 立即淡出当前正在播放的动画
+        if (player.userData.currentAnimation && 
+            player.userData.animations[player.userData.currentAnimation]) {
+            player.userData.animations[player.userData.currentAnimation].fadeOut(fadeTime);
+        }
+        
+        // 重置并播放攻击动画
+        attackAction.reset().fadeIn(fadeTime).play();
+        player.userData.currentAnimation = attackAnimName;
+        
+        // 标记玩家正在攻击
+        player.userData.isAttacking = true;
+        
+        // 设置一个计时器，在攻击动画播放一段时间后恢复到之前的动画
+        // 根据动画速度调整实际播放时间
+        const baseDuration = this.getConfigValue('models.player.attackAnimationDuration', 0.5);
+        const attackDuration = (baseDuration / attackSpeed) * 1000;
+        
+        // 清除之前的攻击动画计时器
+        if (player.userData.attackAnimationTimer) {
+            clearTimeout(player.userData.attackAnimationTimer);
+        }
+        
+        // 设置新的计时器
+        player.userData.attackAnimationTimer = setTimeout(() => {
+            player.userData.isAttacking = false;
             
-            if (facingDirection === 'right') {
-                rightEye.position.set(offset, 0, 0);
-                leftEye.position.set(-offset, 0, 0);
-            } else if (facingDirection === 'left') {
-                rightEye.position.set(-offset, 0, 0);
-                leftEye.position.set(offset, 0, 0);
+            // 恢复到之前的动画状态
+            if (player.userData.lastNonAttackAnimation) {
+                const isMoving = this.game.player.isMoving();
+                const animToResume = isMoving ? 'walk' : 'idle';
+                this.playAnimation(player, animToResume);
             }
-        }
+        }, attackDuration);
     }
 
     // 更新玩家动画
     updatePlayerAnimation() {
         const player = this.objects.get('player');
         if (!player || !player.userData.animations) return;
+        
+        // 如果正在播放攻击动画，不要打断它
+        if (player.userData.isAttacking) return;
         
         // 检查玩家是否在移动
         const isMoving = this.game.player.isMoving();
@@ -3555,5 +3598,46 @@ export class ThreeHelper {
                 }
             }
         });
+    }
+
+    // 更新玩家面朝方向
+    updatePlayerDirection() {
+        const player = this.objects.get('player');
+        if (!player) return;
+        
+        const facingDirection = this.game.player.facingDirection;
+        
+        // 如果有模型，调整其旋转
+        const model = player.userData.model;
+        if (model) {
+            if (facingDirection === 'right') {
+                model.rotation.y = Math.PI/2;
+            } else if (facingDirection === 'left') {
+                model.rotation.y = -Math.PI/2;
+            } else if (facingDirection === 'up') {
+                // 上下移动时不改变旋转方向
+                // model.rotation.y = -Math.PI;
+            } else if (facingDirection === 'down') {
+                // 上下移动时不改变旋转方向
+                // model.rotation.y = 0;
+            }
+            return;
+        }
+        
+        // 如果没有模型，使用旧的眼睛逻辑（备用方案）
+        const rightEye = player.userData.rightEye;
+        const leftEye = player.userData.leftEye;
+        
+        if (rightEye && leftEye) {
+            const offset = player.userData.eyeOffset || 0;
+            
+            if (facingDirection === 'right') {
+                rightEye.position.set(offset, 0, 0);
+                leftEye.position.set(-offset, 0, 0);
+            } else if (facingDirection === 'left') {
+                rightEye.position.set(-offset, 0, 0);
+                leftEye.position.set(offset, 0, 0);
+            }
+        }
     }
 }

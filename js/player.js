@@ -241,6 +241,11 @@ export class Player {
         for (const weapon of this.weapons) {
             if (weapon.canAttack()) {
                 weapon.attack(this.game, this);
+                
+                // 触发攻击动画
+                if (this.game.threeHelper) {
+                    this.game.threeHelper.playAttackAnimation();
+                }
             }
         }
     }
