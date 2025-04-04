@@ -195,7 +195,7 @@ class AxeArmor extends Enemy {
 
         this.attackRange = 100;
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 2.0; // 2秒冷却（改为秒为单位）
+        this.maxAttackCooldown = 2.0; // 已改为秒为单位
     }
 
     update(game, deltaTime) {
@@ -402,11 +402,13 @@ class SpearGuard extends Enemy {
 
         this.attackRange = 120;
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 150;
+        this.maxAttackCooldown = 2.5; // 从150帧改为2.5秒
     }
 
-    update(game) {
-        super.update(game);
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
+        super.update(game, deltaTime);
 
         if (!this.alive) return;
 
@@ -424,7 +426,7 @@ class SpearGuard extends Enemy {
                 this.attackCooldown = this.maxAttackCooldown;
             }
         } else {
-            this.attackCooldown--;
+            this.attackCooldown -= 60 * deltaTime; // 基于时间减少冷却
         }
     }
 
@@ -469,11 +471,13 @@ class FireDemon extends Enemy {
 
         this.attackRange = 180;
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 120;
+        this.maxAttackCooldown = 2.0; // 从120帧改为2.0秒
     }
 
-    update(game) {
-        super.update(game);
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
+        super.update(game, deltaTime);
 
         if (!this.alive) return;
 
@@ -491,7 +495,7 @@ class FireDemon extends Enemy {
                 this.attackCooldown = this.maxAttackCooldown;
             }
         } else {
-            this.attackCooldown--;
+            this.attackCooldown -= 60 * deltaTime; // 基于时间减少冷却
         }
     }
 
@@ -507,24 +511,28 @@ class FireDemon extends Enemy {
         for (let i = -1; i <= 1; i++) {
             const spreadAngle = angle + (i * Math.PI) / 12;
 
+            const delay = i * 200 + 200; // 间隔发射，毫秒单位
             setTimeout(
                 () => {
+                    // 检查敌人是否还活着
+                    if (!this.alive || !game.isRunning || game.isPaused) return;
+                    
                     game.createEnemyProjectile({
                         x: this.x,
                         y: this.y,
                         angle: spreadAngle,
-                        speed: 4,
+                        speed: 4 * 60, // 转换为像素/秒
                         damage: this.damage,
                         range: this.attackRange,
                         color: '#ff7700',
                         width: 20,
                         height: 20,
                         shape: 'circle',
-                        duration: 120,
+                        duration: 2.0, // 从120帧改为2.0秒
                     });
                 },
-                i * 200 + 200
-            ); // 间隔发射
+                delay
+            );
         }
     }
 }
@@ -545,24 +553,26 @@ class ValhallaKnight extends Enemy {
         });
 
         this.dashCooldown = 0;
-        this.maxDashCooldown = 180;
+        this.maxDashCooldown = 3.0; // 从180帧改为3.0秒
         this.isDashing = false;
-        this.dashSpeed = 5;
+        this.dashSpeed = 5 * 60; // 转换为像素/秒
         this.dashDuration = 0;
-        this.maxDashDuration = 20;
+        this.maxDashDuration = 0.33; // 从20帧改为0.33秒
         this.dashTargetX = 0;
         this.dashTargetY = 0;
     }
 
-    update(game) {
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
         if (!this.alive) return;
 
         // 处理击退效果
         if (this.knockbackX !== 0 || this.knockbackY !== 0) {
             this.x += this.knockbackX;
             this.y += this.knockbackY;
-            this.knockbackX *= 0.8;
-            this.knockbackY *= 0.8;
+            this.knockbackX *= Math.pow(0.8, 60 * deltaTime);
+            this.knockbackY *= Math.pow(0.8, 60 * deltaTime);
 
             if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
             if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
@@ -572,15 +582,15 @@ class ValhallaKnight extends Enemy {
 
         // 冲刺攻击
         if (this.isDashing) {
-            this.dashDuration--;
+            this.dashDuration -= 60 * deltaTime; // 基于时间减少持续时间
 
             const dx = this.dashTargetX - this.x;
             const dy = this.dashTargetY - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                const moveX = (dx / distance) * this.dashSpeed;
-                const moveY = (dy / distance) * this.dashSpeed;
+                const moveX = (dx / distance) * this.dashSpeed * (60 * deltaTime);
+                const moveY = (dy / distance) * this.dashSpeed * (60 * deltaTime);
                 this.x += moveX;
                 this.y += moveY;
             }
@@ -604,8 +614,8 @@ class ValhallaKnight extends Enemy {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                const moveX = (dx / distance) * this.speed;
-                const moveY = (dy / distance) * this.speed;
+                const moveX = (dx / distance) * this.speed * deltaTime;
+                const moveY = (dy / distance) * this.speed * deltaTime;
                 this.x += moveX;
                 this.y += moveY;
             }
@@ -620,7 +630,7 @@ class ValhallaKnight extends Enemy {
                 this.startDash();
                 this.dashCooldown = this.maxDashCooldown;
             } else {
-                this.dashCooldown--;
+                this.dashCooldown -= 60 * deltaTime; // 基于时间减少冷却
             }
         }
     }
@@ -656,13 +666,15 @@ class Gorgon extends Enemy {
 
         this.petrifyRange = 150;
         this.petrifyChance = 0.3; // 石化几率
-        this.petrifyDuration = 180; // 3秒
+        this.petrifyDuration = 3.0; // 从180帧改为3.0秒
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 240;
+        this.maxAttackCooldown = 4.0; // 从240帧改为4.0秒
     }
 
-    update(game) {
-        super.update(game);
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
+        super.update(game, deltaTime);
 
         if (!this.alive) return;
 
@@ -680,7 +692,7 @@ class Gorgon extends Enemy {
                 this.attackCooldown = this.maxAttackCooldown;
             }
         } else {
-            this.attackCooldown--;
+            this.attackCooldown -= 60 * deltaTime; // 基于时间减少冷却
         }
     }
 
@@ -698,7 +710,7 @@ class Gorgon extends Enemy {
             color: '#ffff00',
             width: 20,
             height: 20,
-            duration: 60,
+            duration: 1.0, // 从60帧改为1.0秒
             onHit: (target) => {
                 // 尝试石化目标
                 if (Math.random() < this.petrifyChance) {
@@ -728,13 +740,15 @@ class Guardian extends Enemy {
 
         this.attackPhase = 0; // 攻击阶段
         this.attackCooldown = 0;
-        this.maxAttackCooldown = 120;
+        this.maxAttackCooldown = 2.0; // 从120帧改为2.0秒
         this.specialCooldown = 0;
-        this.maxSpecialCooldown = 600; // 10秒特殊攻击冷却
+        this.maxSpecialCooldown = 10.0; // 从600帧改为10.0秒
     }
 
-    update(game) {
-        super.update(game);
+    update(game, deltaTime) {
+        deltaTime = deltaTime || 1/60;
+        
+        super.update(game, deltaTime);
 
         if (!this.alive) return;
 
@@ -743,7 +757,7 @@ class Guardian extends Enemy {
             this.attack(game);
             this.attackCooldown = this.maxAttackCooldown;
         } else {
-            this.attackCooldown--;
+            this.attackCooldown -= 60 * deltaTime; // 基于时间减少冷却
         }
 
         // 特殊攻击
@@ -751,7 +765,7 @@ class Guardian extends Enemy {
             this.specialAttack(game);
             this.specialCooldown = this.maxSpecialCooldown;
         } else {
-            this.specialCooldown--;
+            this.specialCooldown -= 60 * deltaTime; // 基于时间减少冷却
         }
     }
 
@@ -857,28 +871,28 @@ class Guardian extends Enemy {
                 x: this.x,
                 y: this.y,
                 angle: angle,
-                speed: 2,
+                speed: 2 * 60, // 转换为像素/秒
                 damage: this.damage * 3,
                 range: 400,
                 color: '#ff00ff',
                 width: 80,
                 height: 30,
-                duration: 120,
+                duration: 2.0, // 从120帧改为2.0秒
                 piercing: true,
-                onUpdate: (proj) => {
-                    // 创建粒子效果
-                    if (game.frameCount % 3 === 0) {
+                onUpdate: (proj, deltaTime) => {
+                    // 创建粒子效果 - 改为基于时间的频率
+                    if (Math.random() < 0.2 * (60 * deltaTime)) { // 大约每5帧一次，现在是每0.08秒约20%的概率
                         game.createParticle(
                             proj.x + (Math.random() * 60 - 30),
                             proj.y + (Math.random() * 20 - 10),
                             '#ff80ff',
                             10,
-                            30
+                            0.5 // 从30帧改为0.5秒
                         );
                     }
                 },
             });
-        }, 2000); // 2秒预警时间
+        }, 2000); // 2秒预警时间（毫秒）
     }
 }
 

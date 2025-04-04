@@ -289,7 +289,7 @@ export class Player {
             x: this.x,
             y: this.y,
             color: '#ff0000',
-            duration: 20,
+            duration: 0.33, // 从20帧改为0.33秒
             radius: this.radius * 1.5,
         });
 
@@ -365,8 +365,10 @@ export class Player {
     draw(ctx) {
         // 绘制玩家
         if (this.invulnerable) {
-            // 无敌状态闪烁效果
-            if (Math.floor(this.invulnerabilityTimer / 5) % 2 === 0) {
+            // 无敌状态闪烁效果 - 不再基于帧数
+            const flashFrequency = 10; // 闪烁频率 (Hz)
+            const time = performance.now() / 1000; // 转换为秒
+            if (Math.floor(time * flashFrequency) % 2 === 0) {
                 ctx.globalAlpha = 0.5;
             }
         }
