@@ -33,15 +33,29 @@ export class ThreeHelper {
         
         // 使用PerspectiveCamera创建相机
         this.camera = new THREE.PerspectiveCamera(
-            30, // 减小视场角(FOV)，从45减小到30，使画面更像正交投影
+            this.getConfigValue('camera.fov', 30), // 使用配置中的FOV
             aspectRatio, // 画布宽高比
-            10, // 近裁剪面
-            3000 // 远裁剪面，增加到3000确保能看到更远的内容
+            this.getConfigValue('camera.near', 10), // 使用配置中的近裁剪面
+            this.getConfigValue('camera.far', 3000) // 使用配置中的远裁剪面
         );
 
+        // 从配置中获取相机位置
+        const cameraPos = this.getConfigValue('camera.position', {
+            x: 0,
+            y: 1500,
+            z: 1000
+        });
+        
+        // 从配置中获取相机焦点
+        const cameraLookAt = this.getConfigValue('camera.lookAt', {
+            x: 0,
+            y: 0,
+            z: 0
+        });
+
         // 将相机位置设置为略微向前倾斜的视角，但调整角度使游戏更易看清
-        this.camera.position.set(0, 1500, 1000); // 增大高度从700到1500，让视野更开阔
-        this.camera.lookAt(0, 0, 0);
+        this.camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
+        this.camera.lookAt(cameraLookAt.x, cameraLookAt.y, cameraLookAt.z);
         
         // 设置相机阴影参数
         this.camera.updateProjectionMatrix();
@@ -1945,14 +1959,27 @@ export class ThreeHelper {
         const targetX = player.position.x;
         const targetZ = player.position.z;
         
-        // 设置相机位置，保持固定的高度和偏移角度
-        // 透视相机跟随玩家，但保持一定高度和前方偏移以获得俯视效果
-        this.camera.position.x = targetX;
-        this.camera.position.y = 1500; // 增大高度，从600到1500
-        this.camera.position.z = targetZ + 1000; // 增大Z轴偏移，从600到1000
+        // 获取配置中的相机参数
+        const cameraHeight = this.getConfigValue('camera.position.y', 1500);
+        const cameraZOffset = this.getConfigValue('camera.position.z', 1000) - this.getConfigValue('camera.lookAt.z', 0);
+        const enableSmoothFollow = this.getConfigValue('camera.enableSmoothFollow', false);
+        const followSpeed = this.getConfigValue('camera.followSpeed', 0.1);
         
-        // 始终让相机看向玩家位置，但保持垂直俯视感
-        this.camera.lookAt(targetX, 0, targetZ);
+        if (enableSmoothFollow) {
+            // 应用平滑跟随，通过线性插值实现
+            this.camera.position.x += (targetX - this.camera.position.x) * followSpeed;
+            this.camera.position.z += ((targetZ + cameraZOffset) - this.camera.position.z) * followSpeed;
+        } else {
+            // 直接设置相机位置，没有平滑过渡
+            this.camera.position.x = targetX;
+            this.camera.position.z = targetZ + cameraZOffset;
+        }
+        
+        // 保持固定高度
+        this.camera.position.y = cameraHeight;
+        
+        // 始终让相机看向玩家位置的Y=0平面，保持垂直俯视感
+        this.camera.lookAt(targetX, this.getConfigValue('camera.lookAt.y', 0), targetZ);
     }
 
     // 更新场景状态，添加调试信息
@@ -3333,8 +3360,19 @@ export class ThreeHelper {
         
         // 调整相机视角以增强3D透视效果
         // 当相机初始设置完成后，微调偏移角度以获得更好的透视效果
-        this.camera.position.set(0, 1500, 1000); // 保持与构造函数中相同的位置设置
-        this.camera.lookAt(0, 0, 0); // 直接看向原点
+        const cameraPos = this.getConfigValue('camera.position', {
+            x: 0,
+            y: 1500,
+            z: 1000
+        });
+        const cameraLookAt = this.getConfigValue('camera.lookAt', {
+            x: 0,
+            y: 0,
+            z: 0
+        });
+        
+        this.camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
+        this.camera.lookAt(cameraLookAt.x, cameraLookAt.y, cameraLookAt.z);
         this.camera.updateProjectionMatrix();
         
         console.log('Three.js场景初始化完成');

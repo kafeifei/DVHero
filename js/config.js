@@ -132,7 +132,8 @@ const CONFIG = {
       z: 1000                  // 相机Z轴偏移
     },
     lookAt: { x: 0, y: 0, z: 0 }, // 焦点位置
-    followSpeed: 0.1           // 跟随速度(0-1)
+    followSpeed: 0.1,           // 跟随速度(0-1)
+    enableSmoothFollow: false   // 是否启用平滑跟随(可能导致视觉晕眩)
   },
   
   // 场景设置

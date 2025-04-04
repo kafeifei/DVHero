@@ -32,13 +32,13 @@
 - [x] 优化火把光源动画更新频率 (`CONFIG.animations.updateIntervals.torchLights`)
 
 ## 5. 相机优化
-- [ ] 修改相机参数：
-  - [ ] 视场角 (`CONFIG.camera.fov`)
-  - [ ] 近裁剪面 (`CONFIG.camera.near`)
-  - [ ] 远裁剪面 (`CONFIG.camera.far`)
-  - [ ] 位置 (`CONFIG.camera.position`)
-  - [ ] 焦点 (`CONFIG.camera.lookAt`)
-- [ ] 实现平滑相机跟随 (`CONFIG.camera.followSpeed`)
+- [x] 修改相机参数：
+  - [x] 视场角 (`CONFIG.camera.fov`)
+  - [x] 近裁剪面 (`CONFIG.camera.near`)
+  - [x] 远裁剪面 (`CONFIG.camera.far`)
+  - [x] 位置 (`CONFIG.camera.position`)
+  - [x] 焦点 (`CONFIG.camera.lookAt`)
+- [x] 实现平滑相机跟随 (`CONFIG.camera.followSpeed`)
 
 ## 6. 场景管理优化
 - [ ] 修改场景背景色 (`CONFIG.scene.backgroundColor`)
