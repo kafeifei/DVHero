@@ -2113,7 +2113,10 @@ export class ThreeHelper {
 
             // 更新相机位置
             this.updateCamera();
-
+            
+            // 更新自定义动画系统
+            this.updateAnimations();
+            
             // 执行渲染
             this.renderer.render(this.scene, this.camera);
             
@@ -4004,6 +4007,211 @@ export class ThreeHelper {
             console.log(`创建了 ${createdCount} 个背景对象`);
         } catch (e) {
             console.error(`创建背景对象时出错: ${e.message}`);
+        }
+    }
+
+    // 创建阿鲁卡多之剑粒子效果（参考恶魔城月下夜想曲）
+    createAluCardSwordEffect(x, y, radius, color, isCharged = false) {
+        // 决定粒子数量 - 蓄力攻击有更多粒子
+        const particleCount = isCharged ? 20 : 8;
+        
+        // 创建粒子组
+        for (let i = 0; i < particleCount; i++) {
+            // 随机粒子位置偏移（蓄力时范围更大）
+            const offsetRange = isCharged ? 10 : 5;
+            const xOffset = (Math.random() * 2 - 1) * offsetRange;
+            const yOffset = (Math.random() * 2 - 1) * offsetRange;
+            
+            // 创建粒子几何体 - 使用小型的平面
+            const particleSize = isCharged ? 1.5 + Math.random() * 3 : 0.8 + Math.random() * 1.5;
+            const geometry = new THREE.PlaneGeometry(particleSize, particleSize);
+            
+            // 发光材质 - 蓄力攻击更亮
+            const emissiveIntensity = isCharged ? 2.0 : 1.2;
+            const material = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(color),
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide,
+            });
+            
+            // 创建粒子网格
+            const particle = new THREE.Mesh(geometry, material);
+            
+            // 设置位置 - 稍微升高以避免与地面碰撞
+            particle.position.set(
+                x + xOffset,
+                2 + Math.random() * 3, // 高度在2-5之间
+                y + yOffset
+            );
+            
+            // 随机旋转粒子
+            particle.rotation.x = Math.random() * Math.PI;
+            particle.rotation.y = Math.random() * Math.PI;
+            particle.rotation.z = Math.random() * Math.PI;
+            
+            // 添加到场景
+            this.scene.add(particle);
+            
+            // 创建动画 - 短暂持续并褪色
+            const duration = isCharged ? 0.5 : 0.33; // 秒
+            let elapsed = 0;
+            
+            // 每个粒子初始速度方向
+            const speedX = (Math.random() * 2 - 1) * (isCharged ? 30 : 15);
+            const speedY = (Math.random() * 2 - 1) * (isCharged ? 30 : 15);
+            const speedZ = (Math.random() * 2 - 1) * (isCharged ? 10 : 5) + 5; // 有向上的趋势
+            
+            // 动画函数
+            const animate = (delta) => {
+                elapsed += delta;
+                
+                if (elapsed < duration) {
+                    // 移动粒子
+                    particle.position.x += speedX * delta;
+                    particle.position.y += speedZ * delta;
+                    particle.position.z += speedY * delta;
+                    
+                    // 随着时间减小不透明度
+                    const fadeRatio = 1 - (elapsed / duration);
+                    particle.material.opacity = fadeRatio * 0.8;
+                    
+                    // 稍微缩小粒子
+                    const scaleRatio = 1 - (elapsed / duration) * 0.3;
+                    particle.scale.set(scaleRatio, scaleRatio, scaleRatio);
+                    
+                    // 继续下一帧
+                    return true;
+                } else {
+                    // 动画结束，清理资源
+                    this.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                    
+                    // 不再继续
+                    return false;
+                }
+            };
+            
+            // 添加到动画系统
+            this.addAnimation(animate);
+        }
+    }
+    
+    // 创建盾之杖效果（参考恶魔城月下夜想曲）
+    createShieldRodEffect(x, y, radius, color) {
+        // 创建盾牌光环 - 使用圆环几何体
+        const ringGeometry = new THREE.RingGeometry(radius * 0.7, radius, 24, 1);
+        ringGeometry.rotateX(-Math.PI / 2); // 使其水平
+        
+        // 半透明发光材质
+        const ringMaterial = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(color),
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide,
+        });
+        
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.position.set(x, 1, y); // 略高于地面
+        
+        // 添加到场景
+        this.scene.add(ring);
+        
+        // 创建内部扩散效果 - 使用平面几何体
+        const innerGeometry = new THREE.CircleGeometry(radius * 0.65, 24);
+        innerGeometry.rotateX(-Math.PI / 2); // 使其水平
+        
+        // 内部更亮的材质
+        const innerMaterial = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xffffff),
+            transparent: true,
+            opacity: 0.4,
+            side: THREE.DoubleSide,
+        });
+        
+        const inner = new THREE.Mesh(innerGeometry, innerMaterial);
+        inner.position.set(x, 0.5, y); // 略低于外环
+        
+        // 添加到场景
+        this.scene.add(inner);
+        
+        // 动画持续时间
+        const duration = 0.25; // 秒
+        let elapsed = 0;
+        
+        // 动画函数
+        const animate = (delta) => {
+            elapsed += delta;
+            
+            if (elapsed < duration) {
+                // 计算动画进度比例
+                const ratio = elapsed / duration;
+                
+                // 扩大光环
+                const scale = 1 + ratio * 1.5;
+                ring.scale.set(scale, scale, scale);
+                
+                // 扩大内部圆
+                const innerScale = 1 + ratio * 1.8;
+                inner.scale.set(innerScale, innerScale, innerScale);
+                
+                // 逐渐降低不透明度
+                ring.material.opacity = 0.7 * (1 - ratio);
+                inner.material.opacity = 0.4 * (1 - ratio);
+                
+                // 继续下一帧
+                return true;
+            } else {
+                // 动画结束，清理资源
+                this.scene.remove(ring);
+                this.scene.remove(inner);
+                ring.geometry.dispose();
+                ring.material.dispose();
+                inner.geometry.dispose();
+                inner.material.dispose();
+                
+                // 不再继续
+                return false;
+            }
+        };
+        
+        // 添加到动画系统
+        this.addAnimation(animate);
+    }
+    
+    // 动画系统 - 用于管理自定义动画
+    addAnimation(animateFunc) {
+        if (!this.animations) {
+            this.animations = [];
+        }
+        
+        // 添加到动画队列
+        this.animations.push({
+            animate: animateFunc,
+            lastTime: performance.now() / 1000 // 初始时间（秒）
+        });
+    }
+    
+    // 更新所有动画 - 在render方法内调用
+    updateAnimations() {
+        if (!this.animations || this.animations.length === 0) return;
+        
+        const currentTime = performance.now() / 1000; // 当前时间（秒）
+        
+        // 遍历所有动画
+        for (let i = this.animations.length - 1; i >= 0; i--) {
+            const anim = this.animations[i];
+            const delta = currentTime - anim.lastTime; // 计算时间差（秒）
+            
+            // 调用动画函数并更新时间
+            const shouldContinue = anim.animate(delta);
+            anim.lastTime = currentTime;
+            
+            // 如果动画结束，从队列中移除
+            if (!shouldContinue) {
+                this.animations.splice(i, 1);
+            }
         }
     }
 }

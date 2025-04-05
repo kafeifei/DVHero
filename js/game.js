@@ -1634,6 +1634,18 @@ export class Game {
 
     createParticle(x, y, color, size, lifetime) {
         this.particles.push(new Particle(x, y, color, size, lifetime));
+        
+        // 在3D模式下创建对应的粒子效果
+        if (this.is3D && this.threeHelper) {
+            // 根据颜色判断粒子类型
+            if (color === '#ffffff') {
+                // 阿鲁卡多之剑的满蓄力粒子效果
+                this.threeHelper.createAluCardSwordEffect(x, y, size * 2, color, true);
+            } else if (color.startsWith('hsl(')) {
+                // 阿鲁卡多之剑的蓄力过程粒子效果
+                this.threeHelper.createAluCardSwordEffect(x, y, size * 2, color, false);
+            }
+        }
     }
 
     createEffect(options) {
@@ -1654,6 +1666,9 @@ export class Game {
             } else if (options.color === '#ff0000') {
                 // 受伤效果
                 // TODO: 可以添加受伤特效的3D实现
+            } else if (options.color === 'rgba(100, 180, 255, 0.5)') {
+                // 盾之杖的光环效果
+                this.threeHelper.createShieldRodEffect(options.x, options.y, options.radius, '#40a0ff');
             }
         }
     }
