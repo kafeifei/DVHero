@@ -503,7 +503,7 @@ class RuneSword extends Weapon {
             x: player.x,
             y: player.y,
             angle: angle,
-            speed: 4,  // 降低运行速度一倍，从9降到4.5
+            speed: 4,
             damage: this.getDamage(),
             range: 350,
             color: '#a040ff',

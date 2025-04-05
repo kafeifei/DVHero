@@ -87,8 +87,8 @@ export class Projectile {
 
         // 返回逻辑
         if (this.returning) {
-            // 修复：将returnAfter从帧数转换为秒数，以支持基于时间的返回逻辑
-            const returnAfterInSeconds = this.returnAfter / 60;
+            // 修改：returnAfter现在已经是秒数，不需要转换
+            const returnAfterInSeconds = this.returnAfter;
             
             if (this.returnTimer < returnAfterInSeconds) {
                 this.returnTimer += deltaTime;
