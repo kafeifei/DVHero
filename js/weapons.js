@@ -217,7 +217,7 @@ class ShieldRod extends Weapon {
             y: player.y,
             color: 'rgba(100, 180, 255, 0.5)',
             radius: 30,
-            duration: 15,
+            duration: 0.25,
         });
 
         this.resetCooldown();
@@ -296,7 +296,7 @@ class AluCardSword extends Weapon {
                     player.y,
                     '#ffffff',
                     1 + Math.random() * 3,
-                    30
+                    0.5
                 );
             }
 
@@ -340,7 +340,7 @@ class AluCardSword extends Weapon {
                     player.y + (Math.random() * 30 - 15),
                     particleColor,
                     1 + Math.random() * 2,
-                    20
+                    0.33
                 );
             }
         }
@@ -513,7 +513,7 @@ class RuneSword extends Weapon {
             shape: 'rune',
             rotateSpeed: 0.6,
             returning: true,
-            returnAfter: 80,
+            returnAfter: 1.33, // 从80帧改为1.33秒
             returnTarget: player,
         });
 
@@ -626,7 +626,7 @@ class SwordOfDawn extends Weapon {
 
     summonSoldiers(game, player) {
         const soldierCount = 2 + Math.floor(this.level / 2); // 等级越高召唤越多
-        const duration = 600; // 10秒存在时间
+        const duration = 10; // 从600帧改为10秒
 
         for (let i = 0; i < soldierCount; i++) {
             // 随机位置
@@ -735,7 +735,7 @@ class FistOfTulkas extends Weapon {
             height: width / 2,
             piercing: false,
             knockback: this.comboCount === 3 ? 30 : 10,
-            duration: 10, // 非常短的持续时间
+            duration: 0.17, // 从10帧改为0.17秒
         });
 
         this.resetCooldown();

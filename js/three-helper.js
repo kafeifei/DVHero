@@ -1188,7 +1188,8 @@ export class ThreeHelper {
                     }
                     
                     // 调整模型大小和位置
-                    fbx.scale.set(0.45, 0.45, 0.45); // 从0.35增加到0.45，使主角稍微大一些
+                    const playerScale = this.getConfigValue('models.player.scale', 0.45);
+                    fbx.scale.set(playerScale, playerScale, playerScale); // 使用配置中的缩放值
                     fbx.position.y = 0; // 调整为负值，确保底部接触地面
                     
                     
@@ -1416,7 +1417,7 @@ export class ThreeHelper {
         }
         
         // 获取更短的淡入时间，使攻击动画能够更快开始
-        const fadeTime = 0.1; // 使用更短的淡入时间，使动画切换更快
+        const fadeTime = 0; // 使用更短的淡入时间，使动画切换更快
         
         // 立即淡出当前正在播放的动画
         if (player.userData.currentAnimation && 
@@ -1424,8 +1425,9 @@ export class ThreeHelper {
             player.userData.animations[player.userData.currentAnimation].fadeOut(fadeTime);
         }
         
-        // 重置并播放攻击动画
-        attackAction.reset().fadeIn(fadeTime).play();
+        // 重置并从第15帧开始播放攻击动画
+        attackAction.reset();
+        attackAction.time = 16/30; // 假设动画是30fps,设置到第15帧
         player.userData.currentAnimation = attackAnimName;
         
         // 标记玩家正在攻击
@@ -3524,7 +3526,11 @@ export class ThreeHelper {
                     const model = gltf.scene;
                     
                     // 调整模型大小和位置
-                    model.scale.set(115, 115, 115); // 从90增加到115，使主角稍微大一些
+                    // GLTF模型需要的缩放系数与FBX不同，大约是255倍
+                    const playerScale = this.getConfigValue('models.player.scale', 0.45);
+                    const gltfScaleFactor = 255; // 转换系数：GLTF模型需要的比例是FBX模型的约255倍
+                    const scaledValue = playerScale * gltfScaleFactor;
+                    model.scale.set(scaledValue, scaledValue, scaledValue);
                     model.position.y = 0; // 调整为负值，确保底部接触地面
                     
                     // 为模型及其所有子对象启用阴影

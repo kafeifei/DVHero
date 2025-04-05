@@ -173,12 +173,12 @@ const CONFIG = {
   models: {
     // 玩家模型
     player: {
-      scale: 0.45,
+      scale: 0.55,
       shadows: true,
       animationSpeed: 1.0,
       fadeTime: 0.2,
       attackAnimationSpeed: 1,  // 攻击动画速度
-      attackAnimationDuration: 0.5, // 攻击动画持续时间（秒）
+      attackAnimationDuration: 0.6, // 攻击动画持续时间（秒）
       isAttacking: false
     },
     
